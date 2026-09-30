@@ -14,8 +14,8 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | A | Editor a blocchi annidati | Esistente | existing |
 | B | Modello dati interfaccia e capacità | Esistente | existing |
 | C | Import ed export JSON manuale | Esistente | existing |
-| 1 | Salvataggio automatico del progetto | Foundation | in-progress |
-| 2 | Libreria su disco con changelog | Foundation | planned |
+| 1 | Salvataggio automatico del progetto | Foundation | done |
+| 2 | Libreria su disco con changelog | Foundation | done |
 | 3 | Import requisiti cliente | Slice 1 | planned |
 | 4 | Controllo di coerenza | Slice 2 | planned |
 | 5 | Gerarchia dei requisiti | Slice 3 | planned |
@@ -39,7 +39,7 @@ Esporta modello, libreria e standalone come download; carica libreria o progetto
 
 ## Foundations
 
-### 1. Salvataggio automatico del progetto · in-progress
+### 1. Salvataggio automatico del progetto · done
 Ogni modifica riscrive su disco il file del progetto su cui stai lavorando, così non perdi mai il lavoro e il JSON resta la fonte di verità.
 **Done when:** apri un progetto dalla cartella, ogni modifica (blocco, filo, porta, testo) lo aggiorna su disco entro pochi secondi, e se il salvataggio fallisce lo vedi subito.
 spec [0001](../specs/0001-salvataggio-automatico-progetto/index.md) · code in `start.py`, `js/progetto.js`
@@ -50,12 +50,20 @@ spec [0001](../specs/0001-salvataggio-automatico-progetto/index.md) · code in `
   - [x] Errori e conflitti: banner, ritentativi, Ricarica o Sovrascrivi (AC-6, AC-7)
   - [x] Versioni, Annulla e Ripeti (AC-8, AC-9, AC-10)
   - [x] Menu Progetto e rimozione dei vecchi pulsanti (AC-11, AC-12, AC-13, AC-14, AC-15)
-- [ ] Verify it: `/check verify salvataggio automatico del progetto`
+- [x] Verify it: `/check verify salvataggio automatico del progetto`
 
-### 2. Libreria su disco con changelog · needs a decision
+### 2. Libreria su disco con changelog · done
 Ogni modifica alla libreria la salva su disco e aggiunge una voce a un changelog versionato, così sai sempre cosa è cambiato, quando e in quale versione.
 **Done when:** salvando un blocco la libreria si aggiorna su disco, la versione avanza e il changelog registra blocco, requisiti toccati e tipo di modifica; puoi leggere il changelog dall'app.
-- [ ] Design it (spec): `/architect libreria su disco con changelog`
+spec [0002](../specs/0002-libreria-disco-changelog/index.md) · code in `start.py`, `js/libreria.js`
+- [x] Design it (spec): `/architect libreria su disco con changelog`
+- [x] Build it: `/develop libreria su disco con changelog`
+  - [x] Filo minimo dal Salva al disco con una voce: API `apri` e `salva` in `start.py`, `js/libreria.js`, Salva prima su disco poi in memoria, pulizia di `libreriaModificata` (AC-1, AC-2, AC-3, AC-4, AC-5, AC-14, AC-15)
+  - [x] Livello scelto, motivo e versione a vista (AC-4, AC-6, AC-13)
+  - [x] Conflitti, modifiche esterne e copie di sicurezza (AC-7, AC-8, AC-9, AC-10)
+  - [x] Sola lettura (AC-11, AC-14)
+  - [x] Finestra Changelog e Storia (AC-12)
+- [x] Verify it: `/check verify libreria su disco con changelog`
 
 ## Slice 1: Requisiti cliente
 
@@ -115,6 +123,7 @@ Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Export Word o PDF**: i documenti MIL-STD-498 anche in formato Word · needs a decision
 - **Libreria condivisa tra più persone**: cartella di rete con gestione dei conflitti · needs a decision
 - **Coerenza avanzata**: metodo di verifica mancante, testi senza documento, requisiti orfani per documento · needs a decision
+- **Annulla della libreria**: ripristinare una copia di `_versioni/` con la sua voce di changelog, from spec 0002 · needs a decision
 - **Distribuzione dell'exe**: pacchetto pronto con tutti i file accanto a `start.exe`
 
 ## Legend

@@ -6,6 +6,7 @@ export let appSettings = null;
 const DEFAULT_SETTINGS = {
     libraryPath: "shared/libreria.json",
     progetti: { debounceMs: 1000, versioni: 3 },
+    libreria: { versioni: 3 },
     grid: { size: 20 },
     node: { width: 160, height: 60, selectedBorderColor: "#0078d4" },
     parentBlock: { radius: 28 },
@@ -75,6 +76,7 @@ export async function loadSettings() {
         ...DEFAULT_SETTINGS,
         ...caricate,
         progetti: { ...DEFAULT_SETTINGS.progetti, ...caricate.progetti },
+        libreria: { ...DEFAULT_SETTINGS.libreria, ...caricate.libreria },
         grid: { ...DEFAULT_SETTINGS.grid, ...caricate.grid },
         node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
         parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },

@@ -5,6 +5,7 @@ import { render } from './renderer.js';
 import { openLibraryBlock } from './inspector.js';
 import { normalizzaLibreria, trovaIdRequisitiDuplicati } from './model.js';
 import { escapeHtml } from './utils.js';
+import { apriLibreria } from './libreria.js';
 
 // Sostituisce la libreria corrente convertendola al formato attuale; segnala gli id requisito duplicati
 export function impostaLibreria(dati) {
@@ -16,19 +17,12 @@ export function impostaLibreria(dati) {
     initLibrary();
 }
 
+// Passa per l'API delle librerie (js/libreria.js); restituisce { ok, messaggio }
 export async function loadLibraryFromPath(path) {
-    if (!path) return false;
-    try {
-        const response = await fetch(path);
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-        impostaLibreria(await response.json());
-        render();
-        return true;
-    } catch (err) {
-        console.warn(`Impossibile caricare la libreria da path '${path}':`, err);
-    }
-    return false;
+    const esito = await apriLibreria(path);
+    if (esito.ok) render();
+    else console.warn(`Impossibile caricare la libreria da path '${path}': ${esito.messaggio}`);
+    return esito;
 }
 
 function corrispondeRicerca(typeId, blockDef, query) {

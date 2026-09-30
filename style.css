@@ -107,3 +107,25 @@ svg { width: 100%; flex: 1; display: block; }
 .progetto-aperto { font-weight: bold; }
 .progetto-danneggiato { color: #999; }
 .elenco-avviso { color: #c0392b; font-weight: bold; margin: 0 0 10px; }
+
+/* Libreria su disco: versione, sola lettura, pulsanti disabilitati dell'ispettore */
+.testata-libreria { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.testata-libreria h3 { margin: 0 0 8px; }
+.versione-libreria { font-size: 11px; font-weight: normal; color: #555; background: #eef2f6; border: 1px solid #d0d7de; border-radius: 8px; padding: 1px 6px; vertical-align: middle; }
+.pulsante-changelog { background: #f8f9fa; border: 1px solid #ccc; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.pulsante-changelog:disabled { opacity: 0.45; cursor: default; }
+.etichetta-sola-lettura { display: inline-block; font-size: 11px; font-weight: bold; color: #7a5b00; background: #fff3cd; border: 1px solid #ffe08a; border-radius: 3px; padding: 2px 6px; margin-bottom: 8px; cursor: help; }
+.etichetta-sola-lettura[hidden] { display: none; }
+#btnSaveBlockToLib:disabled, #btnCreateCopy:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Finestra Changelog */
+.filtro-changelog { width: 100%; padding: 6px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+.voce-changelog { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 12px; }
+.voce-testata { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.voce-origine, .voce-livello { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: #eef2f6; }
+.origine-esterna { background: #fff3cd; color: #7a5b00; }
+.livello-major { background: #fdecea; color: #c0392b; font-weight: bold; }
+.livello-minor { background: #e3f2fd; color: #0d47a1; }
+.voce-nota { margin-top: 4px; font-style: italic; color: #444; }
+.voce-modifiche { margin: 4px 0 0; padding-left: 18px; }
+.voce-modifiche ul { margin: 2px 0; padding-left: 18px; }

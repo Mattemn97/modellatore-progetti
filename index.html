@@ -41,8 +41,13 @@
     <div class="main-area">
         <!-- COLONNA SINISTRA (1/5): Solo Libreria -->
         <div class="side-panel left-panel" id="libraryPanel">
-            <h3>Libreria Blocchi</h3>
-            
+            <!-- Versione, sola lettura e changelog della libreria su disco (js/libreria.js) -->
+            <div class="testata-libreria">
+                <h3>Libreria Blocchi <span id="versioneLibreria" class="versione-libreria"></span></h3>
+                <button id="btnChangelog" class="pulsante-changelog" disabled>📜 Changelog</button>
+            </div>
+            <div id="etichettaSolaLettura" class="etichetta-sola-lettura" hidden>Sola lettura</div>
+
             <!-- Configurazione e ricarica da Path/URL -->
             <div style="margin-bottom: 10px; background: #f0f4f8; padding: 8px; border-radius: 4px; border: 1px solid #d0d7de;">
                 <label style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px;">Percorso / URL Libreria:</label>

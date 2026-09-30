@@ -2,10 +2,9 @@
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
 import { render } from './renderer.js';
-import { initLibrary } from './builder.js';
 import { escapeHtml, slugifyId } from './utils.js';
 import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti } from './model.js';
-import { segnaLibreriaModificata } from './progetto.js';
+import { salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog } from './libreria.js';
 
 const propsContent = document.getElementById('propsContent');
 
@@ -91,7 +90,10 @@ function renderEditorForm(data) {
             </div>
 
             <div class="prop-item">
-                <strong>${data.isNew ? 'ID Blocco Generato' : 'ID Blocco di Libreria'}</strong>
+                <strong style="display:flex; justify-content:space-between;">
+                    ${data.isNew ? 'ID Blocco Generato' : 'ID Blocco di Libreria'}
+                    ${!data.isNew ? `<a href="#" id="lnkStoria" title="Voci del changelog che toccano questo blocco" style="font-weight:normal; font-size:11px;">📜 Storia</a>` : ''}
+                </strong>
                 <input type="text" id="edtBlockId" value="${data.isNew ? '' : escapeHtml(data.blockId)}" ${data.isNew ? 'readonly' : 'disabled'} placeholder="Generato dal titolo..." style="width:100%; padding:5px; box-sizing:border-box; background:#f0f4f8;">
             </div>
 
@@ -123,6 +125,21 @@ function renderEditorForm(data) {
             <hr style="border:0; border-top:1px solid #ddd; margin:8px 0;">
 
             <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; gap:6px;">
+                    <div class="prop-item" style="flex:0 0 90px;">
+                        <strong>Livello</strong>
+                        <select id="edtLivello" title="Livello della versione: uno più basso di quello calcolato viene ignorato" style="width:100%; padding:4px; box-sizing:border-box;">
+                            <option value="auto" selected>Automatico</option>
+                            <option value="patch">Patch</option>
+                            <option value="minor">Minor</option>
+                            <option value="major">Major</option>
+                        </select>
+                    </div>
+                    <div class="prop-item" style="flex:1; min-width:0;">
+                        <strong>Motivo della modifica</strong>
+                        <input type="text" id="edtNotaModifica" maxlength="2000" placeholder="Facoltativo, finisce nel changelog" style="width:100%; padding:5px; box-sizing:border-box;">
+                    </div>
+                </div>
                 <button id="btnSaveBlockToLib" style="background:#2ecc71; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
                     ${data.isNew ? '💾 Salva in Libreria' : '🔄 Aggiorna Blocco di Libreria'}
                 </button>
@@ -142,6 +159,13 @@ function renderEditorForm(data) {
     `;
 
     propsContent.innerHTML = html;
+    // Sola lettura, conflitto della libreria o salvataggio in corso
+    aggiornaPulsantiLibreria();
+
+    document.getElementById('lnkStoria')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        mostraChangelog(data.blockId);
+    });
 
     const titoloInput = document.getElementById('edtBlockTitolo');
     const idInput = document.getElementById('edtBlockId');
@@ -252,7 +276,8 @@ function renderEditorForm(data) {
         };
     }
 
-    document.getElementById('btnSaveBlockToLib').addEventListener('click', () => {
+    // Prima il disco, poi la memoria: libreria, progetto e albero cambiano solo dopo la risposta positiva del server
+    document.getElementById('btnSaveBlockToLib').addEventListener('click', async () => {
         const campi = leggiCampiBlocco();
         const blockId = data.isNew ? slugifyId(campi.titolo) : data.blockId;
 
@@ -273,29 +298,48 @@ function renderEditorForm(data) {
         const errore = validaRequisiti(requisiti, blockId);
         if (errore) return alert(errore);
 
-        appState.library[blockId] = { id: blockId, ...campi, requisiti };
-        segnaLibreriaModificata();
-
-        let filiRimossi = 0;
+        const mappaRinomina = {};
         if (!data.isNew) {
-            const mappaRinomina = {};
             currentReqs.forEach(r => {
                 if (r._idOriginale && r._idOriginale !== r.id) mappaRinomina[r._idOriginale] = r.id;
             });
-            filiRimossi = aggiornaRiferimentiRequisiti(pathStack[0].graph, appState.library, blockId, mappaRinomina);
-
-            if (data.nodeId) {
-                const node = getCurrentLevel().graph.nodes.find(n => n.id === data.nodeId);
-                if (node) node.label = campi.titolo;
-            }
         }
 
-        initLibrary();
-        render();
-        openLibraryBlock(blockId, data.nodeId || null);
-        alert(filiRimossi > 0
-            ? `Blocco salvato. ${filiRimossi} collegamenti rimossi perché i requisiti sono stati eliminati o non sono più compatibili.`
-            : "Blocco salvato con successo!");
+        // Chiamata dopo che la libreria su disco è stata scritta e adottata in appState.library
+        const alSuccesso = (risposta) => {
+            if (risposta.invariata) {
+                alert("Nessuna modifica da salvare");
+                return;
+            }
+            let filiRimossi = 0;
+            if (!data.isNew) {
+                filiRimossi = aggiornaRiferimentiRequisiti(pathStack[0].graph, appState.library, blockId, mappaRinomina);
+                if (data.nodeId) {
+                    const node = getCurrentLevel().graph.nodes.find(n => n.id === data.nodeId);
+                    if (node) node.label = campi.titolo;
+                }
+            }
+            // render() fa partire anche il salvataggio automatico del progetto (0001)
+            render();
+            // Il form riaperto riporta Livello e Motivo ai valori predefiniti
+            openLibraryBlock(blockId, data.nodeId || null);
+            const fili = filiRimossi > 0
+                ? ` ${filiRimossi} collegamenti rimossi perché i requisiti sono stati eliminati o non sono più compatibili.`
+                : '';
+            alert(risposta.voce
+                ? `Blocco salvato. Libreria v${risposta.versione} (${risposta.voce.livello}).${fili}`
+                : `Blocco salvato. ${risposta.avviso}.${fili}`);
+        };
+
+        const esito = await salvaBloccoLibreria({
+            blocco: { id: blockId, ...campi, requisiti },
+            nuovo: data.isNew,
+            rinomine: mappaRinomina,
+            livello: document.getElementById('edtLivello')?.value || 'auto',
+            nota: (document.getElementById('edtNotaModifica')?.value || '').trim()
+        }, alSuccesso, { blockId: data.isNew ? null : blockId, nodeId: data.nodeId || null });
+        // Rifiuto o errore: il form resta aperto con i dati inseriti; il conflitto si risolve dal banner
+        if (!esito.ok && !esito.conflitto) alert(`Blocco non salvato: ${esito.messaggio}`);
     });
 
     document.getElementById('btnCreateCopy')?.addEventListener('click', () => {

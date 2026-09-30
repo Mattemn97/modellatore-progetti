@@ -6,6 +6,7 @@ import { renderUI } from './app.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { leggiFileJson, downloadJsonFile } from './storage.js';
 import { escapeHtml, slugifyId } from './utils.js';
+import { ricaricaLibreria, sovrascriviLibreria, aggiornaPulsantiLibreria } from './libreria.js';
 
 const FORMAT_VERSION = 1;
 const LUNGHEZZA_MAX_SLUG = 80;
@@ -41,9 +42,10 @@ let pilaRipeti = [];
 let prossimoDaRipeti = false;   // il prossimo salvataggio viene da Ripeti e non svuota la pila
 let operazioneInCorso = false;
 let libreriaCaricata = null;    // percorso dell'ultima libreria caricata con successo
-let libreriaModificata = false; // modifiche dell'ispettore non ancora su disco (funzionalità 2)
 let avvisoLibreria = '';
 let avvisoServer = '';
+// Stati della libreria su disco mostrati nel banner, impostati da js/libreria.js
+const statoLibreriaBanner = { conflitto: false, avviso: '' };
 
 /* --- TESTO DEL PROGETTO E CHIAMATE AL SERVER --- */
 
@@ -61,7 +63,7 @@ function urlProgetto(slug, suffisso = '') {
 }
 
 // Risponde sempre con { ok, stato, dati } oppure { ok: false, errore, messaggio }, mai con un'eccezione
-async function chiamaApi(metodo, percorso, corpo) {
+export async function chiamaApi(metodo, percorso, corpo) {
     const opzioni = { method: metodo, headers: { 'Content-Type': 'application/json' } };
     if (corpo !== undefined) opzioni.body = typeof corpo === 'string' ? corpo : JSON.stringify(corpo);
     let risposta;
@@ -168,36 +170,37 @@ function problemaFileProgetto(dati, slug) {
 async function caricaLibreria(percorso) {
     const libPathInput = document.getElementById('libPathInput');
     if (libPathInput) libPathInput.value = percorso;
+    // Solo per l'apertura dei progetti: il pulsante 🔄 ricarica sempre
     if (percorso === libreriaCaricata) return;
-    if (await loadLibraryFromPath(percorso)) {
+    const esito = await loadLibraryFromPath(percorso);
+    if (esito.ok) {
         libreriaCaricata = percorso;
-        libreriaModificata = false;
         avvisoLibreria = '';
     } else {
-        avvisoLibreria = `Impossibile caricare la libreria "${percorso}": resta in uso la libreria precedente. Il progetto continua a salvarsi.`;
+        avvisoLibreria = `Impossibile caricare la libreria "${percorso}" (${esito.messaggio}): resta in uso la libreria precedente. Il progetto continua a salvarsi.`;
         if (libreriaCaricata === null) initLibrary();
     }
     aggiornaInterfaccia();
 }
 
-export function segnaLibreriaModificata() {
-    libreriaModificata = true;
-}
-
 // Il pulsante 🔄 ha caricato una nuova libreria: diventa la libreria del progetto
 export function aggiornaPercorsoLibreria(percorso) {
     libreriaCaricata = percorso;
-    libreriaModificata = false;
     avvisoLibreria = '';
     if (progetto.slug) progetto.libraryPath = percorso;
     aggiornaInterfaccia();
     render();
 }
 
-// Conferma prima di sostituire una libreria con modifiche solo in memoria
-function confermaCambioLibreria(percorso) {
-    if (percorso === libreriaCaricata || !libreriaModificata) return true;
-    return confirm("Le modifiche alla libreria non salvate andranno perse. Continuare?");
+// Il Salva della libreria è bloccato finché il progetto è in conflitto
+export function progettoInConflitto() {
+    return stato === 'conflitto';
+}
+
+// Aggiorna solo i campi passati: { conflitto, avviso }
+export function impostaStatoLibreriaBanner(nuovo) {
+    Object.assign(statoLibreriaBanner, nuovo);
+    aggiornaBanner();
 }
 
 /* --- SALVATAGGIO AUTOMATICO --- */
@@ -348,7 +351,6 @@ async function apriProgetto(slug, { silenzioso404 = false } = {}) {
     const libraryPath = typeof dati.libraryPath === 'string' && dati.libraryPath
         ? dati.libraryPath
         : (progetto.libraryPath || appSettings.libraryPath);
-    if (!confermaCambioLibreria(libraryPath)) return 'errore';
     await caricaLibreria(libraryPath);
 
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : slug;
@@ -469,7 +471,6 @@ async function ricaricaDalDisco() {
         return;
     }
     const libraryPath = typeof dati.libraryPath === 'string' && dati.libraryPath ? dati.libraryPath : progetto.libraryPath;
-    if (!confermaCambioLibreria(libraryPath)) return;
     await caricaLibreria(libraryPath);
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : progetto.slug;
     impostaProgetto(progetto.slug, nome, libraryPath, dati.workspace, r.dati.impronta, r.dati.versioni, true);
@@ -695,24 +696,31 @@ function aggiornaInterfaccia() {
         voce.disabled = (serveProgetto && !progetto.slug) || (bloccato && azione !== 'scarica');
     });
 
+    aggiornaPulsantiLibreria();
     aggiornaBanner();
 }
 
+// Priorità: conflitto del progetto, conflitto della libreria, errore di salvataggio del progetto, avvisi
 function aggiornaBanner() {
     const banner = document.getElementById('bannerProgetto');
     if (!banner) return;
     let html = '';
     let classe = 'banner-errore';
+    const avviso = avvisoServer || avvisoLibreria || statoLibreriaBanner.avviso;
     if (stato === 'conflitto') {
         html = `<span>Il file del progetto è cambiato sul disco dopo che l'app l'ha letto (modifica a mano o un'altra scheda). Il salvataggio automatico è sospeso finché non scegli.</span>
             <button data-banner="ricarica">Ricarica dal disco</button>
             <button data-banner="sovrascrivi">Sovrascrivi</button>`;
+    } else if (statoLibreriaBanner.conflitto) {
+        html = `<span>La libreria è cambiata su disco dopo che l'app l'ha letta. Il blocco non è stato salvato: il form resta aperto finché non scegli.</span>
+            <button data-banner="ricaricaLibreria">Ricarica la libreria</button>
+            <button data-banner="sovrascriviLibreria">Sovrascrivi</button>`;
     } else if (motivoErrore) {
         html = `<span>Salvataggio non riuscito: ${escapeHtml(motivoErrore)}. L'app riprova da sola.</span>
             <button data-banner="riprova">Riprova</button>`;
-    } else if (avvisoServer || avvisoLibreria) {
+    } else if (avviso) {
         classe = 'banner-avviso';
-        html = `<span>${escapeHtml(avvisoServer || avvisoLibreria)}</span>
+        html = `<span>${escapeHtml(avviso)}</span>
             <button data-banner="chiudi" title="Chiudi">✕</button>`;
     }
     banner.hidden = !html;
@@ -734,9 +742,12 @@ const AZIONI_BANNER = {
     ricarica: () => esegui(ricaricaDalDisco),
     sovrascrivi: () => esegui(sovrascrivi),
     riprova: () => esegui(riprova),
+    ricaricaLibreria: () => esegui(ricaricaLibreria),
+    sovrascriviLibreria: () => esegui(sovrascriviLibreria),
     chiudi: () => {
         if (avvisoServer) avvisoServer = '';
-        else avvisoLibreria = '';
+        else if (avvisoLibreria) avvisoLibreria = '';
+        else statoLibreriaBanner.avviso = '';
         aggiornaBanner();
     }
 };

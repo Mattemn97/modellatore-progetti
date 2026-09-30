@@ -5,6 +5,7 @@ import { render, cleanupEdgeDrawing, isDrawingEdge, resetView } from './renderer
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
+import { mostraChangelog } from './libreria.js';
 import { CAPACITA, getTipologie } from './model.js';
 import { escapeHtml, generaId } from './utils.js';
 
@@ -62,17 +63,20 @@ async function initApp() {
     await loadSettings();
     popolaFiltroTipologia();
 
-    // Evento ricarica manuale da path: se riesce, diventa la libreria del progetto
+    // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
+    // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti
     document.getElementById('btnLoadFromPath')?.addEventListener('click', async () => {
         const path = document.getElementById('libPathInput').value.trim();
-        const success = await loadLibraryFromPath(path);
-        if (success) {
+        const esito = await loadLibraryFromPath(path);
+        if (esito.ok) {
             aggiornaPercorsoLibreria(path);
             alert(`Libreria ricaricata con successo da: ${path}`);
         } else {
-            alert(`Impossibile caricare la libreria dal percorso specificato.`);
+            alert(`Impossibile caricare la libreria: ${esito.messaggio}`);
         }
     });
+
+    document.getElementById('btnChangelog')?.addEventListener('click', () => mostraChangelog());
 
     document.getElementById('btnNewBlockFromScratch')?.addEventListener('click', renderNewBlockForm);
     document.getElementById('btnResetView')?.addEventListener('click', resetView);

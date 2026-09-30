@@ -3,11 +3,12 @@ import re
 import sys
 import json
 import time
+import getpass
 import hashlib
 import threading
 import webbrowser
 from datetime import datetime
-from urllib.parse import urlsplit, unquote
+from urllib.parse import urlsplit, unquote, parse_qs
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8080
@@ -21,8 +22,18 @@ VERSIONI_PREDEFINITE = 3
 TENTATIVI_FILE_BLOCCATO = 5
 ATTESA_FILE_BLOCCATO = 0.05
 
+# Librerie con versione e changelog (vedi docs/specs/0002-libreria-disco-changelog)
+FORMATO_LIBRERIA = 1
+FORMATO_SEMVER = re.compile(r'^\d+\.\d+\.\d+$')
+ORDINE_LIVELLI = {'patch': 0, 'minor': 1, 'major': 2}
+LUNGHEZZA_MAX_NOTA = 2000
+LUNGHEZZA_MAX_ID_BLOCCO = 200
+SUFFISSO_CHANGELOG = '.changelog.json'
+
 MSG_SLUG_NON_VALIDO = "Il nome deve contenere almeno una lettera o cifra e non può essere un nome riservato di Windows"
 MSG_FILE_BLOCCATO = "Il file è bloccato da un altro programma, ad esempio OneDrive, un antivirus o un editor"
+MSG_CHANGELOG_ILLEGGIBILE = "Il changelog non è leggibile: correggilo o spostalo per poter salvare"
+MSG_FORMATO_FUTURO = "Libreria creata da una versione più recente dell'app: aperta in sola lettura"
 
 def get_base_dir():
     # Gestisce sia l'esecuzione da script che da file .exe compilato con PyInstaller
@@ -60,11 +71,11 @@ def ensure_shared_library(base_dir):
         with open(lib_path, "w", encoding="utf-8") as f:
             f.write(dummy_lib)
 
-def leggi_max_versioni(base_dir):
-    # progetti.versioni da settings.json: intero, minimo 1; predefinito se manca o non è valido
+def leggi_max_versioni(base_dir, sezione):
+    # <sezione>.versioni da settings.json (progetti o libreria): intero, minimo 1; predefinito se manca o non è valido
     try:
         with open(os.path.join(base_dir, "settings.json"), encoding="utf-8") as f:
-            valore = json.load(f).get("progetti", {}).get("versioni")
+            valore = json.load(f).get(sezione, {}).get("versioni")
         if type(valore) is int and valore >= 1:
             return valore
     except (OSError, ValueError, AttributeError):
@@ -145,6 +156,34 @@ def scrivi_atomico(percorso, dati):
         rimuovi_se_esiste(tmp)
         raise ErroreApi(500, 'errore_scrittura', f"Impossibile scrivere il file: {e.strerror or e}")
 
+def percorso_copia(cartella, nome, n):
+    return os.path.join(cartella, f"{nome}.{n}.json")
+
+def numeri_copie(cartella, nome):
+    if not os.path.isdir(cartella):
+        return []
+    formato = re.compile(rf'^{re.escape(nome)}\.(\d+)\.json$')
+    numeri = []
+    for voce in os.listdir(cartella):
+        trovato = formato.match(voce)
+        if trovato:
+            numeri.append(int(trovato.group(1)))
+    return numeri
+
+def ruota_copie(cartella, nome, attuali, massimo):
+    # .1 uguale al file attuale: la rotazione l'ha già fatta un tentativo fallito (file bloccato).
+    # Ripeterla riempirebbe le copie di doppioni e cancellerebbe la storia
+    if os.path.exists(percorso_copia(cartella, nome, 1)) and leggi_bytes(percorso_copia(cartella, nome, 1)) == attuali:
+        return
+    # Le copie oltre il limite (anche se il limite è sceso) spariscono, poi .1→.2→.3
+    for n in numeri_copie(cartella, nome):
+        if n >= massimo:
+            con_ritentativi(lambda n=n: rimuovi_se_esiste(percorso_copia(cartella, nome, n)))
+    for n in range(massimo - 1, 0, -1):
+        if os.path.exists(percorso_copia(cartella, nome, n)):
+            con_ritentativi(lambda n=n: os.replace(percorso_copia(cartella, nome, n), percorso_copia(cartella, nome, n + 1)))
+    scrivi_atomico(percorso_copia(cartella, nome, 1), attuali)
+
 def interpreta_json(dati, messaggio):
     try:
         valore = json.loads(dati.decode('utf-8'))
@@ -180,16 +219,10 @@ class ArchivioProgetti:
         return os.path.join(self.cartella, f"{slug}.json")
 
     def versione(self, slug, n):
-        return os.path.join(self.cartella_versioni, f"{slug}.{n}.json")
+        return percorso_copia(self.cartella_versioni, slug, n)
 
     def numeri_versioni(self, slug):
-        formato = re.compile(rf'^{re.escape(slug)}\.(\d+)\.json$')
-        numeri = []
-        for nome in os.listdir(self.cartella_versioni):
-            trovato = formato.match(nome)
-            if trovato:
-                numeri.append(int(trovato.group(1)))
-        return numeri
+        return numeri_copie(self.cartella_versioni, slug)
 
     def conta_versioni(self, slug):
         n = 0
@@ -263,18 +296,7 @@ class ArchivioProgetti:
     # --- Scrittura con versioni ---
 
     def ruota_versioni(self, slug, attuali):
-        # .1 uguale al file attuale: la rotazione l'ha già fatta un tentativo fallito (file bloccato).
-        # Ripeterla riempirebbe le versioni di doppioni e cancellerebbe la storia di Annulla
-        if os.path.exists(self.versione(slug, 1)) and leggi_bytes(self.versione(slug, 1)) == attuali:
-            return
-        # Le versioni oltre il limite (anche se il limite è sceso) spariscono, poi .1→.2→.3
-        for n in self.numeri_versioni(slug):
-            if n >= self.max_versioni:
-                con_ritentativi(lambda n=n: rimuovi_se_esiste(self.versione(slug, n)))
-        for n in range(self.max_versioni - 1, 0, -1):
-            if os.path.exists(self.versione(slug, n)):
-                con_ritentativi(lambda n=n: os.replace(self.versione(slug, n), self.versione(slug, n + 1)))
-        scrivi_atomico(self.versione(slug, 1), attuali)
+        ruota_copie(self.cartella_versioni, slug, attuali, self.max_versioni)
 
     def scrivi(self, slug, progetto, attesa, forza):
         controlla_progetto(progetto)
@@ -375,6 +397,439 @@ class ArchivioProgetti:
     def scrivi_ultimo(self, slug):
         scrivi_atomico(self.file_ultimo, json.dumps({'progetto': slug}).encode('utf-8'))
 
+# --- Librerie: confronto dei blocchi, livello semver e changelog ---
+
+MANCANTE = object()
+
+def forma_canonica(valore):
+    # Stessa forma per lo stesso contenuto: niente spazi, chiavi in ordine
+    return json.dumps(valore, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+
+def valori_uguali(a, b):
+    if a is MANCANTE or b is MANCANTE:
+        return a is b
+    return forma_canonica(a) == forma_canonica(b)
+
+def semver_valido(valore):
+    return isinstance(valore, str) and FORMATO_SEMVER.match(valore) is not None
+
+def avanza_versione(versione, livello):
+    major, minor, patch = (int(x) for x in versione.split('.'))
+    if livello == 'major':
+        return f"{major + 1}.0.0"
+    if livello == 'minor':
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
+
+def formato_di(oggetto):
+    valore = oggetto.get('formatVersion')
+    return valore if type(valore) is int and valore > 0 else 0
+
+def contenuto_di(oggetto):
+    # Formato 1 e { library }: la mappa dei blocchi è in library; il formato vecchio è la mappa stessa
+    for chiave in ('library', 'libreria'):
+        if isinstance(oggetto.get(chiave), dict):
+            return oggetto[chiave]
+    return oggetto
+
+def requisiti_di(blocco):
+    requisiti = blocco.get('requisiti') if isinstance(blocco, dict) else None
+    if not isinstance(requisiti, list):
+        return []
+    return [r for r in requisiti if isinstance(r, dict) and isinstance(r.get('id'), str)]
+
+def titolo_di(blocco, id_blocco):
+    titolo = blocco.get('titolo') if isinstance(blocco, dict) else None
+    return titolo if isinstance(titolo, str) and titolo.strip() else id_blocco
+
+def campi_cambiati(prima, dopo, esclusi):
+    # Confronto generico: un campo aggiunto in futuro è coperto senza toccare il server
+    chiavi = list(prima) + [k for k in dopo if k not in prima]
+    return [k for k in chiavi
+            if k not in esclusi and not valori_uguali(prima.get(k, MANCANTE), dopo.get(k, MANCANTE))]
+
+def confronta_blocco(id_blocco, prima, dopo, rinomine=None):
+    # Modifica di un blocco per il changelog, oppure None se non è cambiato nulla
+    rinomine = rinomine or {}
+    if not isinstance(prima, dict) and not isinstance(dopo, dict):
+        return None
+    if not isinstance(prima, dict):
+        return {'blocco': id_blocco, 'titolo': titolo_di(dopo, id_blocco), 'tipo': 'creato', 'campiBlocco': [],
+                'requisiti': [{'id': r['id'], 'tipo': 'aggiunto', 'campi': []} for r in requisiti_di(dopo)]}
+    if not isinstance(dopo, dict):
+        return {'blocco': id_blocco, 'titolo': titolo_di(prima, id_blocco), 'tipo': 'eliminato', 'campiBlocco': [],
+                'requisiti': [{'id': r['id'], 'tipo': 'rimosso', 'campi': []} for r in requisiti_di(prima)]}
+
+    campi_blocco = campi_cambiati(prima, dopo, {'id', 'requisiti'})
+    req_prima = requisiti_di(prima)
+    req_dopo = requisiti_di(dopo)
+
+    # Prima le rinomine, poi l'abbinamento per id nuovo: uno scambio a→b, b→a dà due rinominato
+    abbinati = {}
+    for r in req_prima:
+        if r['id'] in rinomine:
+            abbinati[rinomine[r['id']]] = r
+    for r in req_prima:
+        if r['id'] not in rinomine and r['id'] not in abbinati:
+            abbinati[r['id']] = r
+    nuovo_id_di = {id(r): nuovo for nuovo, r in abbinati.items()}
+    ids_dopo = [r['id'] for r in req_dopo]
+    presenti = set(ids_dopo)
+
+    ordine_prima = [nuovo_id_di[id(r)] for r in req_prima if id(r) in nuovo_id_di and nuovo_id_di[id(r)] in presenti]
+    ordine_dopo = [i for i in ids_dopo if i in abbinati]
+    if ordine_prima != ordine_dopo:
+        campi_blocco.append('ordineRequisiti')
+
+    modifiche = []
+    usati = set()
+    for r in req_dopo:
+        vecchio = abbinati.get(r['id'])
+        if vecchio is None:
+            modifiche.append({'id': r['id'], 'tipo': 'aggiunto', 'campi': []})
+            continue
+        usati.add(id(vecchio))
+        campi = campi_cambiati(vecchio, r, {'id'})
+        if vecchio['id'] != r['id']:
+            modifiche.append({'id': r['id'], 'tipo': 'rinominato', 'idPrecedente': vecchio['id'], 'campi': campi})
+        elif campi:
+            modifiche.append({'id': r['id'], 'tipo': 'modificato', 'campi': campi})
+    for r in req_prima:
+        if id(r) not in usati:
+            modifiche.append({'id': r['id'], 'tipo': 'rimosso', 'campi': []})
+
+    if not campi_blocco and not modifiche:
+        return None
+    return {'blocco': id_blocco, 'titolo': titolo_di(dopo, id_blocco), 'tipo': 'modificato',
+            'campiBlocco': campi_blocco, 'requisiti': modifiche}
+
+def confronta_librerie(prima, dopo):
+    ids = list(prima) + [k for k in dopo if k not in prima]
+    modifiche = []
+    for id_blocco in ids:
+        modifica = confronta_blocco(id_blocco, prima.get(id_blocco), dopo.get(id_blocco))
+        if modifica:
+            modifiche.append(modifica)
+    return modifiche
+
+def livello_di(modifiche):
+    # major: requisito rimosso o rinominato, tipologia cambiata, blocco eliminato; minor: blocco o requisito nuovo
+    livello = 'patch'
+    for m in modifiche:
+        if m['tipo'] == 'eliminato':
+            return 'major'
+        for r in m['requisiti']:
+            if r['tipo'] in ('rimosso', 'rinominato') or 'tipologia' in r['campi']:
+                return 'major'
+        if m['tipo'] == 'creato' or any(r['tipo'] == 'aggiunto' for r in m['requisiti']):
+            livello = 'minor'
+    return livello
+
+def autore_corrente():
+    try:
+        return getpass.getuser() or 'sconosciuto'
+    except Exception:
+        return 'sconosciuto'
+
+def nuova_voce(origine, versione, livello, livello_calcolato, nota, dati, library, modifiche):
+    return {
+        'versione': versione,
+        'data': datetime.now().astimezone().isoformat(timespec='seconds'),
+        'autore': autore_corrente(),
+        'origine': origine,
+        'livello': livello,
+        'livelloCalcolato': livello_calcolato,
+        'nota': nota,
+        'impronta': impronta_di(dati),
+        'improntaContenuto': impronta_di(forma_canonica(library)),
+        'modifiche': modifiche,
+    }
+
+def controlla_blocco(blocco):
+    def rifiuta(messaggio):
+        raise ErroreApi(400, 'blocco_non_valido', messaggio)
+    if not isinstance(blocco, dict):
+        rifiuta("Il blocco deve essere un oggetto.")
+    id_blocco = blocco.get('id')
+    if not isinstance(id_blocco, str) or not id_blocco.strip() or len(id_blocco) > LUNGHEZZA_MAX_ID_BLOCCO:
+        rifiuta(f"L'ID del blocco deve essere un testo non vuoto di al massimo {LUNGHEZZA_MAX_ID_BLOCCO} caratteri.")
+    if not isinstance(blocco.get('titolo'), str) or not blocco['titolo'].strip():
+        rifiuta("Il titolo del blocco non può essere vuoto.")
+    requisiti = blocco.get('requisiti')
+    if not isinstance(requisiti, list):
+        rifiuta("I requisiti del blocco devono essere un elenco.")
+    visti = set()
+    for req in requisiti:
+        if not isinstance(req, dict) or not isinstance(req.get('id'), str) or not req['id'].strip():
+            rifiuta("Ogni requisito deve essere un oggetto con un ID non vuoto.")
+        if req['id'] in visti:
+            rifiuta(f"L'ID \"{req['id']}\" è usato due volte in questo blocco.")
+        visti.add(req['id'])
+
+def dentro(percorso, cartella):
+    percorso = os.path.normcase(percorso)
+    cartella = os.path.normcase(cartella)
+    return percorso.startswith(cartella + os.sep)
+
+class FileLibreria:
+    # I file di una libreria: il file stesso, il changelog accanto, copie e riferimento in _versioni/
+    def __init__(self, reale, scrivibile):
+        cartella, nome_file = os.path.split(reale)
+        self.percorso = reale
+        self.scrivibile = scrivibile
+        self.nome = nome_file[:-5]
+        self.changelog = os.path.join(cartella, self.nome + SUFFISSO_CHANGELOG)
+        self.cartella_versioni = os.path.join(cartella, '_versioni')
+        self.riferimento = os.path.join(self.cartella_versioni, f"{self.nome}.riferimento.json")
+
+class ArchivioLibrerie:
+    # Librerie dentro la cartella dell'app; ogni metodo va chiamato tenendo il lucchetto dei progetti
+    def __init__(self, base_dir, max_versioni):
+        self.base = os.path.realpath(base_dir)
+        self.cartella_shared = os.path.join(self.base, 'shared')
+        self.cartella_progetti = os.path.join(self.base, 'progetti')
+        self.max_versioni = max_versioni
+
+    def prepara(self):
+        # Scritture interrotte da un arresto precedente, in shared/ e nelle sue _versioni/
+        for radice, _, nomi in os.walk(self.cartella_shared):
+            for nome in nomi:
+                if nome.endswith('.tmp'):
+                    try:
+                        os.remove(os.path.join(radice, nome))
+                    except OSError:
+                        pass
+
+    def risolvi(self, percorso):
+        non_valido = ErroreApi(400, 'percorso_non_valido',
+                               "Percorso della libreria non valido: serve un file .json relativo alla cartella dell'app, fuori da progetti/.")
+        if (not isinstance(percorso, str) or not percorso or '\\' in percorso or ':' in percorso
+                or percorso.startswith('/')):
+            raise non_valido
+        segmenti = percorso.split('/')
+        minuscolo = percorso.lower()
+        if (any(s in ('', '.', '..') for s in segmenti) or not minuscolo.endswith('.json')
+                or minuscolo.endswith(SUFFISSO_CHANGELOG)):
+            raise non_valido
+        reale = os.path.realpath(os.path.join(self.base, *segmenti))
+        if not dentro(reale, self.base) or dentro(reale, self.cartella_progetti):
+            raise non_valido
+        shared = os.path.realpath(self.cartella_shared)
+        scrivibile = dentro(reale, shared) and '_versioni' not in [
+            os.path.normcase(parte) for parte in os.path.relpath(reale, shared).split(os.sep)[:-1]]
+        return FileLibreria(reale, scrivibile)
+
+    # --- Lettura ---
+
+    def leggi_libreria(self, f, percorso):
+        if not os.path.isfile(f.percorso):
+            raise ErroreApi(404, 'non_trovata', f'La libreria "{percorso}" non esiste.')
+        dati = leggi_bytes(f.percorso)
+        oggetto = interpreta_json(dati, f'Il file della libreria "{percorso}" non è JSON valido.')
+        formato = formato_di(oggetto)
+        if formato == FORMATO_LIBRERIA and not isinstance(oggetto.get('library'), dict):
+            raise ErroreApi(422, 'json_non_valido', f'Il file della libreria "{percorso}" non contiene la mappa "library".')
+        return dati, oggetto, formato
+
+    def leggi_changelog(self, f):
+        # None se il file manca; 422 se esiste ma non ha la forma attesa
+        if not os.path.isfile(f.changelog):
+            return None
+        non_valido = ErroreApi(422, 'changelog_non_valido', MSG_CHANGELOG_ILLEGGIBILE)
+        try:
+            dati = json.loads(leggi_bytes(f.changelog).decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            raise non_valido
+        voci = dati.get('voci') if isinstance(dati, dict) else None
+        if (not isinstance(dati, dict) or dati.get('formatVersion') != 1 or not isinstance(voci, list)
+                or not all(isinstance(v, dict) for v in voci)):
+            raise non_valido
+        if voci and not (semver_valido(voci[-1].get('versione')) and isinstance(voci[-1].get('improntaContenuto'), str)):
+            raise non_valido
+        return dati
+
+    def leggi_riferimento(self, f):
+        try:
+            oggetto = json.loads(leggi_bytes(f.riferimento).decode('utf-8'))
+        except (OSError, ValueError, UnicodeDecodeError, ErroreApi):
+            return None
+        return contenuto_di(oggetto) if isinstance(oggetto, dict) else None
+
+    # --- Scrittura ---
+
+    def aggiungi_voce(self, f, changelog, voce):
+        # Il changelog cresce solo in fondo; restituisce il changelog nuovo solo se è su disco
+        voci = (changelog['voci'] if changelog else []) + [voce]
+        nuovo = {'formatVersion': 1, 'voci': voci}
+        scrivi_atomico(f.changelog, serializza(nuovo))
+        return nuovo
+
+    def aggiorna_riferimento(self, f, dati):
+        os.makedirs(f.cartella_versioni, exist_ok=True)
+        scrivi_atomico(f.riferimento, dati)
+
+    def scrivi_libreria(self, f, attuali, nuovi):
+        # La versione precedente passa in _versioni/<nome>.1.json prima di sostituire il file
+        os.makedirs(f.cartella_versioni, exist_ok=True)
+        ruota_copie(f.cartella_versioni, f.nome, attuali, self.max_versioni)
+        scrivi_atomico(f.percorso, nuovi)
+
+    def allinea(self, f, oggetto, dati, contenuto, changelog):
+        # Voce iniziale se il changelog manca, voce esterna se il contenuto non è quello dell'ultima voce
+        voci = changelog['voci'] if changelog else []
+        if not voci:
+            versione = oggetto.get('versione') if semver_valido(oggetto.get('versione')) else '1.0.0'
+            voce = nuova_voce('iniziale', versione, None, None, '', dati, contenuto, [])
+        elif impronta_di(forma_canonica(contenuto)) != voci[-1]['improntaContenuto']:
+            riferimento = self.leggi_riferimento(f)
+            if riferimento is None:
+                modifiche, livello, nota = [], 'patch', "Contenuto precedente non disponibile"
+            else:
+                modifiche = confronta_librerie(riferimento, contenuto)
+                livello, nota = livello_di(modifiche), "Modifica fatta fuori dall'app"
+            voce = nuova_voce('esterna', avanza_versione(voci[-1]['versione'], livello), livello, livello,
+                              nota, dati, contenuto, modifiche)
+        else:
+            return changelog, []
+        changelog = self.aggiungi_voce(f, changelog, voce)
+        self.aggiorna_riferimento(f, dati)
+        return changelog, [voce]
+
+    # --- API ---
+
+    def apri(self, percorso):
+        f = self.risolvi(percorso)
+        dati, oggetto, formato = self.leggi_libreria(f, percorso)
+        versione_file = oggetto.get('versione') if semver_valido(oggetto.get('versione')) else None
+        risposta = {'libreria': oggetto, 'impronta': impronta_di(dati), 'scrivibile': f.scrivibile,
+                    'formato': formato, 'vociAggiunte': []}
+        try:
+            changelog = self.leggi_changelog(f)
+        except ErroreApi as e:
+            risposta.update(scrivibile=False, avviso=e.messaggio, versione=versione_file)
+            return risposta
+        if formato > FORMATO_LIBRERIA:
+            risposta.update(scrivibile=False, avviso=MSG_FORMATO_FUTURO)
+        elif f.scrivibile:
+            # Aprire non modifica mai il file della libreria: si scrivono solo changelog e riferimento
+            try:
+                changelog, risposta['vociAggiunte'] = self.allinea(f, oggetto, dati, contenuto_di(oggetto), changelog)
+            except ErroreApi as e:
+                risposta['avviso'] = f"Il changelog non è stato aggiornato: {e.messaggio}"
+        voci = changelog['voci'] if changelog else []
+        risposta['versione'] = voci[-1]['versione'] if voci else (versione_file or ('1.0.0' if risposta['scrivibile'] else None))
+        return risposta
+
+    def salva(self, corpo):
+        percorso = corpo.get('percorso')
+        f = self.risolvi(percorso)
+        if not f.scrivibile:
+            raise ErroreApi(403, 'percorso_non_scrivibile',
+                            "L'app scrive solo librerie dentro shared/ (escluse le cartelle _versioni).")
+        blocco = corpo.get('blocco')
+        controlla_blocco(blocco)
+        nuovo = corpo.get('nuovo')
+        if not isinstance(nuovo, bool):
+            raise ErroreApi(400, 'richiesta_non_valida', 'Il campo "nuovo" deve essere vero o falso.')
+        rinomine = corpo.get('rinomine') or {}
+        if not isinstance(rinomine, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in rinomine.items()):
+            raise ErroreApi(400, 'rinomine_non_valide', 'Le rinomine dei requisiti non sono valide.')
+        livello = corpo.get('livello')
+        if livello != 'auto' and livello not in ORDINE_LIVELLI:
+            raise ErroreApi(400, 'livello_non_valido', 'Il livello deve essere auto, patch, minor o major.')
+        nota = corpo.get('nota') or ''
+        if not isinstance(nota, str) or len(nota) > LUNGHEZZA_MAX_NOTA:
+            raise ErroreApi(400, 'richiesta_non_valida', f'Il motivo della modifica supera i {LUNGHEZZA_MAX_NOTA} caratteri.')
+        nota = nota.strip()
+        forza = corpo.get('forza') is True
+
+        dati, oggetto, formato = self.leggi_libreria(f, percorso)
+        if formato > FORMATO_LIBRERIA:
+            raise ErroreApi(403, 'percorso_non_scrivibile', MSG_FORMATO_FUTURO)
+        contenuto = contenuto_di(oggetto)
+        changelog = self.leggi_changelog(f)
+        id_blocco = blocco['id']
+        if nuovo and id_blocco in contenuto:
+            raise ErroreApi(409, 'esiste', f'Un blocco con ID "{id_blocco}" esiste già nella libreria su disco.')
+        impronta_attuale = impronta_di(dati)
+        coincide = corpo.get('improntaAttesa') == impronta_attuale
+        if not coincide and not forza:
+            raise ErroreApi(409, 'conflitto', "Il file della libreria è cambiato sul disco dopo che l'app l'ha letto.",
+                            impronta=impronta_attuale)
+
+        # Formato vecchio: la libreria già normalizzata dal client, valida solo se rappresenta proprio questo file
+        prima = contenuto
+        if formato == 0 and coincide:
+            base = corpo.get('base')
+            if not isinstance(base, dict):
+                raise ErroreApi(400, 'base_mancante', 'Per convertire una libreria in formato vecchio serve la libreria normalizzata.')
+            prima = base
+        blocco_prima = prima.get(id_blocco)
+
+        ids_prima = {r['id'] for r in requisiti_di(blocco_prima)}
+        ids_nuovi = {r['id'] for r in blocco['requisiti']}
+        if ((nuovo and rinomine) or not set(rinomine).issubset(ids_prima)
+                or not set(rinomine.values()).issubset(ids_nuovi) or len(set(rinomine.values())) != len(rinomine)):
+            raise ErroreApi(400, 'rinomine_non_valide',
+                            'Le rinomine dei requisiti non corrispondono al blocco su disco: ricarica la libreria.')
+        for altro_id, altro in prima.items():
+            if altro_id == id_blocco:
+                continue
+            for req in requisiti_di(altro):
+                if req['id'] in ids_nuovi:
+                    raise ErroreApi(400, 'id_duplicato',
+                                    f'L\'ID "{req["id"]}" è già usato dal blocco "{titolo_di(altro, altro_id)}" nella libreria su disco.')
+
+        # Da qui in poi si scrive: prima le voci iniziale o esterna, poi la modifica
+        changelog, voci_aggiunte = self.allinea(f, oggetto, dati, contenuto, changelog)
+        versione_corrente = changelog['voci'][-1]['versione']
+        library_nuova = dict(prima)
+        library_nuova[id_blocco] = blocco
+        modifica = confronta_blocco(id_blocco, blocco_prima, blocco, rinomine)
+
+        if modifica is None:
+            # La conversione dal formato vecchio non è una modifica: si fa solo se non cambia il contenuto,
+            # altrimenti la prossima apertura la registrerebbe come modifica esterna (resta per il prossimo Salva)
+            if formato == 0 and coincide and valori_uguali(prima, contenuto):
+                oggetto_nuovo = {'formatVersion': FORMATO_LIBRERIA, 'versione': versione_corrente, 'library': prima}
+                nuovi = serializza(oggetto_nuovo)
+                self.scrivi_libreria(f, dati, nuovi)
+                try:
+                    self.aggiorna_riferimento(f, nuovi)
+                except ErroreApi:
+                    pass
+                return {'invariata': True, 'versione': versione_corrente, 'impronta': impronta_di(nuovi),
+                        'libreria': oggetto_nuovo, 'formato': FORMATO_LIBRERIA, 'vociAggiunte': voci_aggiunte}
+            return {'invariata': True, 'versione': versione_corrente, 'impronta': impronta_attuale,
+                    'libreria': oggetto, 'formato': formato, 'vociAggiunte': voci_aggiunte}
+
+        calcolato = livello_di([modifica])
+        effettivo = calcolato if livello == 'auto' else max(livello, calcolato, key=ORDINE_LIVELLI.get)
+        versione_nuova = avanza_versione(versione_corrente, effettivo)
+        oggetto_nuovo = {'formatVersion': FORMATO_LIBRERIA, 'versione': versione_nuova, 'library': library_nuova}
+        nuovi = serializza(oggetto_nuovo)
+        self.scrivi_libreria(f, dati, nuovi)
+        risposta = {'libreria': oggetto_nuovo, 'impronta': impronta_di(nuovi), 'formato': FORMATO_LIBRERIA,
+                    'vociAggiunte': voci_aggiunte}
+        voce = nuova_voce('app', versione_nuova, effettivo, calcolato, nota, nuovi, library_nuova, [modifica])
+        try:
+            self.aggiungi_voce(f, changelog, voce)
+        except ErroreApi:
+            # Alla prossima apertura il contenuto non coincide con l'ultima voce: diventa una voce esterna
+            return {**risposta, 'versione': versione_corrente, 'voce': None,
+                    'avviso': "La libreria è salvata ma il changelog non è stato aggiornato: la modifica verrà registrata come modifica esterna"}
+        try:
+            self.aggiorna_riferimento(f, nuovi)
+        except ErroreApi:
+            risposta['avviso'] = "La copia di riferimento in _versioni/ non è stata aggiornata: una futura modifica esterna potrebbe risultare incompleta nel changelog"
+        return {**risposta, 'versione': versione_nuova, 'voce': voce}
+
+    def leggi_voci(self, percorso):
+        f = self.risolvi(percorso)
+        changelog = self.leggi_changelog(f)
+        voci = changelog['voci'] if changelog else []
+        return {'versione': voci[-1]['versione'] if voci else None, 'voci': voci}
+
 class CustomHandler(SimpleHTTPRequestHandler):
     # Mappatura corretta dei tipi MIME per moduli JS e file JSON
     extensions_map = {
@@ -389,6 +844,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
     # Chrome apre socket in anticipo e può lasciarli muti: nessun thread resta appeso per sempre
     timeout = 10
     archivio = None  # impostato in main()
+    librerie = None  # impostato in main()
 
     # --- Instradamento ---
 
@@ -521,6 +977,22 @@ class CustomHandler(SimpleHTTPRequestHandler):
                     raise non_consentito
                 return 200, archivio.rinomina(slug, corpo.get('nuovoSlug'), corpo.get('nome'), corpo.get('improntaAttesa'))
 
+        if segmenti[0] == 'libreria' and len(segmenti) == 2:
+            # Stesso lucchetto dei progetti: tutte le operazioni sui file sono una alla volta
+            if segmenti[1] == 'apri':
+                if metodo != 'POST':
+                    raise non_consentito
+                return 200, self.librerie.apri(corpo.get('percorso'))
+            if segmenti[1] == 'salva':
+                if metodo != 'POST':
+                    raise non_consentito
+                return 200, self.librerie.salva(corpo)
+            if segmenti[1] == 'changelog':
+                if metodo != 'GET':
+                    raise non_consentito
+                percorso = parse_qs(urlsplit(self.path).query).get('percorso', [None])[0]
+                return 200, self.librerie.leggi_voci(percorso)
+
         if segmenti == ['ultimo']:
             if metodo == 'GET':
                 return 200, {'progetto': archivio.leggi_ultimo()}
@@ -555,9 +1027,13 @@ def main():
 
     ensure_shared_library(base_dir)
 
-    archivio = ArchivioProgetti(base_dir, leggi_max_versioni(base_dir))
+    archivio = ArchivioProgetti(base_dir, leggi_max_versioni(base_dir, "progetti"))
     archivio.prepara()
     CustomHandler.archivio = archivio
+
+    librerie = ArchivioLibrerie(base_dir, leggi_max_versioni(base_dir, "libreria"))
+    librerie.prepara()
+    CustomHandler.librerie = librerie
 
     # Multithread: il server a thread singolo si blocca sui socket che Chrome lascia aperti;
     # le operazioni su progetti/ restano una alla volta grazie al lucchetto dell'archivio
