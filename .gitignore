@@ -1,0 +1,11 @@
+# Generati da PyInstaller e dall'ambiente Python
+build/
+dist/
+.venv/
+__pycache__/
+*.pyc
+
+# Sistema operativo ed editor
+Thumbs.db
+.DS_Store
+.vscode/

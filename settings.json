@@ -1,0 +1,20 @@
+{
+  "libraryPath": "shared/libreria.json",
+  "grid": {
+    "size": 20
+  },
+  "node": {
+    "width": 160,
+    "height": 60,
+    "selectedBorderColor": "#0078d4"
+  },
+  "requirements": {
+    "radius": 7,
+    "typeColors": {
+      "Elettrica": "#e74c3c",
+      "Segnale": "#2ecc71",
+      "Meccanica": "#f39c12",
+      "Fluidica": "#3498db"
+    }
+  }
+}
