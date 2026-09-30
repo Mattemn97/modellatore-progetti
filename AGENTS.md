@@ -11,7 +11,7 @@ Browser based block diagram editor for MBSE requirements: drag blocks from a lib
 
 ## Build approach
 
-<TBD, set by /scope>
+Tracer Bullet: each feature complete and working end to end (data, canvas, file) before the next (from `docs/scope/scope.md`).
 
 ## Commands
 
@@ -39,6 +39,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 - Always open the app through `start.py` (or the exe), never via `file://`. ES modules and the `fetch` of `settings.json` and the library fail without an HTTP server.
 - UI text, comments and messages are in Italian (`<html lang="it">`). Write new ones in Italian too.
 - Tunable values (grid size, node size, pin radius, type colors, default library path) live in `settings.json` and are read through `appSettings`. Don't hardcode them in JS.
+- `start.py` also reads `progetti.versioni` and `libreria.versioni` from `settings.json`, only at startup: restart the server after changing them. A new key goes in `settings.json`, in `DEFAULT_SETTINGS` and in the nested merge of `loadSettings()` in `js/state.js`.
 - Each JS file opens with a `/* --- TITLE --- */` header comment naming its job.
 - Styling is mostly inline `style=""` in `index.html` and in JS template strings; `style.css` holds layout and SVG classes.
 
@@ -46,7 +47,8 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 
 - The exe serves files from its own folder, not from inside the bundle (`datas=[]` in `start.spec`). To ship it, copy `index.html`, `style.css`, `settings.json`, `js/` and `shared/` next to `start.exe`.
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.
-- This folder is not a git repo yet, and `build/`, `dist/`, `.venv/` are generated.
+- `build/`, `dist/`, `.venv/` are generated; `progetti/` is user data and is gitignored.
+- `start.py` is also the API: `/api/progetti`, `/api/ultimo` and `/api/libreria/{apri,salva,changelog}`, multithreaded, with one lock serializing every file operation. The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.
 
 ## Agent skills
 

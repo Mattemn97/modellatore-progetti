@@ -1,7 +1,7 @@
 # 0001. Salvataggio automatico del progetto su disco con 3 versioni annullabili
 
 **Date**: 2026-09-30
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

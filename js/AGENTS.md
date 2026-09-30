@@ -14,8 +14,10 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `utils.js` | `generaId`, `slugifyId`, `escapeHtml` |
 | `renderer.js` | `render()`, zoom and pan, node drag and resize, pin drag, edge drawing, waypoints, round parent blocks, entering a block |
 | `inspector.js` | Right panel form: create, edit, copy a library block, its requirements and export texts; delete a node |
-| `builder.js` | Left panel library tree (categoria, then sottocategoria), search, click to edit, `impostaLibreria()`, `loadLibraryFromPath()` |
-| `storage.js` | Export of the three JSON files and import of library or standalone project |
+| `builder.js` | Left panel library tree (categoria, then sottocategoria), search, click to edit, `impostaLibreria()`, `loadLibraryFromPath()` (goes through `libreria.js`) |
+| `storage.js` | Only helpers: `leggiFileJson()` (user picked JSON file) and `downloadJsonFile()` |
+| `progetto.js` | Project on disk (spec 0001): autosave with debounce and retries, badge, Annulla/Ripeti via server copies, Progetto menu, Apri window, conflict banner (`aggiornaBanner()`), `chiamaApi()` wrapper for `/api/` |
+| `libreria.js` | Library on disk (spec 0002): `apriLibreria()`, `salvaBloccoLibreria()`, library conflict (Ricarica / Sovrascrivi), read only state, version in the panel, Changelog window |
 
 ## Data model
 
@@ -26,11 +28,14 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - Graph: `{ nodes, edges, parentReqPositions? }`. `parentReqPositions` holds the round blocks' centers inside that level. Node: `{ id, type, label, width, height, position: {x, y}, internal_graph, pinPositions? }`. `type` is the library `typeId`.
 - Edge: `{ id, source, sourceHandle, sourceType, target, targetHandle, targetType, waypoints }`. `*Handle` is a requirement id; `*Type` is `'node'` or `'parent'` (a round block of the containing block). A derivation edge always has the parent on the `source` side.
 - Hierarchy: each node holds its own `internal_graph`. `pathStack` is the breadcrumb of open levels; `pathStack[0].graph` is the root workspace; `getCurrentLevel()` is the level on screen.
-- File formats: `modello.json` = `{ workspace }`, `libreria.json` = `{ library }`, `standalone.json` = `{ library, workspace }`. Library loaders accept both `{ library: {...} }` and a bare map (as in `shared/libreria.json`).
+- File formats: project file `progetti/<slug>.json` = `{ formatVersion: 1, nome, libraryPath, workspace }`. Library file = `{ formatVersion: 1, versione, library }`, with `<nome>.changelog.json` beside it and backups plus `<nome>.riferimento.json` in `_versioni/`. Library loaders still accept `{ library: {...} }` and a bare map (old format, converted on the first Salva).
 
 ## Conventions
 
 - Mutate state in place, then call `render()` (and `initLibrary()` when the library changed). There is no store or event bus.
+- `render()` also schedules the project autosave (`pianificaSalvataggio()`), so any model change must go through it to reach disk.
+- Never write `appState.library` directly: a block change goes through `salvaBloccoLibreria()`, and memory, project and tree update only after the server confirms the write (disk first, then memory).
+- The server (`start.py`) owns versions, diffs and the changelog; the client sends only the saved block plus `rinomine`, `livello`, `nota`.
 - Replace `pathStack` contents in place (`length = 0` then `push`), never reassign it: other modules hold the imported binding.
 - Canvas coordinates go through `getCanvasCoords()`, which undoes zoom and pan and snaps to `appSettings.grid.size`.
 - New internal ids come from `generaId(prefix)` (`edge_`, `node_`). Block ids come from `slugifyId(titolo)`; new requirement ids from `idRequisitoLibero()` (`<block>_001`), editable by the user.
@@ -41,12 +46,13 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 ## Gotchas
 
 - Tipologie are listed in `settings.json` `typeColors` and in `DEFAULT_SETTINGS` in `state.js` (fallback only).
-- Blocks are shared by type: saving in the inspector rewrites `appState.library[id]`, so the requirement change hits every instance. Only `label` is per node. Saving then walks the whole model: renamed requirement ids follow into edges and pin positions, and edges that became invalid are removed.
+- Blocks are shared by type: a saved block replaces `appState.library[id]` (from the server response), so the requirement change hits every instance. Only `label` is per node. Saving then walks the whole model: renamed requirement ids follow into edges and pin positions, and edges that became invalid are removed.
 - Link rules live in `model.js` (`verificaCompatibilita`), used both when drawing and when cleaning up after an edit.
 - Layer order in `index.html` matters: edges, then round parent blocks, then nodes, so parent pins stay clickable. The temporary edge line has `pointer-events: none` so the mouse release reaches the target pin.
 - `render()` also fills in missing fields on the model (`edge.waypoints`, `node.pinPositions`) and runs on every mousemove while dragging.
 - Modules import each other in a cycle (`app` ↔ `renderer` ↔ `inspector` ↔ `builder` ↔ `storage`). Top level code may only look up DOM elements; never call an imported function at import time.
 - The drop position of a new block ignores zoom and pan.
-- `#btnReqMatrix`, `#btnDRC` and `#reportModal` exist in `index.html` but have no handlers yet.
+- `#btnReqMatrix` and `#btnDRC` exist in `index.html` but have no handlers yet. `#reportModal` is shared by the Apri window (`progetto.js`) and the Changelog window (`libreria.js`).
+- The banner under the header has one owner, `progetto.js`; `libreria.js` feeds it through `impostaStatoLibreriaBanner({ conflitto, avviso })`. Priority: project conflict, library conflict, project save error, notices.
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._
