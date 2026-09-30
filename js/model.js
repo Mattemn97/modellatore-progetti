@@ -6,10 +6,26 @@
 //                         testiExport: [{ testo, documento }] }] } }
 // Un requisito con tipologia è di interfaccia; con tipologia null è di capacità.
 
-import { appSettings } from './state.js';
+import { appSettings, appState } from './state.js';
 import { generaId } from './utils.js';
 
 export const CAPACITA = 'Capacità';
+
+// Padre virtuale della radice: i requisiti cliente (spec 0003). È l'ownerId dei loro blocchi tondi e dei loro fili
+export const ID_CLIENTE = '__cliente__';
+
+// Un requisito cliente ha idCliente; uno di libreria no
+export function isRequisitoCliente(req) {
+    return Boolean(req && req.idCliente !== undefined);
+}
+
+// Titolo da mostrare: il titolo, o per un requisito cliente senza titolo l'inizio del testo
+export function titoloRequisito(req) {
+    if (!req) return '';
+    if (req.titolo) return req.titolo;
+    const testo = req.testo || '';
+    return testo.length > 30 ? `${testo.slice(0, 30)}…` : testo;
+}
 
 export function isInterfaccia(req) {
     return Boolean(req && req.tipologia);
@@ -31,6 +47,15 @@ export function getColoreRequisito(req) {
 }
 
 export function descriviRequisito(req) {
+    if (isRequisitoCliente(req)) {
+        const stato = [req.stato === 'ritirato' ? 'Ritirato' : '', req.modificato ? 'Modificato' : ''].filter(Boolean).join(', ');
+        return [
+            `${req.idCliente} (${req.id})${req.titolo ? ` · ${req.titolo}` : ''}`,
+            isInterfaccia(req) ? `Interfaccia: ${req.tipologia}` : 'Capacità',
+            ...(stato ? [stato] : []),
+            req.testo
+        ].join('\n');
+    }
     const righe = [
         `${req.id} · ${req.titolo || '(senza titolo)'}`,
         isInterfaccia(req) ? `Interfaccia: ${req.tipologia}` : 'Capacità',
@@ -146,6 +171,30 @@ export function idRequisitoLibero(libreria, base, occupatiExtra = []) {
     }
 }
 
+/* --- REQUISITI DEI BLOCCHI TONDI: IL PADRE DI UN LIVELLO --- */
+
+// Indice id → requisito cliente, ricostruito solo quando cambia l'elenco (import, apertura, annulla)
+let indiceCliente = { elenco: null, lunghezza: 0, mappa: new Map() };
+
+function mappaCliente() {
+    const elenco = appState.cliente?.requisiti || [];
+    if (indiceCliente.elenco !== elenco || indiceCliente.lunghezza !== elenco.length) {
+        indiceCliente = { elenco, lunghezza: elenco.length, mappa: new Map(elenco.map(r => [r.id, r])) };
+    }
+    return indiceCliente.mappa;
+}
+
+// Requisiti dei blocchi tondi di un livello: tipoPadre null = radice, cioè i requisiti cliente
+export function requisitiPadre(tipoPadre) {
+    if (tipoPadre === null || tipoPadre === undefined) return appState.cliente?.requisiti || [];
+    return appState.library[tipoPadre]?.requisiti || [];
+}
+
+export function requisitoPadre(tipoPadre, reqId) {
+    if (tipoPadre === null || tipoPadre === undefined) return mappaCliente().get(reqId) || null;
+    return appState.library[tipoPadre]?.requisiti.find(r => r.id === reqId) || null;
+}
+
 /* --- REGOLE DI COLLEGAMENTO --- */
 
 // Un estremo di un filo: { ownerId, reqId, ownerType: 'node' | 'parent', req }
@@ -167,9 +216,13 @@ export function verificaCompatibilita(a, b) {
     return null;
 }
 
+// Solo per i fili nuovi: la pulizia dopo un Salva o un import usa verificaCompatibilita, che tiene i fili dei ritirati
 export function verificaCollegamento(a, b, edges) {
     const errore = verificaCompatibilita(a, b);
     if (errore) return errore;
+    if ([a, b].some(e => e.ownerType === 'parent' && e.req.stato === 'ritirato')) {
+        return 'Requisito cliente ritirato: non si collega.';
+    }
     const stessoEstremo = (edgeId, edgeHandle, edgeType, e) =>
         edgeId === e.ownerId && edgeHandle === e.reqId && edgeType === e.ownerType;
     const esiste = edges.some(edge =>
@@ -189,7 +242,8 @@ export function isDerivazione(edge) {
 // Percorre tutto il modello (ogni livello annidato) e, per ogni riferimento ai requisiti del blocco 'blockId':
 // rinomina gli id cambiati (mappaRinomina: vecchioId → nuovoId), toglie le posizioni dei pin non più validi
 // e rimuove i fili che puntano a requisiti eliminati o non più compatibili. Restituisce i fili rimossi.
-export function aggiornaRiferimentiRequisiti(radice, libreria, blockId, mappaRinomina) {
+// trovaPadre(tipoPadre, reqId) dà il requisito di un blocco tondo: alla radice (tipoPadre null) è un requisito cliente
+export function aggiornaRiferimentiRequisiti(radice, libreria, blockId, mappaRinomina, trovaPadre = requisitoPadre) {
     const rinomina = id => mappaRinomina[id] || id;
     const requisitiBlocco = libreria[blockId]?.requisiti || [];
     const trovaNelBlocco = id => requisitiBlocco.find(r => r.id === id);
@@ -208,8 +262,9 @@ export function aggiornaRiferimentiRequisiti(radice, libreria, blockId, mappaRin
     function visita(graph, tipoPadre) {
         const tipoEstremo = (ownerId, ownerType) =>
             ownerType === 'parent' ? tipoPadre : graph.nodes.find(n => n.id === ownerId)?.type;
-        const reqEstremo = (ownerId, reqId, ownerType) =>
-            libreria[tipoEstremo(ownerId, ownerType)]?.requisiti.find(r => r.id === reqId) || null;
+        const reqEstremo = (ownerId, reqId, ownerType) => ownerType === 'parent' && tipoPadre === null
+            ? trovaPadre(null, reqId)
+            : libreria[tipoEstremo(ownerId, ownerType)]?.requisiti.find(r => r.id === reqId) || null;
 
         if (tipoPadre === blockId) {
             graph.parentReqPositions = riallineaMappa(graph.parentReqPositions, req => Boolean(req));

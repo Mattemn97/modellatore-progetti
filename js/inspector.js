@@ -1,10 +1,11 @@
 /* --- ISPETTORE: MODIFICA DI BLOCCHI DI LIBRERIA, REQUISITI E TESTI DA ESPORTARE --- */
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
-import { render } from './renderer.js';
+import { render, centraVista, evidenziaCliente } from './renderer.js';
 import { escapeHtml, slugifyId } from './utils.js';
-import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti } from './model.js';
+import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE } from './model.js';
 import { salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog } from './libreria.js';
+import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 
 const propsContent = document.getElementById('propsContent');
 
@@ -82,6 +83,9 @@ function opzioni(valori, selezionato, etichettaVuota) {
 }
 
 function renderEditorForm(data) {
+    // Il form della libreria prende il posto del dettaglio di un requisito cliente
+    impostaSelezioneCliente(null);
+    evidenziaCliente(null);
     const html = `
         <div style="display:flex; flex-direction:column; gap:8px;">
             <div class="prop-item">
@@ -282,6 +286,7 @@ function renderEditorForm(data) {
         const blockId = data.isNew ? slugifyId(campi.titolo) : data.blockId;
 
         if (!campi.titolo || !blockId) return alert("Inserisci un titolo valido per il blocco.");
+        if (blockId === ID_CLIENTE) return alert(`L'ID "${ID_CLIENTE}" è riservato ai requisiti cliente: scegli un altro titolo.`);
 
         const dupErr = checkLibraryDuplicates(blockId, campi.titolo, data.isNew ? null : blockId);
         if (dupErr) return alert(dupErr);
@@ -383,6 +388,9 @@ function validaRequisiti(requisiti, blockId) {
                 return `L'ID "${req.id}" è già usato dal blocco "${altro.titolo}". Gli ID dei requisiti devono essere univoci in tutta la libreria.`;
             }
         }
+        if (trovaRequisitoCliente(req.id)) {
+            return `L'ID "${req.id}" è già l'id di un requisito cliente del progetto aperto: scegline un altro.`;
+        }
 
         if (!req.titolo) return `Il requisito "${req.id}" non ha un titolo.`;
         if (req.tipologia && !tipologie.includes(req.tipologia)) {
@@ -394,6 +402,75 @@ function validaRequisiti(requisiti, blockId) {
         if (senzaTesto) return `Nel requisito "${req.id}" c'è un documento (${senzaTesto.documento}) senza testo.`;
     }
     return null;
+}
+
+/* --- DETTAGLIO DI UN REQUISITO CLIENTE (SOLA LETTURA) --- */
+
+function rigaDettaglio(etichetta, valore, stile = '') {
+    return `<div class="prop-item"><strong>${etichetta}</strong><div style="white-space:pre-wrap;${stile}">${escapeHtml(valore ?? '—')}</div></div>`;
+}
+
+// Aperto dalla scheda Cliente o dal clic sul blocco tondo; se il requisito è sul canvas e sei alla radice, lo centra
+export function mostraDettaglioCliente(id) {
+    const req = trovaRequisitoCliente(id);
+    if (!req) return;
+    setActiveNodeId(null);
+    impostaSelezioneCliente(id);
+
+    const fili = contaFiliCliente().get(id) || 0;
+    const posizione = pathStack[0].graph.parentReqPositions?.[id];
+    const prima = req.modificato && req.precedente ? `
+        <div class="prop-item dettaglio-modifica"><strong>Prima e dopo l'ultimo import</strong>
+            ${['testo', 'titolo', 'tipologia'].map(campo => {
+                const vecchio = req.precedente[campo] ?? null;
+                const nuovo = req[campo] ?? null;
+                if (vecchio === nuovo) return '';
+                return `<div><em>${campo}</em>: <del>${escapeHtml(vecchio ?? '(vuoto)')}</del> → <ins>${escapeHtml(nuovo ?? '(vuoto)')}</ins></div>`;
+            }).join('') || '<div>Tornato attivo dopo essere stato ritirato, senza cambi di testo, titolo o tipologia.</div>'}
+        </div>` : '';
+
+    propsContent.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <h4 style="margin:0 0 6px;">Requisito cliente</h4>
+            ${rigaDettaglio('ID del cliente', req.idCliente, 'font-family:monospace;')}
+            ${rigaDettaglio('Id nel modello', req.id, 'font-family:monospace;')}
+            ${rigaDettaglio('Titolo', req.titolo)}
+            ${rigaDettaglio('Testo', req.testo)}
+            ${rigaDettaglio('Note', req.note)}
+            ${rigaDettaglio('Sezione', req.sezione)}
+            ${rigaDettaglio('Classe', getClasseRequisito(req))}
+            ${rigaDettaglio('Stato', `${req.stato === 'ritirato' ? 'Ritirato' : 'Attivo'}${req.modificato ? ', modificato' : ''}${posizione ? ', sul canvas' : ''}`)}
+            ${rigaDettaglio('Fili', String(fili))}
+            ${prima}
+            <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto">✔ Segna come visto</button>` : ''}
+                <button id="btnTogliCliente" class="pulsante-progetto" ${posizione && fili === 0 ? '' : 'disabled'}
+                    title="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : 'Toglie il blocco tondo, non il requisito') : 'Non è sul canvas'}">Togli dal canvas</button>
+            </div>
+        </div>`;
+
+    document.getElementById('btnVistoCliente')?.addEventListener('click', () => {
+        req.modificato = false;
+        req.precedente = null;
+        render();
+        mostraDettaglioCliente(id);
+    });
+    document.getElementById('btnTogliCliente')?.addEventListener('click', () => {
+        const radice = pathStack[0].graph;
+        if ((contaFiliCliente().get(id) || 0) > 0) return;
+        delete radice.parentReqPositions[id];
+        evidenziaCliente(null);
+        render();
+        mostraDettaglioCliente(id);
+    });
+
+    if (posizione && pathStack.length === 1) {
+        centraVista(posizione.x, posizione.y);
+        evidenziaCliente(id);
+    } else {
+        evidenziaCliente(null);
+    }
+    render();
 }
 
 export function deleteNodeFromGraph(nodeId) {

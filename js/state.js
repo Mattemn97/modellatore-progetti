@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS = {
     libraryPath: "shared/libreria.json",
     progetti: { debounceMs: 1000, versioni: 3 },
     libreria: { versioni: 3 },
+    cliente: { prefisso: "CLI-", maxFileMB: 20, righeAnteprima: 200, righePannello: 300 },
     grid: { size: 20 },
     node: { width: 160, height: 60, selectedBorderColor: "#0078d4" },
     parentBlock: { radius: 28 },
@@ -49,7 +50,9 @@ export const appState = {
             ]
         }
     },
-    workspace: { nodes: [], edges: [] }
+    workspace: { nodes: [], edges: [] },
+    // Requisiti cliente del progetto aperto (spec 0003): null se il progetto non ne ha
+    cliente: null
 };
 
 export let pathStack = [{ id: 'root', label: 'Progetto Intero (Root)', graph: appState.workspace, parentNode: null }];
@@ -77,6 +80,7 @@ export async function loadSettings() {
         ...caricate,
         progetti: { ...DEFAULT_SETTINGS.progetti, ...caricate.progetti },
         libreria: { ...DEFAULT_SETTINGS.libreria, ...caricate.libreria },
+        cliente: { ...DEFAULT_SETTINGS.cliente, ...caricate.cliente },
         grid: { ...DEFAULT_SETTINGS.grid, ...caricate.grid },
         node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
         parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },

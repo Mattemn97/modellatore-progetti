@@ -1,11 +1,12 @@
 /* --- CONTROLLER PRINCIPALE E INIZIALIZZAZIONE --- */
 
 import { loadSettings, pathStack, getCurrentLevel, appState, setActiveNodeId, appSettings } from './state.js';
-import { render, cleanupEdgeDrawing, isDrawingEdge, resetView } from './renderer.js';
+import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, evidenziaCliente } from './renderer.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
 import { mostraChangelog } from './libreria.js';
+import { initSchedaCliente, posizionaRequisitoCliente, impostaSelezioneCliente } from './cliente.js';
 import { CAPACITA, getTipologie } from './model.js';
 import { escapeHtml, generaId } from './utils.js';
 
@@ -62,6 +63,7 @@ function popolaFiltroTipologia() {
 async function initApp() {
     await loadSettings();
     popolaFiltroTipologia();
+    initSchedaCliente();
 
     // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
     // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti
@@ -123,11 +125,17 @@ async function initApp() {
 
             getCurrentLevel().graph.nodes.push(newNode);
             render();
+            return;
         }
+        // Una riga della scheda Cliente: diventa un blocco tondo della radice, centrato sul punto di griglia più vicino
+        const idCliente = e.dataTransfer.getData('requisitoCliente');
+        if (idCliente) posizionaRequisitoCliente(idCliente, getCanvasCoords(e));
     });
 
     svg?.addEventListener('click', () => {
         setActiveNodeId(null);
+        impostaSelezioneCliente(null);
+        evidenziaCliente(null);
         const propsContent = document.getElementById('propsContent');
         if (propsContent) propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>`;
         render();

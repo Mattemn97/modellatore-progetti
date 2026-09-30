@@ -7,8 +7,13 @@ import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { leggiFileJson, downloadJsonFile } from './storage.js';
 import { escapeHtml, slugifyId } from './utils.js';
 import { ricaricaLibreria, sovrascriviLibreria, aggiornaPulsantiLibreria } from './libreria.js';
+import {
+    problemaCliente, completaCliente, controllaClienteAllApertura, aggiornaPulsantiCliente,
+    importClienteAperto, impostaSelezioneCliente, dettaglioClienteAperto
+} from './cliente.js';
 
-const FORMAT_VERSION = 1;
+// 2 da quando il progetto può avere la chiave cliente (spec 0003): si leggono 1 e 2, si scrive sempre 2
+const FORMAT_VERSION = 2;
 const LUNGHEZZA_MAX_SLUG = 80;
 const NOMI_RISERVATI = new Set(['con', 'prn', 'aux', 'nul',
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap(i => [`com${i}`, `lpt${i}`])]);
@@ -44,18 +49,27 @@ let operazioneInCorso = false;
 let libreriaCaricata = null;    // percorso dell'ultima libreria caricata con successo
 let avvisoLibreria = '';
 let avvisoServer = '';
+let avvisoCliente = '';          // id cliente uguali a id della libreria, trovati all'apertura
 // Stati della libreria su disco mostrati nel banner, impostati da js/libreria.js
 const statoLibreriaBanner = { conflitto: false, avviso: '' };
 
 /* --- TESTO DEL PROGETTO E CHIAMATE AL SERVER --- */
 
+// Workspace e requisiti cliente insieme: ogni cambiamento dei due fa partire il salvataggio
 function testoProgetto() {
-    return JSON.stringify({
+    const contenuto = {
         formatVersion: FORMAT_VERSION,
         nome: progetto.nome,
         libraryPath: progetto.libraryPath,
         workspace: pathStack[0].graph
-    });
+    };
+    if (appState.cliente) contenuto.cliente = appState.cliente;
+    return JSON.stringify(contenuto);
+}
+
+// Un progetto è aperto (e si salva su disco)
+export function progettoAperto() {
+    return !!progetto.slug;
 }
 
 function urlProgetto(slug, suffisso = '') {
@@ -114,11 +128,12 @@ function svuotaIspettore() {
     if (propsContent) propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>`;
 }
 
-// Sostituisce il workspace; con mantieniLivello riapre gli stessi blocchi seguendo i loro id
-function sostituisciModello(workspace, mantieniLivello) {
+// Sostituisce workspace e requisiti cliente, sempre insieme; con mantieniLivello riapre gli stessi blocchi seguendo i loro id
+function sostituisciModello(workspace, cliente, mantieniLivello) {
     const idAperti = mantieniLivello ? pathStack.slice(1).map(livello => livello.id) : [];
     completaModello(workspace);
     appState.workspace = workspace;
+    appState.cliente = completaCliente(cliente ?? null);
     pathStack.length = 0;
     pathStack.push({ id: 'root', label: progetto.nome, graph: workspace, parentNode: null });
     for (const id of idAperti) {
@@ -131,14 +146,19 @@ function sostituisciModello(workspace, mantieniLivello) {
         setActiveNodeId(null);
         svuotaIspettore();
     }
+    // Il dettaglio di un requisito cliente mostrerebbe valori di un altro momento
+    if (dettaglioClienteAperto()) {
+        impostaSelezioneCliente(null);
+        svuotaIspettore();
+    }
 }
 
 // Rende attivo un progetto appena letto o scritto; la libreria va caricata prima
-function impostaProgetto(slug, nome, libraryPath, workspace, impronta, versioni, mantieniLivello) {
+function impostaProgetto(slug, nome, libraryPath, workspace, cliente, impronta, versioni, mantieniLivello) {
     annullaTimer();
     fermaRitentativi();
     Object.assign(progetto, { slug, nome, libraryPath, impronta, versioni });
-    sostituisciModello(workspace, mantieniLivello);
+    sostituisciModello(workspace, cliente, mantieniLivello);
     const libPathInput = document.getElementById('libPathInput');
     if (libPathInput) libPathInput.value = libraryPath;
     renderUI();
@@ -162,7 +182,18 @@ function problemaFileProgetto(dati, slug) {
     if (!ws || typeof ws !== 'object' || !Array.isArray(ws.nodes) || !Array.isArray(ws.edges)) {
         return `Il file del progetto "${slug}" non contiene un workspace valido (servono gli elenchi "nodes" ed "edges").`;
     }
+    const cliente = problemaCliente(dati.cliente);
+    if (cliente) return `Il file del progetto "${slug}" ha requisiti cliente non validi: ${cliente}.`;
     return null;
+}
+
+// Dopo l'apertura: fili cliente orfani, posizioni mancanti, collisioni con la libreria (spec 0003, AC-20)
+function controllaCliente() {
+    const { cambiato, avviso } = controllaClienteAllApertura();
+    avvisoCliente = avviso;
+    aggiornaBanner();
+    // Le correzioni vanno su disco con il salvataggio automatico
+    if (cambiato) render();
 }
 
 /* --- LIBRERIA DEL PROGETTO --- */
@@ -293,8 +324,8 @@ async function salva({ forza = false } = {}) {
     return false;
 }
 
-// Prima di cambiare progetto o versione: salva subito quanto in attesa, altrimenti blocca l'azione
-async function svuota() {
+// Prima di cambiare progetto o versione (o dopo un import cliente): salva subito quanto in attesa, altrimenti blocca l'azione
+export async function svuota() {
     if (stato === 'conflitto') {
         alert('Il file del progetto è cambiato sul disco: scegli prima "Ricarica dal disco" o "Sovrascrivi" nel banner.');
         return false;
@@ -354,7 +385,8 @@ async function apriProgetto(slug, { silenzioso404 = false } = {}) {
     await caricaLibreria(libraryPath);
 
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : slug;
-    impostaProgetto(slug, nome, libraryPath, dati.workspace, r.dati.impronta, r.dati.versioni, false);
+    impostaProgetto(slug, nome, libraryPath, dati.workspace, dati.cliente, r.dati.impronta, r.dati.versioni, false);
+    controllaCliente();
     pilaRipeti = [];
     aggiornaInterfaccia();
     await chiamaApi('PUT', '/api/ultimo', { progetto: slug });
@@ -444,14 +476,14 @@ async function annulla() {
     pilaRipeti.push(testoAttuale);
     while (pilaRipeti.length > appSettings.progetti.versioni) pilaRipeti.shift();
     impostaProgetto(progetto.slug, progetto.nome, progetto.libraryPath, r.dati.progetto.workspace,
-        r.dati.impronta, r.dati.versioni, true);
+        r.dati.progetto.cliente, r.dati.impronta, r.dati.versioni, true);
 }
 
 async function ripeti() {
     if (!progetto.slug || stato === 'conflitto' || pilaRipeti.length === 0) return;
     if (!await svuota()) return;
     const dati = JSON.parse(pilaRipeti.pop());
-    sostituisciModello(dati.workspace, true);
+    sostituisciModello(dati.workspace, dati.cliente, true);
     renderUI();
     render();
     prossimoDaRipeti = true;
@@ -473,7 +505,8 @@ async function ricaricaDalDisco() {
     const libraryPath = typeof dati.libraryPath === 'string' && dati.libraryPath ? dati.libraryPath : progetto.libraryPath;
     await caricaLibreria(libraryPath);
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : progetto.slug;
-    impostaProgetto(progetto.slug, nome, libraryPath, dati.workspace, r.dati.impronta, r.dati.versioni, true);
+    impostaProgetto(progetto.slug, nome, libraryPath, dati.workspace, dati.cliente, r.dati.impronta, r.dati.versioni, true);
+    controllaCliente();
     pilaRipeti = [];
 }
 
@@ -578,6 +611,11 @@ async function importaDati(dati, file) {
         alert(`"${file.name}" non contiene un modello valido: servono gli elenchi "nodes" ed "edges".`);
         return;
     }
+    const problema = problemaCliente(dati.cliente);
+    if (problema) {
+        alert(`"${file.name}" ha requisiti cliente non validi: ${problema}.`);
+        return;
+    }
     try {
         completaModello(workspace);
     } catch (err) {
@@ -594,7 +632,7 @@ async function importaDati(dati, file) {
         ? dati.libraryPath
         : (progetto.libraryPath || appSettings.libraryPath);
     const slug = await chiediNomeECrea('Nome del progetto importato:', nomeProposto,
-        nome => ({ formatVersion: FORMAT_VERSION, nome, libraryPath, workspace }));
+        nome => ({ formatVersion: FORMAT_VERSION, nome, libraryPath, workspace, ...(dati.cliente ? { cliente: dati.cliente } : {}) }));
     if (!slug || await apriProgetto(slug) !== 'ok') return;
 
     const mancanti = tipiMancanti(pathStack[0].graph);
@@ -621,7 +659,7 @@ function scarica() {
 
 function modaleAperta() {
     const modal = document.getElementById('reportModal');
-    return !!modal && modal.style.display !== 'none';
+    return (!!modal && modal.style.display !== 'none') || importClienteAperto();
 }
 
 function chiudiModale() {
@@ -697,6 +735,7 @@ function aggiornaInterfaccia() {
     });
 
     aggiornaPulsantiLibreria();
+    aggiornaPulsantiCliente();
     aggiornaBanner();
 }
 
@@ -706,7 +745,7 @@ function aggiornaBanner() {
     if (!banner) return;
     let html = '';
     let classe = 'banner-errore';
-    const avviso = avvisoServer || avvisoLibreria || statoLibreriaBanner.avviso;
+    const avviso = avvisoServer || avvisoLibreria || avvisoCliente || statoLibreriaBanner.avviso;
     if (stato === 'conflitto') {
         html = `<span>Il file del progetto è cambiato sul disco dopo che l'app l'ha letto (modifica a mano o un'altra scheda). Il salvataggio automatico è sospeso finché non scegli.</span>
             <button data-banner="ricarica">Ricarica dal disco</button>
@@ -747,6 +786,7 @@ const AZIONI_BANNER = {
     chiudi: () => {
         if (avvisoServer) avvisoServer = '';
         else if (avvisoLibreria) avvisoLibreria = '';
+        else if (avvisoCliente) avvisoCliente = '';
         else statoLibreriaBanner.avviso = '';
         aggiornaBanner();
     }

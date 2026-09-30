@@ -16,7 +16,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | C | Import ed export JSON manuale | Esistente | existing |
 | 1 | Salvataggio automatico del progetto | Foundation | done |
 | 2 | Libreria su disco con changelog | Foundation | done |
-| 3 | Import requisiti cliente | Slice 1 | planned |
+| 3 | Import requisiti cliente | Slice 1 | in-progress |
 | 4 | Controllo di coerenza | Slice 2 | planned |
 | 5 | Gerarchia dei requisiti | Slice 3 | planned |
 | 6 | Matrice di tracciabilità | Slice 3 | planned |
@@ -67,10 +67,18 @@ spec [0002](../specs/0002-libreria-disco-changelog/index.md) · code in `start.p
 
 ## Slice 1: Requisiti cliente
 
-### 3. Import requisiti cliente · needs a decision
+### 3. Import requisiti cliente · in-progress
 Importi da Excel o CSV le frasi del cliente (anche migliaia). Diventano i requisiti di un blocco Cliente che fa da padre del livello radice: ognuna è un blocco tondo da cui tiri fili verso i blocchi di sistema.
 **Done when:** scegli un file, mappi le colonne (ID, testo, eventuali note), vedi un'anteprima con errori e duplicati, e dopo l'import i requisiti cliente compaiono come blocchi tondi alla radice; un secondo import dello stesso file aggiorna invece di duplicare.
-- [ ] Design it (spec): `/architect import requisiti cliente`
+spec [0003](../specs/0003-import-requisiti-cliente/index.md) · code in `start.py`, `js/cliente.js`, `js/model.js`, `js/renderer.js`, `js/progetto.js`
+- [x] Design it (spec): `/architect import requisiti cliente`
+- [x] Build it: `/develop import requisiti cliente`
+  - [x] Filo minimo dal CSV al canvas e al disco: `appState.cliente` in ogni percorso del progetto, formato 2, API CSV, padre `__cliente__` in `model.js` e nel renderer, schede Libreria e Cliente, trascinamento e fili (AC-1, AC-10, AC-13, AC-14, AC-19, AC-20)
+  - [x] Excel, fogli, colonne e mappatura ricordata (AC-2, AC-3, AC-4, AC-5)
+  - [x] Validazione, anteprima e reimport: scarti, conteggi, modalità, modificati, ritirati, fili persi (AC-6, AC-7, AC-8, AC-9, AC-11)
+  - [x] Scheda Cliente completa, dettaglio nell'ispettore e stati sul canvas (AC-12, AC-15, AC-16)
+  - [x] Protezioni: id cliente nel Salva della libreria, import durante un conflitto (AC-17, AC-18)
+- [x] Verify it: `/check verify import requisiti cliente`
 
 ## Slice 2: Coerenza
 
@@ -125,6 +133,8 @@ Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Coerenza avanzata**: metodo di verifica mancante, testi senza documento, requisiti orfani per documento · needs a decision
 - **Annulla della libreria**: ripristinare una copia di `_versioni/` con la sua voce di changelog, from spec 0002 · needs a decision
 - **Distribuzione dell'exe**: pacchetto pronto con tutti i file accanto a `start.exe`
+- **Pulizia dei requisiti cliente ritirati**: eliminarli davvero quando la lista diventa scomoda, from spec 0003 · needs a decision
+- **Lettura di `.xls` e date di Excel**: riaprire la scelta del lettore (SheetJS in `js/vendor/`), from spec 0003 · needs a decision
 
 ## Legend
 

@@ -1,7 +1,14 @@
+import io
 import os
 import re
+import csv
 import sys
 import json
+import math
+import base64
+import zipfile
+import binascii
+import posixpath
 import time
 import getpass
 import hashlib
@@ -10,11 +17,15 @@ import webbrowser
 from datetime import datetime
 from urllib.parse import urlsplit, unquote, parse_qs
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import xml.etree.ElementTree as ET
 
 PORT = 8080
 
 # Limiti e formati dell'API dei progetti (vedi docs/specs/0001-salvataggio-automatico-progetto)
 MAX_CORPO = 50 * 1024 * 1024
+# Formato del file progetto: si scrive sempre 2 (con la chiave facoltativa cliente), si leggono 1 e 2
+FORMATO_PROGETTO = 2
+FORMATI_PROGETTO_LETTI = (1, 2)
 LUNGHEZZA_MAX_SLUG = 80
 FORMATO_SLUG = re.compile(r'^[a-z0-9]+(_[a-z0-9]+)*$')
 NOMI_RISERVATI = {'con', 'prn', 'aux', 'nul'} | {f'com{i}' for i in range(1, 10)} | {f'lpt{i}' for i in range(1, 10)}
@@ -34,6 +45,16 @@ MSG_SLUG_NON_VALIDO = "Il nome deve contenere almeno una lettera o cifra e non p
 MSG_FILE_BLOCCATO = "Il file è bloccato da un altro programma, ad esempio OneDrive, un antivirus o un editor"
 MSG_CHANGELOG_ILLEGGIBILE = "Il changelog non è leggibile: correggilo o spostalo per poter salvare"
 MSG_FORMATO_FUTURO = "Libreria creata da una versione più recente dell'app: aperta in sola lettura"
+
+# Import dei requisiti cliente da Excel o CSV (vedi docs/specs/0003-import-requisiti-cliente)
+MAX_FILE_CLIENTE_MB_PREDEFINITO = 20
+MAX_DECOMPRESSO = 200 * 1024 * 1024
+CAMPIONE_SEPARATORE = 64 * 1024
+FIRMA_OLE = bytes.fromhex('d0cf11e0')
+ESTENSIONI_XLSX = ('.xlsx', '.xlsm')
+MSG_FORMATO_CLIENTE = "Salva il file come .xlsx senza password e riprova."
+MSG_FILE_ILLEGGIBILE = "Il file non è leggibile: è danneggiato o non è un file Excel o CSV valido."
+csv.field_size_limit(10 * 1024 * 1024)
 
 def get_base_dir():
     # Gestisce sia l'esecuzione da script che da file .exe compilato con PyInstaller
@@ -71,6 +92,17 @@ def ensure_shared_library(base_dir):
         with open(lib_path, "w", encoding="utf-8") as f:
             f.write(dummy_lib)
 
+def leggi_max_file_cliente(base_dir):
+    # cliente.maxFileMB da settings.json: numero positivo; predefinito se manca o non è valido
+    try:
+        with open(os.path.join(base_dir, "settings.json"), encoding="utf-8") as f:
+            valore = json.load(f).get("cliente", {}).get("maxFileMB")
+        if type(valore) in (int, float) and valore > 0:
+            return valore
+    except (OSError, ValueError, AttributeError):
+        pass
+    return MAX_FILE_CLIENTE_MB_PREDEFINITO
+
 def leggi_max_versioni(base_dir, sezione):
     # <sezione>.versioni da settings.json (progetti o libreria): intero, minimo 1; predefinito se manca o non è valido
     try:
@@ -106,10 +138,18 @@ def controlla_progetto(progetto):
               and isinstance(progetto.get('libraryPath'), str)
               and isinstance(workspace, dict)
               and isinstance(workspace.get('nodes'), list) and isinstance(workspace.get('edges'), list)
-              and type(progetto.get('formatVersion')) is int and progetto['formatVersion'] == 1)
+              and type(progetto.get('formatVersion')) is int and progetto['formatVersion'] in FORMATI_PROGETTO_LETTI
+              and (progetto.get('cliente') is None or isinstance(progetto.get('cliente'), dict)))
     if not valido:
         raise ErroreApi(400, 'progetto_non_valido',
-                        "Il progetto non ha la forma attesa: formatVersion 1, nome, libraryPath e workspace con nodes ed edges.")
+                        "Il progetto non ha la forma attesa: formatVersion 1 o 2, nome, libraryPath, workspace con nodes ed edges e cliente facoltativo.")
+
+def con_cliente(progetto, origine):
+    # Copia in progetto la chiave cliente di origine, se c'è: requisiti cliente e workspace viaggiano insieme
+    cliente = origine.get('cliente') if isinstance(origine, dict) else None
+    if isinstance(cliente, dict):
+        progetto['cliente'] = cliente
+    return progetto
 
 def serializza(progetto):
     return json.dumps(progetto, ensure_ascii=False, indent=2).encode('utf-8')
@@ -320,13 +360,13 @@ class ArchivioProgetti:
         workspace = precedente.get('workspace')
         if not isinstance(workspace, dict):
             raise ErroreApi(422, 'json_non_valido', 'La versione precedente non contiene un workspace.')
-        # Si ripristina solo il modello: nome e percorso della libreria restano quelli attuali
-        progetto = {
-            'formatVersion': 1,
+        # Si ripristina solo il modello (workspace e requisiti cliente): nome e percorso della libreria restano quelli attuali
+        progetto = con_cliente({
+            'formatVersion': FORMATO_PROGETTO,
             'nome': attuale['nome'] if isinstance(attuale.get('nome'), str) else slug,
             'libraryPath': attuale['libraryPath'] if isinstance(attuale.get('libraryPath'), str) else '',
             'workspace': workspace,
-        }
+        }, precedente)
         nuovi = serializza(progetto)
         scrivi_atomico(self.principale(slug), nuovi)
         # .2→.1, .3→.2: la versione usata sparisce, non se ne crea una nuova
@@ -352,12 +392,12 @@ class ArchivioProgetti:
         if nuovo_slug != slug and os.path.exists(self.principale(nuovo_slug)):
             raise ErroreApi(409, 'esiste', f'Esiste già un progetto con il nome "{nuovo_slug}".')
         attuale = interpreta_json(attuali, f'Il file del progetto "{slug}" non è JSON valido.')
-        progetto = {
-            'formatVersion': 1,
+        progetto = con_cliente({
+            'formatVersion': FORMATO_PROGETTO,
             'nome': nome,
             'libraryPath': attuale['libraryPath'] if isinstance(attuale.get('libraryPath'), str) else '',
             'workspace': attuale.get('workspace'),
-        }
+        }, attuale)
         nuovi = serializza(progetto)
         # Il nome non fa parte delle versioni: la rinomina non ne crea una nuova
         scrivi_atomico(self.principale(nuovo_slug), nuovi)
@@ -830,6 +870,229 @@ class ArchivioLibrerie:
         voci = changelog['voci'] if changelog else []
         return {'versione': voci[-1]['versione'] if voci else None, 'voci': voci}
 
+# --- Lettura dei file del cliente: .xlsx/.xlsm con zipfile ed ElementTree, .csv con il modulo csv ---
+# Non scrive e non legge nulla sul disco: lavora solo sui byte ricevuti
+
+def locale(tag):
+    # Nome senza namespace: accetta sia l'OOXML di Excel sia la variante strict
+    return tag.rsplit('}', 1)[-1] if isinstance(tag, str) else ''
+
+def attributo(el, nome):
+    # Attributo cercato per nome locale (es. l'id della relazione, che ha un namespace)
+    for chiave, valore in el.attrib.items():
+        if locale(chiave) == nome:
+            return valore
+    return None
+
+def togli_righe_vuote_finali(righe):
+    while righe and not any(cella != '' for cella in righe[-1]):
+        righe.pop()
+    return righe
+
+class LettoreXlsx:
+    def __init__(self, dati):
+        try:
+            self.zip = zipfile.ZipFile(io.BytesIO(dati))
+        except (zipfile.BadZipFile, ValueError):
+            raise ErroreApi(422, 'file_illeggibile', MSG_FILE_ILLEGGIBILE)
+        self.letti = 0
+
+    def parte(self, nome, obbligatoria=True):
+        # Legge una parte dello zip rispettando il limite complessivo dei byte decompressi (zip bomba)
+        try:
+            info = self.zip.getinfo(nome)
+        except KeyError:
+            if obbligatoria:
+                raise ErroreApi(422, 'file_illeggibile', MSG_FILE_ILLEGGIBILE)
+            return None
+        rimasti = MAX_DECOMPRESSO - self.letti
+        try:
+            with self.zip.open(info) as f:
+                dati = f.read(rimasti + 1)
+        except (zipfile.BadZipFile, RuntimeError, OSError, EOFError, NotImplementedError):
+            raise ErroreApi(422, 'file_illeggibile', MSG_FILE_ILLEGGIBILE)
+        if len(dati) > rimasti:
+            raise ErroreApi(413, 'troppo_grande', 'Il file decompresso supera il limite di 200 MB.')
+        self.letti += len(dati)
+        return dati
+
+    def xml(self, nome, obbligatoria=True):
+        dati = self.parte(nome, obbligatoria)
+        if dati is None:
+            return None
+        # Niente DOCTYPE: nessuna entità definita dal file
+        if re.search(rb'<!DOCTYPE', dati, re.IGNORECASE):
+            raise ErroreApi(422, 'file_illeggibile', MSG_FILE_ILLEGGIBILE)
+        try:
+            return ET.fromstring(dati)
+        except ET.ParseError:
+            raise ErroreApi(422, 'file_illeggibile', MSG_FILE_ILLEGGIBILE)
+
+    @staticmethod
+    def testo_ricco(el):
+        # Testo di <si> o <is>: <t> diretto più i <t> dei <r>, mai le letture fonetiche in <rPh>
+        parti = []
+        for figlio in el:
+            nome = locale(figlio.tag)
+            if nome == 't':
+                parti.append(figlio.text or '')
+            elif nome == 'r':
+                parti.extend(t.text or '' for t in figlio if locale(t.tag) == 't')
+        return ''.join(parti)
+
+    def testi_condivisi(self):
+        radice = self.xml('xl/sharedStrings.xml', obbligatoria=False)
+        if radice is None:
+            return []
+        return [self.testo_ricco(si) for si in radice if locale(si.tag) == 'si']
+
+    def fogli_dichiarati(self):
+        # [(nome, percorso nello zip, nascosto)] nell'ordine di xl/workbook.xml, solo fogli di lavoro
+        relazioni = {}
+        for rel in self.xml('xl/_rels/workbook.xml.rels'):
+            if locale(rel.tag) != 'Relationship' or not (rel.get('Type') or '').endswith('/worksheet'):
+                continue
+            destinazione = rel.get('Target') or ''
+            if destinazione.startswith('/'):
+                percorso = destinazione.lstrip('/')
+            else:
+                percorso = posixpath.normpath(posixpath.join('xl', destinazione))
+            relazioni[rel.get('Id')] = percorso
+        fogli = []
+        for el in self.xml('xl/workbook.xml').iter():
+            if locale(el.tag) != 'sheet':
+                continue
+            percorso = relazioni.get(attributo(el, 'id'))
+            if percorso:
+                fogli.append((el.get('name') or f'Foglio{len(fogli) + 1}', percorso,
+                              el.get('state') in ('hidden', 'veryHidden')))
+        return fogli
+
+    @staticmethod
+    def indice_colonna(riferimento):
+        # "C5" → 2; None se il riferimento non ha lettere
+        lettere = re.match(r'[A-Za-z]+', riferimento or '')
+        if not lettere:
+            return None
+        n = 0
+        for c in lettere.group(0).upper():
+            n = n * 26 + (ord(c) - 64)
+        return n - 1
+
+    @staticmethod
+    def valore_cella(c, condivisi):
+        tipo = c.get('t') or 'n'
+        if tipo == 'inlineStr':
+            testo = next((f for f in c if locale(f.tag) == 'is'), None)
+            return LettoreXlsx.testo_ricco(testo) if testo is not None else ''
+        v = next((f for f in c if locale(f.tag) == 'v'), None)
+        # Una cella senza <v> (anche una formula senza valore salvato) è vuota
+        if v is None or v.text is None:
+            return ''
+        grezzo = v.text
+        if tipo == 's':
+            try:
+                return condivisi[int(grezzo)]
+            except (ValueError, IndexError):
+                return ''
+        if tipo == 'b':
+            return '1' if grezzo.strip() == '1' else '0'
+        if tipo == 'e':
+            return ''
+        if tipo == 'n':
+            try:
+                numero = float(grezzo)
+            except ValueError:
+                return grezzo
+            if math.isfinite(numero) and numero.is_integer():
+                return str(int(numero))
+            return repr(numero)
+        # str, d e tipi sconosciuti: il testo così com'è
+        return grezzo
+
+    def righe_foglio(self, percorso, condivisi):
+        radice = self.xml(percorso)
+        righe = []
+        numero_riga = 0
+        for riga in radice.iter():
+            if locale(riga.tag) != 'row':
+                continue
+            try:
+                numero_riga = int(riga.get('r')) if riga.get('r') else numero_riga + 1
+            except ValueError:
+                numero_riga += 1
+            # Le righe assenti nel file restano righe vuote: il numero di riga resta quello di Excel
+            while len(righe) < numero_riga:
+                righe.append([])
+            celle = righe[numero_riga - 1]
+            colonna = -1
+            for c in riga:
+                if locale(c.tag) != 'c':
+                    continue
+                indice = self.indice_colonna(c.get('r'))
+                colonna = indice if indice is not None else colonna + 1
+                valore = self.valore_cella(c, condivisi)
+                if valore == '':
+                    continue
+                while len(celle) <= colonna:
+                    celle.append('')
+                celle[colonna] = valore
+        return togli_righe_vuote_finali(righe)
+
+    def leggi(self):
+        condivisi = self.testi_condivisi()
+        return [{'nome': nome, 'nascosto': nascosto, 'righe': self.righe_foglio(percorso, condivisi)}
+                for nome, percorso, nascosto in self.fogli_dichiarati()]
+
+def leggi_csv(dati, nome_file):
+    try:
+        testo = dati.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        try:
+            testo = dati.decode('cp1252')
+        except UnicodeDecodeError:
+            raise ErroreApi(422, 'file_illeggibile', 'Il CSV non è in UTF-8 né in Windows-1252.')
+    try:
+        separatore = csv.Sniffer().sniff(testo[:CAMPIONE_SEPARATORE], delimiters=';,\t').delimiter
+    except csv.Error:
+        # Il separatore dell'Excel italiano
+        separatore = ';'
+    try:
+        righe = [list(riga) for riga in csv.reader(io.StringIO(testo, newline=''), delimiter=separatore)]
+    except csv.Error:
+        raise ErroreApi(422, 'file_illeggibile', 'Il CSV non è leggibile: controlla virgolette e separatori.')
+    return [{'nome': os.path.splitext(nome_file)[0] or 'CSV', 'nascosto': False,
+             'righe': togli_righe_vuote_finali(righe)}]
+
+def leggi_file_cliente(corpo, max_mb):
+    nome_file = corpo.get('nomeFile')
+    contenuto = corpo.get('contenuto')
+    if not isinstance(nome_file, str) or not nome_file.strip() or not isinstance(contenuto, str):
+        raise ErroreApi(400, 'richiesta_non_valida', 'Servono nomeFile e contenuto (base64).')
+    nome_file = os.path.basename(nome_file.strip().replace('\\', '/'))
+    estensione = os.path.splitext(nome_file)[1].lower()
+    if estensione not in ESTENSIONI_XLSX + ('.csv',):
+        raise ErroreApi(415, 'formato_non_supportato', MSG_FORMATO_CLIENTE)
+    # Il limite si controlla sul base64, prima di decodificarlo
+    if len(contenuto) > math.ceil(max_mb * 1048576 / 3) * 4:
+        raise ErroreApi(413, 'troppo_grande', f'Il file supera il limite di {max_mb:g} MB (cliente.maxFileMB in settings.json).')
+    try:
+        dati = base64.b64decode(contenuto, validate=True)
+    except (binascii.Error, ValueError):
+        raise ErroreApi(400, 'richiesta_non_valida', 'Il contenuto del file non è base64 valido.')
+    if not dati.strip():
+        raise ErroreApi(422, 'file_vuoto', 'Il file è vuoto.')
+    # Firma OLE: un .xls vecchio o un .xlsx protetto da password
+    if dati.startswith(FIRMA_OLE):
+        raise ErroreApi(415, 'formato_non_supportato', MSG_FORMATO_CLIENTE)
+    if estensione == '.csv':
+        formato, fogli = 'csv', leggi_csv(dati, nome_file)
+    else:
+        formato, fogli = 'xlsx', LettoreXlsx(dati).leggi()
+    if not any(cella != '' for foglio in fogli for riga in foglio['righe'] for cella in riga):
+        raise ErroreApi(422, 'file_vuoto', 'Il file è vuoto.')
+    return {'formato': formato, 'fogli': fogli}
+
 class CustomHandler(SimpleHTTPRequestHandler):
     # Mappatura corretta dei tipi MIME per moduli JS e file JSON
     extensions_map = {
@@ -845,6 +1108,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
     timeout = 10
     archivio = None  # impostato in main()
     librerie = None  # impostato in main()
+    max_file_cliente_mb = MAX_FILE_CLIENTE_MB_PREDEFINITO  # impostato in main()
 
     # --- Instradamento ---
 
@@ -915,6 +1179,8 @@ class CustomHandler(SimpleHTTPRequestHandler):
         if n < 0:
             raise ErroreApi(400, 'richiesta_non_valida', 'Content-Length non valido.')
         if n > MAX_CORPO:
+            if urlsplit(self.path).path == '/api/cliente/leggi':
+                raise ErroreApi(413, 'troppo_grande', f'Il file supera il limite di {self.max_file_cliente_mb:g} MB (cliente.maxFileMB in settings.json).')
             raise ErroreApi(413, 'troppo_grande', 'Il progetto supera il limite di 50 MB.')
         try:
             corpo = json.loads(self.rfile.read(n).decode('utf-8'))
@@ -934,6 +1200,11 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 raise ErroreApi(404, 'non_trovato', 'Indirizzo API sconosciuto.')
             if metodo in ('POST', 'PUT', 'DELETE'):
                 self.controlla_content_type()
+            if segmenti == ['cliente', 'leggi']:
+                # Non tocca il disco: niente lucchetto, così un file grande non ferma gli autosalvataggi
+                if metodo != 'POST':
+                    raise ErroreApi(405, 'metodo_non_consentito', 'Metodo non consentito.')
+                return self.invia_json(200, leggi_file_cliente(self.leggi_corpo(), self.max_file_cliente_mb))
             corpo = self.leggi_corpo() if metodo in ('POST', 'PUT') else {}
             with self.archivio.lucchetto:
                 stato, risposta = self.instrada(metodo, segmenti, corpo)
@@ -1034,6 +1305,7 @@ def main():
     librerie = ArchivioLibrerie(base_dir, leggi_max_versioni(base_dir, "libreria"))
     librerie.prepara()
     CustomHandler.librerie = librerie
+    CustomHandler.max_file_cliente_mb = leggi_max_file_cliente(base_dir)
 
     # Multithread: il server a thread singolo si blocca sui socket che Chrome lascia aperti;
     # le operazioni su progetti/ restano una alla volta grazie al lucchetto dell'archivio

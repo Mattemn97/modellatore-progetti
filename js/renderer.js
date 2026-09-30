@@ -1,12 +1,13 @@
 /* --- MOTORE DI RENDERING, ZOOM/PAN, BLOCCHI TONDI DEL PADRE E COLLEGAMENTI --- */
 
 import { appState, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId, appSettings } from './state.js';
-import { selectNode } from './inspector.js';
+import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { renderUI } from './app.js';
 import { pianificaSalvataggio } from './progetto.js';
+import { segnaSchedaClienteDaAggiornare } from './cliente.js';
 import {
     isInterfaccia, getClasseRequisito, getColoreRequisito, descriviRequisito,
-    verificaCollegamento, isDerivazione
+    verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE
 } from './model.js';
 import { generaId } from './utils.js';
 
@@ -28,6 +29,21 @@ let tempEdgePath = null;
 export let zoomState = { scale: 1, x: 0, y: 0 };
 let isPanning = false;
 let startPan = { x: 0, y: 0 };
+
+// Requisito cliente evidenziato sul canvas dal dettaglio nell'ispettore
+let idClienteEvidenziato = null;
+
+export function evidenziaCliente(id) {
+    idClienteEvidenziato = id;
+}
+
+// Sposta la vista (zoom invariato) per mettere al centro il punto x, y del canvas
+export function centraVista(x, y) {
+    const rect = svg.getBoundingClientRect();
+    zoomState.x = rect.width / 2 - x * zoomState.scale;
+    zoomState.y = rect.height / 2 - y * zoomState.scale;
+    updateViewportTransform();
+}
 
 export function resetView() {
     zoomState = { scale: 1, x: 0, y: 0 };
@@ -94,12 +110,15 @@ function getBlockDef(type) {
     return appState.library[type] || null;
 }
 
+// Tipo del padre del livello corrente: null alla radice, dove il padre sono i requisiti cliente
+function tipoPadreCorrente() {
+    return getCurrentLevel().parentNode?.type ?? null;
+}
+
 // Requisito di un estremo: ownerType 'parent' = requisito del blocco che contiene il livello corrente
 function trovaRequisito(ownerId, reqId, ownerType) {
-    const livello = getCurrentLevel();
-    const tipo = ownerType === 'parent'
-        ? livello.parentNode?.type
-        : livello.graph.nodes.find(n => n.id === ownerId)?.type;
+    if (ownerType === 'parent') return requisitoPadre(tipoPadreCorrente(), reqId);
+    const tipo = getCurrentLevel().graph.nodes.find(n => n.id === ownerId)?.type;
     return getBlockDef(tipo)?.requisiti.find(r => r.id === reqId) || null;
 }
 
@@ -124,8 +143,10 @@ export function render() {
 
     const filtroAttivo = appState.activeTypeFilter !== 'Tutti';
 
-    if (pathStack.length > 1 && currentLevel.parentNode) {
+    if (currentLevel.parentNode) {
         renderParentBlocks(currentLevel.parentNode, currentGraph);
+    } else {
+        renderBlocchiCliente(currentGraph);
     }
 
     // RENDER FILI (EDGES)
@@ -151,6 +172,8 @@ export function render() {
     });
 
     renderUI();
+    // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
+    segnaSchedaClienteDaAggiornare();
 }
 
 function renderEdge(edge, currentGraph) {
@@ -176,7 +199,7 @@ function renderEdge(edge, currentGraph) {
     const relazione = derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi';
     aggiungiTooltip(path,
         `${relazione} [${getClasseRequisito(srcReq)}]\n` +
-        `${srcReq.id} ${srcReq.titolo} → ${tgtReq?.id ?? edge.targetHandle} ${tgtReq?.titolo ?? ''}\n` +
+        `${srcReq.id} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
         `Doppio clic: aggiungi snodo · Clic destro: elimina`);
 
     // Aggiungi Snodo con Doppio Clic
@@ -273,8 +296,11 @@ function renderNode(node, blockDef) {
 
 // Posizione del centro del blocco tondo; salvata in graph.parentReqPositions quando lo sposti
 function getParentBlockCenter(graph, reqId, idx) {
-    const salvata = graph.parentReqPositions?.[reqId];
-    if (salvata) return salvata;
+    return graph.parentReqPositions?.[reqId] || posizioneInColonna(idx);
+}
+
+// Posto idx della colonna a sinistra in cui stanno i blocchi tondi non ancora spostati
+export function posizioneInColonna(idx) {
     const passo = appSettings.parentBlock.radius * 2 + appSettings.grid.size * 2;
     return { x: 60, y: 60 + idx * passo };
 }
@@ -287,39 +313,75 @@ function getParentReqPinPos(graph, reqId, idx) {
 function renderParentBlocks(parentNode, graph) {
     const parentDef = getBlockDef(parentNode.type);
     if (!parentDef) return;
-
-    const raggio = appSettings.parentBlock.radius;
-
+    const intestazione = `Requisito del blocco padre [${parentNode.label || parentDef.titolo}]`;
     parentDef.requisiti.forEach((req, idx) => {
-        const centro = getParentBlockCenter(graph, req.id, idx);
-        const colore = getColoreRequisito(req);
-        const g = creaSvg('g', { class: 'parent-block' });
-        if (!passaFiltro(req)) g.style.opacity = '0.25';
-
-        const cerchio = creaSvg('circle', {
-            cx: centro.x, cy: centro.y, r: raggio, class: 'parent-block-circle', stroke: colore
+        disegnaBloccoTondo(graph, req, idx, parentNode.id, {
+            etichetta: req.id,
+            sottotitolo: req.titolo,
+            tooltip: `${intestazione}\n${descriviRequisito(req)}\n\nTrascina per spostare`
         });
-        aggiungiTooltip(cerchio, `Requisito del blocco padre [${parentNode.label || parentDef.titolo}]\n${descriviRequisito(req)}\n\nTrascina per spostare`);
-        cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req.id, idx));
-        g.appendChild(cerchio);
-
-        const idText = creaSvg('text', {
-            x: centro.x, y: centro.y + raggio + 14, 'text-anchor': 'middle', class: 'parent-block-id'
-        });
-        idText.textContent = req.id;
-        g.appendChild(idText);
-
-        const titoloText = creaSvg('text', {
-            x: centro.x, y: centro.y + raggio + 27, 'text-anchor': 'middle', class: 'parent-block-title'
-        });
-        titoloText.textContent = req.titolo;
-        g.appendChild(titoloText);
-
-        const pinPos = getParentReqPinPos(graph, req.id, idx);
-        g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId: parentNode.id, ownerType: 'parent' }, isInterfaccia(req) ? 'cerchio' : 'quadrato'));
-
-        parentLayer.appendChild(g);
     });
+}
+
+// Alla radice: i requisiti cliente che hanno una posizione salvata (sono "sul canvas")
+function renderBlocchiCliente(graph) {
+    const posizioni = graph.parentReqPositions || {};
+    requisitiPadre(null).forEach((req, idx) => {
+        if (!posizioni[req.id]) return;
+        disegnaBloccoTondo(graph, req, idx, ID_CLIENTE, {
+            etichetta: req.idCliente,
+            sottotitolo: titoloRequisito(req),
+            tooltip: `Requisito cliente\n${descriviRequisito(req)}\n\nClic: dettaglio · Trascina per spostare`,
+            ritirato: req.stato === 'ritirato',
+            modificato: req.modificato,
+            evidenziato: req.id === idClienteEvidenziato,
+            alClic: () => mostraDettaglioCliente(req.id)
+        });
+    });
+}
+
+function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
+    const raggio = appSettings.parentBlock.radius;
+    const centro = getParentBlockCenter(graph, req.id, idx);
+    const colore = opzioni.ritirato ? '#9e9e9e' : getColoreRequisito(req);
+    const g = creaSvg('g', { class: 'parent-block' });
+    if (!passaFiltro(req)) g.style.opacity = '0.25';
+
+    let classe = 'parent-block-circle';
+    if (opzioni.ritirato) classe += ' parent-block-ritirato';
+    if (opzioni.evidenziato) classe += ' parent-block-evidenziato';
+    const cerchio = creaSvg('circle', { cx: centro.x, cy: centro.y, r: raggio, class: classe, stroke: colore });
+    aggiungiTooltip(cerchio, opzioni.tooltip);
+    cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req.id, idx));
+    if (opzioni.alClic) {
+        cerchio.addEventListener('click', (e) => { e.stopPropagation(); opzioni.alClic(); });
+    }
+    g.appendChild(cerchio);
+
+    if (opzioni.modificato) {
+        const segno = creaSvg('circle', {
+            cx: centro.x + raggio * 0.7, cy: centro.y - raggio * 0.7, r: 5, class: 'segno-modificato'
+        });
+        aggiungiTooltip(segno, "Modificato dall'ultimo import: apri il dettaglio e segnalo come visto");
+        g.appendChild(segno);
+    }
+
+    const idText = creaSvg('text', {
+        x: centro.x, y: centro.y + raggio + 14, 'text-anchor': 'middle', class: 'parent-block-id'
+    });
+    idText.textContent = opzioni.etichetta;
+    g.appendChild(idText);
+
+    const titoloText = creaSvg('text', {
+        x: centro.x, y: centro.y + raggio + 27, 'text-anchor': 'middle', class: 'parent-block-title'
+    });
+    titoloText.textContent = opzioni.sottotitolo || '';
+    g.appendChild(titoloText);
+
+    const pinPos = getParentReqPinPos(graph, req.id, idx);
+    g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId, ownerType: 'parent' }, isInterfaccia(req) ? 'cerchio' : 'quadrato'));
+
+    parentLayer.appendChild(g);
 }
 
 function startParentBlockDrag(e, graph, reqId, idx) {
@@ -344,7 +406,7 @@ function startParentBlockDrag(e, graph, reqId, idx) {
 
 /* --- COORDINATE --- */
 
-function getCanvasCoords(e) {
+export function getCanvasCoords(e) {
     const rect = svg.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
@@ -400,8 +462,10 @@ export function getReqCoordinates(node, reqId) {
 
 function getEstremoCoords(ownerId, reqId, ownerType, graph) {
     if (ownerType === 'parent') {
-        const parentDef = getBlockDef(getCurrentLevel().parentNode?.type);
-        const idx = parentDef?.requisiti.findIndex(r => r.id === reqId) ?? -1;
+        const tipoPadre = tipoPadreCorrente();
+        // Un requisito cliente si disegna solo se ha una posizione salvata
+        if (tipoPadre === null && !graph.parentReqPositions?.[reqId]) return null;
+        const idx = requisitiPadre(tipoPadre).findIndex(r => r.id === reqId);
         return idx >= 0 ? getParentReqPinPos(graph, reqId, idx) : null;
     }
     const node = graph.nodes.find(n => n.id === ownerId);

@@ -39,8 +39,14 @@
     <div id="bannerProgetto" class="banner-progetto" hidden></div>
 
     <div class="main-area">
-        <!-- COLONNA SINISTRA (1/5): Solo Libreria -->
+        <!-- COLONNA SINISTRA (1/5): schede Libreria e Cliente -->
         <div class="side-panel left-panel" id="libraryPanel">
+            <div class="schede-pannello">
+                <button class="scheda-pannello attiva" data-scheda="libreria">Libreria</button>
+                <button class="scheda-pannello" data-scheda="cliente">Cliente</button>
+            </div>
+
+            <div id="schedaLibreria" class="contenuto-scheda">
             <!-- Versione, sola lettura e changelog della libreria su disco (js/libreria.js) -->
             <div class="testata-libreria">
                 <h3>Libreria Blocchi <span id="versioneLibreria" class="versione-libreria"></span></h3>
@@ -59,6 +65,33 @@
 
             <input type="text" id="libSearchInput" placeholder="🔍 Cerca nella libreria..." style="width: 100%; padding: 6px; margin-bottom: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
             <div id="libraryContent" style="flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 4px;"></div>
+            </div>
+
+            <!-- Requisiti cliente del progetto aperto (js/cliente.js) -->
+            <div id="schedaCliente" class="contenuto-scheda" hidden>
+                <div id="clienteNessunProgetto" class="empty-props">Apri un progetto</div>
+                <div id="clienteStrumenti" class="strumenti-cliente" hidden>
+                    <button id="btnImportaCliente" class="pulsante-progetto pulsante-menu">Importa…</button>
+                    <button id="btnVistiCliente" class="pulsante-progetto" title="Spegne il segno Modificato su tutti i requisiti cliente" hidden>Segna tutti come visti</button>
+                </div>
+                <p id="clienteVuoto" class="spiegazione-cliente" hidden>Importa da Excel (.xlsx) o CSV le frasi del cliente: diventano requisiti che trascini sulla radice come blocchi tondi, da cui tiri i fili verso i blocchi di sistema.</p>
+                <div id="clienteFiltri" class="filtri-cliente" hidden>
+                    <input type="text" id="clienteRicerca" placeholder="🔍 Cerca per ID, titolo o testo...">
+                    <div style="display: flex; gap: 4px;">
+                        <select id="clienteStato" title="Stato">
+                            <option value="tutti">Tutti</option>
+                            <option value="nonCollegati">Non collegati</option>
+                            <option value="modificati">Modificati</option>
+                            <option value="ritirati">Ritirati</option>
+                        </select>
+                        <select id="clienteSezione" title="Sezione"></select>
+                    </div>
+                    <div id="clienteConteggio" class="conteggio-cliente"></div>
+                </div>
+                <div id="clienteElenco" hidden>
+                    <div id="clienteRighe"></div>
+                </div>
+            </div>
         </div>
 
         <!-- COLONNA CENTRALE (3/5): Canvas -->
@@ -120,6 +153,17 @@
             <button id="btnCloseModal" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
         </div>
         <div id="modalContent" style="max-height: 400px; overflow-y: auto; margin-top: 10px;"></div>
+    </div>
+</div>
+
+<!-- Finestra di import dei requisiti cliente: file, mappatura delle colonne, anteprima (js/cliente.js) -->
+<div id="importClienteModal" class="modal-overlay" style="display: none;">
+    <div class="modal-body modal-import">
+        <div class="modal-header">
+            <h3>Importa requisiti cliente</h3>
+            <button id="btnChiudiImport" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <div id="importClienteContenuto"></div>
     </div>
 </div>
 

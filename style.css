@@ -39,6 +39,10 @@ svg { width: 100%; flex: 1; display: block; }
 .parent-block-circle { fill: #ffffff; stroke-width: 3; cursor: move; }
 .parent-block-id { font-size: 10px; font-weight: bold; fill: #333; font-family: monospace; pointer-events: none; user-select: none; }
 .parent-block-title { font-size: 10px; fill: #555; pointer-events: none; user-select: none; }
+/* Requisiti cliente alla radice: ritirato, modificato, evidenziato dal dettaglio */
+.parent-block-ritirato { stroke-dasharray: 6, 4; fill: #f2f2f2; }
+.parent-block-evidenziato { stroke-width: 6; filter: drop-shadow(0 0 6px rgba(0, 120, 212, 0.8)); }
+.segno-modificato { fill: #e67e22; stroke: white; stroke-width: 1.5; }
 
 /* Stili per la Libreria Gerarchica Indentata */
 .tree-category { font-weight: bold; font-size: 12px; color: #0078d4; margin-top: 6px; margin-bottom: 2px; cursor: pointer; user-select: none; }
@@ -129,3 +133,54 @@ svg { width: 100%; flex: 1; display: block; }
 .voce-nota { margin-top: 4px; font-style: italic; color: #444; }
 .voce-modifiche { margin: 4px 0 0; padding-left: 18px; }
 .voce-modifiche ul { margin: 2px 0; padding-left: 18px; }
+
+/* Pannello sinistro: schede Libreria e Cliente */
+.schede-pannello { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid #ddd; }
+.scheda-pannello { flex: 1; background: #f8f9fa; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; padding: 5px; font-size: 12px; cursor: pointer; color: #555; }
+.scheda-pannello.attiva { background: white; color: #0078d4; font-weight: bold; position: relative; top: 1px; }
+.contenuto-scheda[hidden] { display: none; }
+
+/* Scheda Cliente */
+.strumenti-cliente { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.strumenti-cliente[hidden], .filtri-cliente[hidden], #clienteElenco[hidden], .spiegazione-cliente[hidden], #clienteNessunProgetto[hidden] { display: none; }
+.strumenti-cliente button { font-size: 12px; }
+.spiegazione-cliente { font-size: 12px; color: #555; margin: 0; }
+.filtri-cliente { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.filtri-cliente input, .filtri-cliente select { padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; min-width: 0; }
+.filtri-cliente input { width: 100%; }
+.filtri-cliente select { flex: 1; }
+.conteggio-cliente { font-size: 11px; color: #777; }
+.riga-cliente { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 3px; font-size: 12px; cursor: grab; background: #fff; }
+.riga-cliente:hover { background: #e1e9f1; }
+.riga-selezionata { border-color: #0078d4; background: #e3f2fd; }
+.riga-ritirata { color: #999; background: #f5f5f5; }
+.pallino-classe { flex: 0 0 8px; height: 8px; border-radius: 50%; }
+.riga-cliente-id { font-family: monospace; font-weight: bold; white-space: nowrap; }
+.riga-cliente-titolo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.riga-cliente-segni { display: flex; gap: 3px; white-space: nowrap; font-size: 10px; }
+.segno-mod { background: #fdebd0; color: #a04000; border-radius: 3px; padding: 0 3px; }
+.segno-rit { background: #e0e0e0; color: #555; border-radius: 3px; padding: 0 3px; }
+
+/* Dettaglio cliente nell'ispettore */
+.dettaglio-modifica { background: #fff8e1; border: 1px solid #ffe082; border-radius: 4px; padding: 6px; }
+del { color: #c0392b; }
+ins { color: #1e8449; text-decoration: none; }
+
+/* Finestra di import dei requisiti cliente */
+.modal-import { width: 90%; max-width: 1100px; max-height: 90vh; overflow-y: auto; box-sizing: border-box; }
+#importClienteContenuto { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; font-size: 13px; }
+.import-riga, .import-campi { display: flex; flex-wrap: wrap; gap: 10px; }
+.campo-import { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.campo-import span { font-weight: bold; color: #555; font-size: 11px; }
+.campo-import select, .campo-import input { padding: 4px; font-size: 12px; min-width: 150px; }
+.import-modalita { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; }
+.import-conteggi { display: flex; flex-wrap: wrap; gap: 6px; }
+.conteggio-import { background: #eef2f6; border-radius: 10px; padding: 2px 10px; font-size: 12px; }
+.conteggio-attenzione { background: #fdecea; color: #c0392b; }
+.schede-import { display: flex; gap: 4px; margin-top: 8px; border-bottom: 1px solid #ddd; }
+.scheda-import { background: #f8f9fa; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.scheda-import.attiva { background: white; color: #0078d4; font-weight: bold; }
+.contenuto-scheda-import { max-height: 320px; overflow-y: auto; padding-top: 6px; }
+.contenuto-scheda-import td { vertical-align: top; }
+.invariato { color: #999; }
+.import-pulsanti { display: flex; justify-content: flex-end; gap: 8px; }

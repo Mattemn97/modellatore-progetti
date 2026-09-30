@@ -7,6 +7,12 @@
   "libreria": {
     "versioni": 3
   },
+  "cliente": {
+    "prefisso": "CLI-",
+    "maxFileMB": 20,
+    "righeAnteprima": 200,
+    "righePannello": 300
+  },
   "grid": {
     "size": 20
   },
