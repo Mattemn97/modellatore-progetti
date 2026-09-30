@@ -1,7 +1,7 @@
 # 0003. Import dei requisiti cliente da Excel o CSV in un blocco Cliente del progetto
 
 **Date**: 2026-09-30
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

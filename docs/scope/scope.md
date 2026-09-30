@@ -16,7 +16,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | C | Import ed export JSON manuale | Esistente | existing |
 | 1 | Salvataggio automatico del progetto | Foundation | done |
 | 2 | Libreria su disco con changelog | Foundation | done |
-| 3 | Import requisiti cliente | Slice 1 | in-progress |
+| 3 | Import requisiti cliente | Slice 1 | done |
 | 4 | Controllo di coerenza | Slice 2 | planned |
 | 5 | Gerarchia dei requisiti | Slice 3 | planned |
 | 6 | Matrice di tracciabilità | Slice 3 | planned |
@@ -67,7 +67,7 @@ spec [0002](../specs/0002-libreria-disco-changelog/index.md) · code in `start.p
 
 ## Slice 1: Requisiti cliente
 
-### 3. Import requisiti cliente · in-progress
+### 3. Import requisiti cliente · done
 Importi da Excel o CSV le frasi del cliente (anche migliaia). Diventano i requisiti di un blocco Cliente che fa da padre del livello radice: ognuna è un blocco tondo da cui tiri fili verso i blocchi di sistema.
 **Done when:** scegli un file, mappi le colonne (ID, testo, eventuali note), vedi un'anteprima con errori e duplicati, e dopo l'import i requisiti cliente compaiono come blocchi tondi alla radice; un secondo import dello stesso file aggiorna invece di duplicare.
 spec [0003](../specs/0003-import-requisiti-cliente/index.md) · code in `start.py`, `js/cliente.js`, `js/model.js`, `js/renderer.js`, `js/progetto.js`
