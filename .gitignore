@@ -5,6 +5,9 @@ dist/
 __pycache__/
 *.pyc
 
+# Progetti dell'utente salvati dall'app (dati, non codice)
+progetti/
+
 # Sistema operativo ed editor
 Thumbs.db
 .DS_Store

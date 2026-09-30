@@ -1,5 +1,9 @@
 {
   "libraryPath": "shared/libreria.json",
+  "progetti": {
+    "debounceMs": 1000,
+    "versioni": 3
+  },
   "grid": {
     "size": 20
   },

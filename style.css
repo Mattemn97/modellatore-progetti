@@ -12,7 +12,8 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahom
 .breadcrumb .active { font-weight: bold; color: #0078d4; text-decoration: none; pointer-events: none; }
 .breadcrumb .separator { margin: 0 8px; color: #aaa; }
 
-.main-area { display: flex; flex: 1; position: relative; width: 100%; height: calc(100vh - 50px); overflow: hidden; }
+/* min-height: 0 lascia spazio al banner del progetto sotto l'header */
+.main-area { display: flex; flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; }
 
 .side-panel { width: 20%; background: white; border-right: 1px solid #ddd; padding: 15px; box-sizing: border-box; overflow-y: auto; transition: margin-left 0.3s ease, margin-right 0.3s ease; z-index: 5; }
 .right-panel { border-right: none; border-left: 1px solid #ddd; }
@@ -69,3 +70,40 @@ svg { width: 100%; flex: 1; display: block; }
 
 .drc-error { color: #c0392b; font-weight: bold; }
 .drc-warning { color: #d35400; font-weight: bold; }
+
+/* Progetto: badge del salvataggio, annulla/ripeti, menu e banner */
+.pulsante-progetto { background: #f8f9fa; border: 1px solid #ccc; color: #333; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.pulsante-progetto:hover:not(:disabled) { background: #e1e9f1; }
+.pulsante-progetto:disabled { opacity: 0.45; cursor: default; }
+.pulsante-menu { background: #0078d4; border-color: #0078d4; color: white; }
+.pulsante-menu:hover:not(:disabled) { background: #005a9e; }
+
+.badge-salvataggio { font-size: 12px; padding: 3px 10px; border-radius: 10px; border: 1px solid transparent; white-space: nowrap; }
+.badge-salvataggio.stato-salvato { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.badge-salvataggio.stato-attesa { background: #fff8e1; color: #9a6700; border-color: #ffe082; }
+.badge-salvataggio.stato-salvataggio { background: #e3f2fd; color: #0d47a1; border-color: #90caf9; }
+.badge-salvataggio.stato-errore, .badge-salvataggio.stato-conflitto { background: #c0392b; color: white; border-color: #c0392b; font-weight: bold; }
+
+.menu-progetto { position: relative; }
+.menu-progetto-voci { position: absolute; right: 0; top: calc(100% + 4px); min-width: 210px; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 4px 0; z-index: 50; display: flex; flex-direction: column; }
+.menu-progetto-voci button { background: none; border: none; text-align: left; padding: 7px 14px; font-size: 13px; cursor: pointer; color: #333; }
+.menu-progetto-voci button:hover:not(:disabled) { background: #e1e9f1; }
+.menu-progetto-voci button:disabled { color: #aaa; cursor: default; }
+.menu-progetto-voci hr { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+
+.banner-progetto { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 13px; z-index: 9; }
+.banner-progetto span { flex: 1; }
+.banner-progetto button { border: 1px solid currentColor; background: white; color: inherit; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.banner-errore { background: #c0392b; color: white; }
+.banner-errore button { color: #c0392b; border-color: white; }
+.banner-avviso { background: #fff3cd; color: #7a5b00; border-bottom: 1px solid #ffe08a; }
+
+/* L'attributo hidden vince sui display impostati sopra */
+.badge-salvataggio[hidden], .menu-progetto-voci[hidden], .banner-progetto[hidden] { display: none; }
+
+/* Finestra Apri progetto */
+.riga-progetto { cursor: pointer; }
+.riga-progetto:hover { background: #e1e9f1; }
+.progetto-aperto { font-weight: bold; }
+.progetto-danneggiato { color: #999; }
+.elenco-avviso { color: #c0392b; font-weight: bold; margin: 0 0 10px; }

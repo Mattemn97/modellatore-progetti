@@ -14,7 +14,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | A | Editor a blocchi annidati | Esistente | existing |
 | B | Modello dati interfaccia e capacità | Esistente | existing |
 | C | Import ed export JSON manuale | Esistente | existing |
-| 1 | Salvataggio automatico del progetto | Foundation | planned |
+| 1 | Salvataggio automatico del progetto | Foundation | in-progress |
 | 2 | Libreria su disco con changelog | Foundation | planned |
 | 3 | Import requisiti cliente | Slice 1 | planned |
 | 4 | Controllo di coerenza | Slice 2 | planned |
@@ -39,10 +39,18 @@ Esporta modello, libreria e standalone come download; carica libreria o progetto
 
 ## Foundations
 
-### 1. Salvataggio automatico del progetto · needs a decision
+### 1. Salvataggio automatico del progetto · in-progress
 Ogni modifica riscrive su disco il file del progetto su cui stai lavorando, così non perdi mai il lavoro e il JSON resta la fonte di verità.
 **Done when:** apri un progetto dalla cartella, ogni modifica (blocco, filo, porta, testo) lo aggiorna su disco entro pochi secondi, e se il salvataggio fallisce lo vedi subito.
-- [ ] Design it (spec): `/architect salvataggio automatico del progetto`
+spec [0001](../specs/0001-salvataggio-automatico-progetto/index.md) · code in `start.py`, `js/progetto.js`
+- [x] Design it (spec): `/architect salvataggio automatico del progetto`
+- [x] Build it: `/develop salvataggio automatico del progetto`
+  - [x] Filo minimo dal canvas al disco: API in `start.py`, `js/progetto.js`, salvataggio a debounce, badge (AC-1, AC-3, AC-4, AC-5, AC-16, AC-17)
+  - [x] Riapertura dell'ultimo progetto e libreria del progetto (AC-2, AC-3, AC-15)
+  - [x] Errori e conflitti: banner, ritentativi, Ricarica o Sovrascrivi (AC-6, AC-7)
+  - [x] Versioni, Annulla e Ripeti (AC-8, AC-9, AC-10)
+  - [x] Menu Progetto e rimozione dei vecchi pulsanti (AC-11, AC-12, AC-13, AC-14, AC-15)
+- [ ] Verify it: `/check verify salvataggio automatico del progetto`
 
 ### 2. Libreria su disco con changelog · needs a decision
 Ogni modifica alla libreria la salva su disco e aggiunge una voce a un changelog versionato, così sai sempre cosa è cambiato, quando e in quale versione.

@@ -4,7 +4,7 @@ import { loadSettings, pathStack, getCurrentLevel, appState, setActiveNodeId, ap
 import { render, cleanupEdgeDrawing, isDrawingEdge, resetView } from './renderer.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
-import { exportAllFormats, importProjectJson, importLibraryJson } from './storage.js';
+import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
 import { CAPACITA, getTipologie } from './model.js';
 import { escapeHtml, generaId } from './utils.js';
 
@@ -62,25 +62,12 @@ async function initApp() {
     await loadSettings();
     popolaFiltroTipologia();
 
-    // Imposta il path predefinito nel campo UI
-    const libPathInput = document.getElementById('libPathInput');
-    const defaultPath = appSettings.libraryPath || "shared/libreria.json";
-    if (libPathInput) libPathInput.value = defaultPath;
-
-    // Prova a caricare la libreria dal path di rete/locale
-    const loadedFromPath = await loadLibraryFromPath(defaultPath);
-    if (!loadedFromPath) {
-        initLibrary(); // Fallback sui dati di default in state.js
-    }
-
-    renderUI();
-    render();
-
-    // Evento ricarica manuale da path
+    // Evento ricarica manuale da path: se riesce, diventa la libreria del progetto
     document.getElementById('btnLoadFromPath')?.addEventListener('click', async () => {
         const path = document.getElementById('libPathInput').value.trim();
         const success = await loadLibraryFromPath(path);
         if (success) {
+            aggiornaPercorsoLibreria(path);
             alert(`Libreria ricaricata con successo da: ${path}`);
         } else {
             alert(`Impossibile caricare la libreria dal percorso specificato.`);
@@ -89,13 +76,6 @@ async function initApp() {
 
     document.getElementById('btnNewBlockFromScratch')?.addEventListener('click', renderNewBlockForm);
     document.getElementById('btnResetView')?.addEventListener('click', resetView);
-
-    // Eventi Storage
-    document.getElementById('btnExportAll')?.addEventListener('click', exportAllFormats);
-    document.getElementById('btnImportLib')?.addEventListener('click', () => document.getElementById('importLibraryFile').click());
-    document.getElementById('btnImportProj')?.addEventListener('click', () => document.getElementById('importProjectFile').click());
-    document.getElementById('importLibraryFile')?.addEventListener('change', importLibraryJson);
-    document.getElementById('importProjectFile')?.addEventListener('change', importProjectJson);
 
     document.getElementById('libSearchInput')?.addEventListener('input', (e) => {
         appState.librarySearchQuery = e.target.value;
@@ -150,6 +130,9 @@ async function initApp() {
     });
 
     svg?.addEventListener('mouseup', () => { if (isDrawingEdge) cleanupEdgeDrawing(); });
+
+    // Apre l'ultimo progetto (o lo crea) e ne carica la libreria; da qui parte il salvataggio automatico
+    await avviaProgetti();
 }
 
 initApp();

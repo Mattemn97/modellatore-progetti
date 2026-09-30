@@ -5,6 +5,7 @@ import { render } from './renderer.js';
 import { initLibrary } from './builder.js';
 import { escapeHtml, slugifyId } from './utils.js';
 import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti } from './model.js';
+import { segnaLibreriaModificata } from './progetto.js';
 
 const propsContent = document.getElementById('propsContent');
 
@@ -273,6 +274,7 @@ function renderEditorForm(data) {
         if (errore) return alert(errore);
 
         appState.library[blockId] = { id: blockId, ...campi, requisiti };
+        segnaLibreriaModificata();
 
         let filiRimossi = 0;
         if (!data.isNew) {

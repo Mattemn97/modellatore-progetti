@@ -3,6 +3,7 @@
 import { appState, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId, appSettings } from './state.js';
 import { selectNode } from './inspector.js';
 import { renderUI } from './app.js';
+import { pianificaSalvataggio } from './progetto.js';
 import {
     isInterfaccia, getClasseRequisito, getColoreRequisito, descriviRequisito,
     verificaCollegamento, isDerivazione
@@ -109,6 +110,8 @@ function passaFiltro(req) {
 
 export function render() {
     if (!appSettings) return;
+    // Ogni mutazione del modello passa di qui: parte (o riparte) l'attesa del salvataggio automatico
+    pianificaSalvataggio();
 
     updateViewportTransform();
 

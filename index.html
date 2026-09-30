@@ -14,14 +14,29 @@
         <button class="back-btn" id="backBtn" style="display: none;">&larr; Indietro</button>
         <div class="breadcrumb" id="breadcrumb"></div>
 
-        <div style="margin-left: auto; display: flex; gap: 8px;">
-            <button id="btnExportAll" style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Esporta i 3 File</button>
-            <button id="btnImportLib" style="background: #8e44ad; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Carica Solo Libreria</button>
-            <input type="file" id="importLibraryFile" style="display: none;" accept=".json">
-            <button id="btnImportProj" style="background: #2980b9; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Carica Standalone</button>
-            <input type="file" id="importProjectFile" style="display: none;" accept=".json">
+        <!-- Stato del salvataggio automatico, annulla/ripeti e menu Progetto (js/progetto.js) -->
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+            <span id="badgeSalvataggio" class="badge-salvataggio stato-salvato" hidden>Salvato</span>
+            <button id="btnAnnulla" class="pulsante-progetto" title="Annulla (Ctrl+Z)" disabled>&#8630; Annulla</button>
+            <button id="btnRipeti" class="pulsante-progetto" title="Ripeti (Ctrl+Y)" disabled>&#8631; Ripeti</button>
+            <div class="menu-progetto">
+                <button id="btnMenuProgetto" class="pulsante-progetto pulsante-menu">Progetto &#9662;</button>
+                <div id="menuProgetto" class="menu-progetto-voci" hidden>
+                    <button data-azione="nuovo">Nuovo…</button>
+                    <button data-azione="apri">Apri…</button>
+                    <button data-azione="copia">Salva una copia come…</button>
+                    <button data-azione="rinomina">Rinomina…</button>
+                    <button data-azione="elimina">Elimina</button>
+                    <hr>
+                    <button data-azione="importa">Importa JSON…</button>
+                    <button data-azione="scarica">Scarica JSON</button>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Errori di salvataggio, conflitti e avvisi sulla libreria -->
+    <div id="bannerProgetto" class="banner-progetto" hidden></div>
 
     <div class="main-area">
         <!-- COLONNA SINISTRA (1/5): Solo Libreria -->
