@@ -8,13 +8,19 @@
     "height": 60,
     "selectedBorderColor": "#0078d4"
   },
+  "parentBlock": {
+    "radius": 28
+  },
   "requirements": {
     "radius": 7,
+    "capabilityColor": "#8e44ad",
     "typeColors": {
       "Elettrica": "#e74c3c",
       "Segnale": "#2ecc71",
       "Meccanica": "#f39c12",
       "Fluidica": "#3498db"
     }
-  }
+  },
+  "metodiVerifica": ["Ispezione", "Analisi", "Dimostrazione", "Test"],
+  "documenti": ["SSS", "SSDD", "IRS", "IDD", "SRS", "SDD"]
 }

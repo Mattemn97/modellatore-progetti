@@ -48,13 +48,8 @@
                 
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
                     <label for="filterTypeSelect">Filtra Tipologia:</label>
-                    <select id="filterTypeSelect" style="padding: 3px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc;">
-                        <option value="Tutti">Tutti i Tipi</option>
-                        <option value="Elettrica">Elettrica</option>
-                        <option value="Segnale">Segnale</option>
-                        <option value="Meccanica">Meccanica</option>
-                        <option value="Fluidica">Fluidica</option>
-                    </select>
+                    <!-- Opzioni generate da app.js a partire da settings.json -->
+                    <select id="filterTypeSelect" style="padding: 3px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc;"></select>
                     
                     <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-left: 8px;">
                         <input type="checkbox" id="chkOmitUninvolved"> Nascondi Non Coinvolti
@@ -74,10 +69,11 @@
                         <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="1"/>
                     </pattern>
                 </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
+                <rect id="gridBackground" width="100%" height="100%" fill="url(#grid)" />
                 <g id="viewport">
-                    <g id="parentLayer"></g>
                     <g id="edgesLayer"></g>
+                    <!-- Blocchi tondi del padre sopra i fili, così i loro pin restano cliccabili -->
+                    <g id="parentLayer"></g>
                     <g id="nodesLayer"></g>
                 </g>
             </svg>

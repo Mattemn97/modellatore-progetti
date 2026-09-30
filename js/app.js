@@ -5,6 +5,8 @@ import { render, cleanupEdgeDrawing, isDrawingEdge, resetView } from './renderer
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { exportAllFormats, importProjectJson, importLibraryJson } from './storage.js';
+import { CAPACITA, getTipologie } from './model.js';
+import { escapeHtml, generaId } from './utils.js';
 
 const svg = document.getElementById('workspaceSvg');
 const canvasContainer = document.getElementById('canvasContainer');
@@ -46,8 +48,19 @@ export function renderUI() {
     };
 }
 
+// Opzioni del filtro: tutti, capacità e ogni tipologia di interfaccia da settings.json
+function popolaFiltroTipologia() {
+    const select = document.getElementById('filterTypeSelect');
+    if (!select) return;
+    const voci = [['Tutti', 'Tutti i Requisiti'], [CAPACITA, 'Capacità'], ...getTipologie().map(t => [t, `Interfaccia: ${t}`])];
+    select.innerHTML = voci.map(([valore, etichetta]) =>
+        `<option value="${escapeHtml(valore)}">${escapeHtml(etichetta)}</option>`).join('');
+    select.value = appState.activeTypeFilter;
+}
+
 async function initApp() {
     await loadSettings();
+    popolaFiltroTipologia();
 
     // Imposta il path predefinito nel campo UI
     const libPathInput = document.getElementById('libPathInput');
@@ -112,9 +125,9 @@ async function initApp() {
             const gridSize = appSettings.grid.size;
 
             const newNode = {
-                id: 'node_' + Math.floor(Math.random() * 100000),
+                id: generaId('node'),
                 type: typeId,
-                label: blockDef.name,
+                label: blockDef.titolo,
                 width: appSettings.node.width,
                 height: appSettings.node.height,
                 position: {

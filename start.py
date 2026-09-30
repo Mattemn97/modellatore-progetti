@@ -22,14 +22,20 @@ def ensure_shared_library(base_dir):
     if not os.path.exists(lib_path):
         dummy_lib = '''{
   "centralina_condivisa": {
-    "name": "Centralina Condivisa",
-    "category": "Elettrica/Controllo",
-    "requirements": [
+    "id": "centralina_condivisa",
+    "titolo": "Centralina Condivisa",
+    "descrizione": "Blocco di esempio creato all'avvio",
+    "categoria": "Elettrica",
+    "sottocategoria": "Controllo",
+    "requisiti": [
       {
-        "id": "req_01",
-        "title": "Alimentazione 24V",
-        "description": "Requisito di alimentazione aziendale principale",
-        "type": "Elettrica"
+        "id": "cen_condivisa_001",
+        "titolo": "Alimentazione 24V",
+        "tipologia": "Elettrica",
+        "metodoVerifica": "Test",
+        "testiExport": [
+          { "testo": "La centralina deve essere alimentata a 24V", "documento": "IRS" }
+        ]
       }
     ]
   }

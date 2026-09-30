@@ -1,39 +1,40 @@
 {
   "centralina": {
-    "name": "Centralina",
-    "categoria": "Elettrica/Controllo",
-    "sotto-categoria": "Elettrica/Controllo",
-    "req": [
+    "id": "centralina",
+    "titolo": "Centralina",
+    "descrizione": "",
+    "categoria": "Elettrica",
+    "sottocategoria": "Controllo",
+    "requisiti": [
       {
         "id": "req_01",
-        "title": "Alimentazione 24V",
-        "metodo di verifica": "Elettrica",
-        
-        "interfaccia": "false", 
-        "export_text":[
+        "titolo": "Alimentazione 24V",
+        "tipologia": null,
+        "metodoVerifica": "",
+        "testiExport": [
           {
-            "description": "La centralina deve essere alimentata a 24V",
-            "documento di riferimento": "SSS"
+            "testo": "La centralina deve essere alimentata a 24V",
+            "documento": "SSS"
           },
           {
-            "description": "La centralina prende l'alimentaizone dalla PowerBox a 24V con un picco massimo di corrente di 1A",
-            "documento di riferimento": "SSDD"
+            "testo": "La centralina prende l'alimentaizone dalla PowerBox a 24V con un picco massimo di corrente di 1A",
+            "documento": "SSDD"
           }
         ]
       },
       {
         "id": "req_int_02",
-        "title": "Alimentazione 24V",
-        "metodo di verifica": "Elettrica",
-        "interfaccia": "true", 
-        "export_text":[
+        "titolo": "Alimentazione 24V",
+        "tipologia": "Elettrica",
+        "metodoVerifica": "",
+        "testiExport": [
           {
-            "description": "Il connettore deve essre IP 68",
-            "documento di riferimento": "IRS"
+            "testo": "Il connettore deve essre IP 68",
+            "documento": "IRS"
           },
           {
-            "description": "Il connettore è della Ital-Connettori con standard areonautico di sta ceppa e bla bla",
-            "documento di riferimento": "IDD"
+            "testo": "Il connettore è della Ital-Connettori con standard areonautico di sta ceppa e bla bla",
+            "documento": "IDD"
           }
         ]
       }

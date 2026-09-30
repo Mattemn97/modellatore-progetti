@@ -1,7 +1,7 @@
 /* --- ESPORTAZIONE MULTIFILE E IMPORTAZIONE --- */
 
-import { appState, pathStack } from './state.js';
-import { initLibrary } from './builder.js';
+import { appState, pathStack, setActiveNodeId } from './state.js';
+import { impostaLibreria } from './builder.js';
 import { render } from './renderer.js';
 
 function downloadJsonFile(dataObj, filename) {
@@ -17,31 +17,39 @@ export function exportAllFormats() {
     setTimeout(() => downloadJsonFile({ library: appState.library, workspace: pathStack[0].graph }, "standalone.json"), 600);
 }
 
-export function importProjectJson(event) {
+// Legge un file JSON scelto dall'utente; gli errori di lettura diventano un messaggio
+function leggiFileJson(event, onDati) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-        const data = JSON.parse(e.target.result);
-        if (data.library && data.workspace) {
-            appState.library = data.library;
-            pathStack.length = 0;
-            pathStack.push({ id: 'root', label: 'Progetto Intero (Root)', graph: data.workspace, parentNode: null });
-            initLibrary();
-            render();
+        try {
+            onDati(JSON.parse(e.target.result));
+        } catch (err) {
+            alert(`Impossibile caricare "${file.name}": ${err.message}`);
         }
+        // Permette di ricaricare lo stesso file subito dopo
+        event.target.value = '';
     };
     reader.readAsText(file);
 }
 
+export function importProjectJson(event) {
+    leggiFileJson(event, (data) => {
+        if (!data.library || !data.workspace) {
+            throw new Error('un progetto standalone deve contenere sia "library" sia "workspace".');
+        }
+        impostaLibreria(data.library);
+        pathStack.length = 0;
+        pathStack.push({ id: 'root', label: 'Progetto Intero (Root)', graph: data.workspace, parentNode: null });
+        setActiveNodeId(null);
+        render();
+    });
+}
+
 export function importLibraryJson(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const data = JSON.parse(e.target.result);
-        appState.library = data.library || data;
-        initLibrary();
-    };
-    reader.readAsText(file);
+    leggiFileJson(event, (data) => {
+        impostaLibreria(data);
+        render();
+    });
 }

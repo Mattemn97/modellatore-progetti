@@ -2,44 +2,47 @@
 
 export let appSettings = null;
 
+// Valori usati quando settings.json manca o non ha una chiave
+const DEFAULT_SETTINGS = {
+    libraryPath: "shared/libreria.json",
+    grid: { size: 20 },
+    node: { width: 160, height: 60, selectedBorderColor: "#0078d4" },
+    parentBlock: { radius: 28 },
+    requirements: {
+        radius: 7,
+        capabilityColor: "#8e44ad",
+        typeColors: { Elettrica: "#e74c3c", Segnale: "#2ecc71", Meccanica: "#f39c12", Fluidica: "#3498db" }
+    },
+    metodiVerifica: ["Ispezione", "Analisi", "Dimostrazione", "Test"],
+    documenti: ["SSS", "SSDD", "IRS", "IDD", "SRS", "SDD"]
+};
+
 export const appState = {
     activeTypeFilter: 'Tutti',
     omitUninvolved: false,
     librarySearchQuery: '',
+    // Libreria di esempio, sostituita da quella caricata da libraryPath
     library: {
-        "centralina": { 
-            name: "Centralina Principale", 
-            category: "Elettrica/Controllo",
-            requirements: [
-                { 
-                    id: "req_1", 
-                    title: "Alimentazione 24V", 
-                    description: "Fornisce alimentazione principale a 24V DC con tolleranza +/- 5%", 
-                    type: "Elettrica" 
+        "centralina": {
+            id: "centralina",
+            titolo: "Centralina Principale",
+            descrizione: "Unità di controllo principale del sistema",
+            categoria: "Elettrica",
+            sottocategoria: "Controllo",
+            requisiti: [
+                {
+                    id: "cen_001",
+                    titolo: "Alimentazione 24V",
+                    tipologia: "Elettrica",
+                    metodoVerifica: "Test",
+                    testiExport: [{ testo: "La centralina deve essere alimentata a 24V DC con tolleranza +/- 5%", documento: "IRS" }]
                 },
-                { 
-                    id: "req_2", 
-                    title: "Bus CAN", 
-                    description: "Interfaccia di comunicazione CAN Bus High Speed a 500 kbps", 
-                    type: "Segnale" 
-                }
-            ]
-        },
-        "sensore": { 
-            name: "Sensore di Pressione", 
-            category: "Sensori/Fluidica",
-            requirements: [
-                { 
-                    id: "req_3", 
-                    title: "Out Segnale", 
-                    description: "Uscita analogica 0-10V proporzionale alla pressione misurata", 
-                    type: "Segnale" 
-                },
-                { 
-                    id: "req_4", 
-                    title: "Ingresso Fluido", 
-                    description: "Connessione meccanica 1/4 NPT per ingresso fluido di processo", 
-                    type: "Fluidica" 
+                {
+                    id: "cen_002",
+                    titolo: "Gestione allarmi",
+                    tipologia: null,
+                    metodoVerifica: "Dimostrazione",
+                    testiExport: [{ testo: "La centralina deve segnalare gli allarmi di sistema all'operatore", documento: "SSS" }]
                 }
             ]
         }
@@ -59,14 +62,20 @@ export function getCurrentLevel() {
 }
 
 export async function loadSettings() {
+    let caricate = {};
     try {
         const response = await fetch('settings.json');
-        appSettings = await response.json();
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        caricate = await response.json();
     } catch (e) {
-        appSettings = {
-            grid: { size: 20 },
-            node: { width: 160, height: 60, selectedBorderColor: "#0078d4" },
-            requirements: { radius: 7, typeColors: { Elettrica: "#e74c3c", Segnale: "#2ecc71", Meccanica: "#f39c12", Fluidica: "#3498db" } }
-        };
+        console.warn('settings.json non leggibile, uso i valori predefiniti:', e);
     }
+    appSettings = {
+        ...DEFAULT_SETTINGS,
+        ...caricate,
+        grid: { ...DEFAULT_SETTINGS.grid, ...caricate.grid },
+        node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
+        parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },
+        requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements }
+    };
 }

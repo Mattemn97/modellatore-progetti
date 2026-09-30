@@ -2,66 +2,98 @@
 
 import { appState } from './state.js';
 import { render } from './renderer.js';
+import { openLibraryBlock } from './inspector.js';
+import { normalizzaLibreria, trovaIdRequisitiDuplicati } from './model.js';
+import { escapeHtml } from './utils.js';
+
+// Sostituisce la libreria corrente convertendola al formato attuale; segnala gli id requisito duplicati
+export function impostaLibreria(dati) {
+    appState.library = normalizzaLibreria(dati);
+    const duplicati = trovaIdRequisitiDuplicati(appState.library);
+    if (duplicati.length > 0) {
+        alert(`Attenzione: alcuni ID requisito sono usati da più blocchi e vanno resi univoci:\n${duplicati.join('\n')}`);
+    }
+    initLibrary();
+}
 
 export async function loadLibraryFromPath(path) {
     if (!path) return false;
     try {
         const response = await fetch(path);
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-        
-        const data = await response.json();
-        const targetLibrary = data.library || data;
 
-        if (targetLibrary && typeof targetLibrary === 'object') {
-            appState.library = targetLibrary;
-            initLibrary();
-            render();
-            return true;
-        }
+        impostaLibreria(await response.json());
+        render();
+        return true;
     } catch (err) {
         console.warn(`Impossibile caricare la libreria da path '${path}':`, err);
     }
     return false;
 }
 
+function corrispondeRicerca(typeId, blockDef, query) {
+    if (!query) return true;
+    return [typeId, blockDef.titolo, blockDef.descrizione, blockDef.categoria, blockDef.sottocategoria]
+        .some(v => (v || '').toLowerCase().includes(query));
+}
+
 export function initLibrary() {
     const libraryContent = document.getElementById('libraryContent');
     if (!libraryContent) return;
-    
+
     const query = appState.librarySearchQuery.toLowerCase();
     libraryContent.innerHTML = '';
 
-    const categories = {};
-
+    // categoria → sottocategoria → blocchi
+    const albero = {};
     Object.entries(appState.library).forEach(([typeId, blockDef]) => {
-        if (query && !blockDef.name.toLowerCase().includes(query) && !typeId.toLowerCase().includes(query)) {
-            return;
-        }
-
-        const cat = blockDef.category || "Generali";
-        if (!categories[cat]) categories[cat] = [];
-        categories[cat].push({ typeId, blockDef });
+        if (!corrispondeRicerca(typeId, blockDef, query)) return;
+        const cat = blockDef.categoria || "Generali";
+        const sub = blockDef.sottocategoria || "";
+        albero[cat] ??= {};
+        albero[cat][sub] ??= [];
+        albero[cat][sub].push({ typeId, blockDef });
     });
 
-    Object.entries(categories).forEach(([catName, items]) => {
+    const ordina = (a, b) => a.localeCompare(b, 'it');
+
+    Object.keys(albero).sort(ordina).forEach(catName => {
         const catDiv = document.createElement('div');
         catDiv.className = 'tree-category';
         catDiv.textContent = `📁 ${catName}`;
         libraryContent.appendChild(catDiv);
 
-        const treeGroup = document.createElement('div');
-        treeGroup.className = 'tree-node';
+        const catGroup = document.createElement('div');
+        catGroup.className = 'tree-node';
 
-        items.forEach(({ typeId, blockDef }) => {
-            const div = document.createElement('div');
-            div.className = 'lib-item';
-            div.draggable = true;
-            div.innerHTML = `<span>${blockDef.name}</span>`;
-            
-            div.addEventListener('dragstart', (e) => e.dataTransfer.setData('blockType', typeId));
-            treeGroup.appendChild(div);
+        Object.keys(albero[catName]).sort(ordina).forEach(subName => {
+            let destinazione = catGroup;
+            if (subName) {
+                const subDiv = document.createElement('div');
+                subDiv.className = 'tree-subcategory';
+                subDiv.textContent = `📂 ${subName}`;
+                catGroup.appendChild(subDiv);
+
+                destinazione = document.createElement('div');
+                destinazione.className = 'tree-node';
+                catGroup.appendChild(destinazione);
+            }
+
+            albero[catName][subName]
+                .sort((a, b) => ordina(a.blockDef.titolo, b.blockDef.titolo))
+                .forEach(({ typeId, blockDef }) => {
+                    const div = document.createElement('div');
+                    div.className = 'lib-item';
+                    div.draggable = true;
+                    div.title = blockDef.descrizione || blockDef.titolo;
+                    div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-count">${blockDef.requisiti.length}</span>`;
+
+                    div.addEventListener('dragstart', (e) => e.dataTransfer.setData('blockType', typeId));
+                    div.addEventListener('click', () => openLibraryBlock(typeId));
+                    destinazione.appendChild(div);
+                });
         });
 
-        libraryContent.appendChild(treeGroup);
+        libraryContent.appendChild(catGroup);
     });
 }
