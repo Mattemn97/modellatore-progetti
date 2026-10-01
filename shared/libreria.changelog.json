@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "voci": [
+    {
+      "versione": "1.0.0",
+      "data": "2026-09-30T21:32:05+02:00",
+      "autore": "matte",
+      "origine": "iniziale",
+      "livello": null,
+      "livelloCalcolato": null,
+      "nota": "",
+      "impronta": "0f7e931bc2fe0b8c0ef4ac599a461f1fbfa7eeae",
+      "improntaContenuto": "c4d0e542bb74abf0726abb561c24cd55768f0ced",
+      "modifiche": []
+    }
+  ]
+}

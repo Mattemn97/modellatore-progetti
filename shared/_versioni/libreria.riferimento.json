@@ -1,0 +1,43 @@
+{
+  "centralina": {
+    "id": "centralina",
+    "titolo": "Centralina",
+    "descrizione": "",
+    "categoria": "Elettrica",
+    "sottocategoria": "Controllo",
+    "requisiti": [
+      {
+        "id": "req_01",
+        "titolo": "Alimentazione 24V",
+        "tipologia": null,
+        "metodoVerifica": "",
+        "testiExport": [
+          {
+            "testo": "La centralina deve essere alimentata a 24V",
+            "documento": "SSS"
+          },
+          {
+            "testo": "La centralina prende l'alimentaizone dalla PowerBox a 24V con un picco massimo di corrente di 1A",
+            "documento": "SSDD"
+          }
+        ]
+      },
+      {
+        "id": "req_int_02",
+        "titolo": "Alimentazione 24V",
+        "tipologia": "Elettrica",
+        "metodoVerifica": "",
+        "testiExport": [
+          {
+            "testo": "Il connettore deve essre IP 68",
+            "documento": "IRS"
+          },
+          {
+            "testo": "Il connettore è della Ital-Connettori con standard areonautico di sta ceppa e bla bla",
+            "documento": "IDD"
+          }
+        ]
+      }
+    ]
+  }
+}
