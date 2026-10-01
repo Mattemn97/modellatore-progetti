@@ -184,3 +184,32 @@ ins { color: #1e8449; text-decoration: none; }
 .contenuto-scheda-import td { vertical-align: top; }
 .invariato { color: #999; }
 .import-pulsanti { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Controllo di coerenza: pulsante, evidenze sul canvas e scheda */
+.canvas-toolbar .pulsante-coerenza { background: #f39c12; color: white; border: 1px solid #f39c12; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.canvas-toolbar .pulsante-coerenza:hover { background: #d68910; }
+.canvas-toolbar .pulsante-coerenza.attivo { background: #b9770e; border-color: #7e5109; box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+.node-req-pin.problema-coerenza { stroke: #d0021b; stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(208, 2, 27, 0.9)); }
+.parent-block-circle.problema-coerenza { stroke: #d0021b; stroke-width: 5; filter: drop-shadow(0 0 6px rgba(208, 2, 27, 0.8)); }
+.contatore-coerenza { pointer-events: none; }
+.contatore-coerenza circle { fill: #d0021b; stroke: white; stroke-width: 1.5; }
+.contatore-coerenza text { fill: white; font-size: 10px; font-weight: bold; user-select: none; }
+.scheda-pannello[hidden], .ricerca-coerenza[hidden], .avviso-coerenza[hidden] { display: none; }
+.ricerca-coerenza { width: 100%; padding: 6px; margin-bottom: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+.avviso-coerenza { font-size: 11px; color: #7a5b00; background: #fff3cd; border: 1px solid #ffe08a; border-radius: 3px; padding: 3px 6px; margin-bottom: 6px; }
+.gruppo-coerenza { margin-bottom: 4px; }
+.gruppo-coerenza-testa { width: 100%; display: flex; justify-content: space-between; align-items: center; background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 4px; padding: 5px 8px; font-size: 12px; font-weight: bold; color: #333; cursor: pointer; text-align: left; }
+.gruppo-coerenza-testa:hover { background: #e1e9f1; }
+.conteggio-coerenza { font-weight: normal; background: #fdecea; color: #c0392b; border-radius: 8px; padding: 0 6px; white-space: nowrap; }
+.gruppo-coerenza-voci { padding: 4px 0 2px 6px; }
+.voce-coerenza { padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 3px; font-size: 12px; cursor: pointer; background: #fff; }
+.voce-coerenza:hover { background: #e1e9f1; }
+.voce-coerenza-testa { display: flex; align-items: center; gap: 5px; }
+.voce-coerenza-id { font-family: monospace; font-weight: bold; white-space: nowrap; }
+.voce-coerenza-titolo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voce-coerenza-percorso { font-size: 10px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voce-coerenza-motivo { font-size: 11px; color: #c0392b; }
+.pulsante-rimuovi-coerenza { background: white; border: 1px solid #c0392b; color: #c0392b; border-radius: 3px; padding: 1px 6px; font-size: 11px; cursor: pointer; }
+.pulsante-rimuovi-coerenza:hover { background: #fdecea; }
+.nota-coerenza { font-size: 11px; font-style: italic; color: #555; margin-bottom: 4px; }
+.altri-coerenza { font-size: 11px; color: #777; padding: 2px 6px; }

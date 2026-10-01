@@ -39,11 +39,12 @@
     <div id="bannerProgetto" class="banner-progetto" hidden></div>
 
     <div class="main-area">
-        <!-- COLONNA SINISTRA (1/5): schede Libreria e Cliente -->
+        <!-- COLONNA SINISTRA (1/5): schede Libreria, Cliente e Coerenza (quest'ultima solo a modalità accesa) -->
         <div class="side-panel left-panel" id="libraryPanel">
             <div class="schede-pannello">
                 <button class="scheda-pannello attiva" data-scheda="libreria">Libreria</button>
                 <button class="scheda-pannello" data-scheda="cliente">Cliente</button>
+                <button class="scheda-pannello" data-scheda="coerenza" hidden>Coerenza</button>
             </div>
 
             <div id="schedaLibreria" class="contenuto-scheda">
@@ -92,6 +93,13 @@
                     <div id="clienteRighe"></div>
                 </div>
             </div>
+
+            <!-- Requisiti scoperti e difetti del modello (js/coerenza.js); solo #coerenzaGruppi si ridisegna -->
+            <div id="schedaCoerenza" class="contenuto-scheda" hidden>
+                <input type="text" id="coerenzaRicerca" class="ricerca-coerenza" placeholder="🔍 Cerca per id, ID del cliente o titolo...">
+                <div id="coerenzaAvviso" class="avviso-coerenza" hidden></div>
+                <div id="coerenzaGruppi"></div>
+            </div>
         </div>
 
         <!-- COLONNA CENTRALE (3/5): Canvas -->
@@ -109,7 +117,7 @@
                     </label>
 
                     <button id="btnReqMatrix" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
-                    <button id="btnDRC" style="background: #f39c12; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">⚠️ Verifica Coerenza</button>
+                    <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false">⚠️ Verifica Coerenza</button>
                     <button id="btnResetView" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 

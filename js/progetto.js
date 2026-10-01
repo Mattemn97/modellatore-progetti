@@ -11,6 +11,7 @@ import {
     problemaCliente, completaCliente, controllaClienteAllApertura, aggiornaPulsantiCliente,
     importClienteAperto, impostaSelezioneCliente, dettaglioClienteAperto
 } from './cliente.js';
+import { segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 
 // 2 da quando il progetto può avere la chiave cliente (spec 0003): si leggono 1 e 2, si scrive sempre 2
 const FORMAT_VERSION = 2;
@@ -128,6 +129,18 @@ function svuotaIspettore() {
     if (propsContent) propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>`;
 }
 
+// Ricostruisce pathStack dalla radice seguendo gli id dei nodi; false se un id non c'è (restano aperti i livelli trovati)
+export function apriPercorso(ids) {
+    pathStack.length = 1;
+    for (const id of ids) {
+        const nodo = getCurrentLevel().graph.nodes.find(n => n.id === id);
+        if (!nodo) return false;
+        if (!nodo.internal_graph) nodo.internal_graph = { nodes: [], edges: [] };
+        pathStack.push({ id: nodo.id, label: nodo.label || nodo.id, graph: nodo.internal_graph, parentNode: nodo });
+    }
+    return true;
+}
+
 // Sostituisce workspace e requisiti cliente, sempre insieme; con mantieniLivello riapre gli stessi blocchi seguendo i loro id
 function sostituisciModello(workspace, cliente, mantieniLivello) {
     const idAperti = mantieniLivello ? pathStack.slice(1).map(livello => livello.id) : [];
@@ -136,11 +149,7 @@ function sostituisciModello(workspace, cliente, mantieniLivello) {
     appState.cliente = completaCliente(cliente ?? null);
     pathStack.length = 0;
     pathStack.push({ id: 'root', label: progetto.nome, graph: workspace, parentNode: null });
-    for (const id of idAperti) {
-        const nodo = getCurrentLevel().graph.nodes.find(n => n.id === id);
-        if (!nodo) break;
-        pathStack.push({ id: nodo.id, label: nodo.label || nodo.id, graph: nodo.internal_graph, parentNode: nodo });
-    }
+    apriPercorso(idAperti);
     const selezionePersa = activeNodeId && !getCurrentLevel().graph.nodes.some(n => n.id === activeNodeId);
     if (!mantieniLivello || selezionePersa) {
         setActiveNodeId(null);
@@ -556,6 +565,8 @@ async function rinomina() {
             ultimoTestoSalvato = testoProgetto();
             pilaRipeti = [];
             renderUI();
+            // Il percorso delle voci della scheda Coerenza parte dal nome del progetto (spec 0004)
+            segnaSchedaCoerenzaDaAggiornare();
             return;
         }
         if (r.errore === 'esiste') {

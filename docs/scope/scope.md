@@ -17,7 +17,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 1 | Salvataggio automatico del progetto | Foundation | done |
 | 2 | Libreria su disco con changelog | Foundation | done |
 | 3 | Import requisiti cliente | Slice 1 | done |
-| 4 | Controllo di coerenza | Slice 2 | planned |
+| 4 | Controllo di coerenza | Slice 2 | done |
 | 5 | Gerarchia dei requisiti | Slice 3 | planned |
 | 6 | Matrice di tracciabilità | Slice 3 | planned |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | planned |
@@ -82,10 +82,17 @@ spec [0003](../specs/0003-import-requisiti-cliente/index.md) · code in `start.p
 
 ## Slice 2: Coerenza
 
-### 4. Controllo di coerenza · needs a decision
+### 4. Controllo di coerenza · done
 Il pulsante Verifica Coerenza evidenzia i requisiti non collegati, sul canvas e in un elenco, così vedi subito cosa manca per coprire il cliente.
 **Done when:** un requisito cliente senza figli, o un requisito di blocco senza padre, è evidenziato sul canvas in ogni livello e compare nel report con il percorso del blocco; un clic sulla voce ti porta al blocco.
-- [ ] Design it (spec): `/architect controllo di coerenza`
+spec [0004](../specs/0004-controllo-coerenza/index.md) · code in `js/coerenza.js`, `js/renderer.js`, `js/progetto.js`, `js/cliente.js`
+- [x] Design it (spec): `/architect controllo di coerenza`
+- [x] Build it: `/develop controllo di coerenza`
+  - [x] Filo minimo dal modello al pulsante, alla scheda e al canvas: `js/coerenza.js`, cliente senza figli e requisiti senza padre, modalità e scheda Coerenza, alone sui pin (AC-1, AC-2, AC-3, AC-10)
+  - [x] Altri tipi di problema: senza figli, fili da ritirati, Da riparare con Rimuovi, contatore sui blocchi (AC-4, AC-5, AC-6, AC-9)
+  - [x] Report completo e filtro per classe: gruppi, limite, ricerca (AC-7, AC-8)
+  - [x] Navigazione dalla voce al livello, con `apriPercorso()` (AC-11)
+- [x] Verify it: `/check verify controllo di coerenza`
 
 ## Slice 3: Tracciabilità ed export
 
@@ -130,7 +137,7 @@ Piccoli difetti trovati nel codice: il rilascio di un blocco ignora zoom e pan, 
 Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Export Word o PDF**: i documenti MIL-STD-498 anche in formato Word · needs a decision
 - **Libreria condivisa tra più persone**: cartella di rete con gestione dei conflitti · needs a decision
-- **Coerenza avanzata**: metodo di verifica mancante, testi senza documento, requisiti orfani per documento · needs a decision
+- **Coerenza avanzata**: metodo di verifica mancante, testi senza documento, requisiti orfani per documento, esenzioni "va bene senza padre" con una nota, from spec 0004 · needs a decision
 - **Annulla della libreria**: ripristinare una copia di `_versioni/` con la sua voce di changelog, from spec 0002 · needs a decision
 - **Distribuzione dell'exe**: pacchetto pronto con tutti i file accanto a `start.exe`
 - **Pulizia dei requisiti cliente ritirati**: eliminarli davvero quando la lista diventa scomoda, from spec 0003 · needs a decision

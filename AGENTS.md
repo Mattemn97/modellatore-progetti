@@ -26,7 +26,7 @@ python start.py
 pyinstaller start.spec
 
 # Test
-# none yet
+# none: no test runner by choice, changes are gated by /check verify (test-preferences.json)
 ```
 
 ## Specs

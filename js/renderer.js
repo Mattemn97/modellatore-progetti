@@ -5,6 +5,7 @@ import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { renderUI } from './app.js';
 import { pianificaSalvataggio } from './progetto.js';
 import { segnaSchedaClienteDaAggiornare } from './cliente.js';
+import { coerenzaAttiva, aggiornaCoerenza, problemaPin, contatoreBlocco, segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 import {
     isInterfaccia, getClasseRequisito, getColoreRequisito, descriviRequisito,
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE
@@ -131,6 +132,8 @@ export function render() {
     if (!appSettings) return;
     // Ogni mutazione del modello passa di qui: parte (o riparte) l'attesa del salvataggio automatico
     pianificaSalvataggio();
+    // Controllo di coerenza: calcolo puro sul modello di adesso, letto da evidenze, contatori e scheda
+    if (coerenzaAttiva()) aggiornaCoerenza();
 
     updateViewportTransform();
 
@@ -174,6 +177,7 @@ export function render() {
     renderUI();
     // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
     segnaSchedaClienteDaAggiornare();
+    segnaSchedaCoerenzaDaAggiornare();
 }
 
 function renderEdge(edge, currentGraph) {
@@ -264,6 +268,17 @@ function renderNode(node, blockDef) {
     resizeHandle.addEventListener('mousedown', (e) => startResizeDrag(e, node));
     g.appendChild(resizeHandle);
 
+    // Problemi di coerenza nel contenuto del blocco: contatore in alto a destra, trasparente al mouse
+    const problemi = contatoreBlocco(node);
+    if (problemi > 0) {
+        const contatore = creaSvg('g', { class: 'contatore-coerenza', transform: `translate(${nodeW}, 0)` });
+        contatore.appendChild(creaSvg('circle', { r: 9 }));
+        const numero = creaSvg('text', { 'text-anchor': 'middle', y: 3.5 });
+        numero.textContent = problemi > 99 ? '99+' : String(problemi);
+        contatore.appendChild(numero);
+        g.appendChild(contatore);
+    }
+
     // Interfaccia: porte sul bordo, spostabili con Shift+trascina
     const interfacce = blockDef.requisiti.filter(isInterfaccia);
     interfacce.forEach((req, idx) => {
@@ -347,11 +362,13 @@ function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
     const g = creaSvg('g', { class: 'parent-block' });
     if (!passaFiltro(req)) g.style.opacity = '0.25';
 
+    const problema = problemaPin(graph, 'parent', ownerId, req.id);
     let classe = 'parent-block-circle';
     if (opzioni.ritirato) classe += ' parent-block-ritirato';
     if (opzioni.evidenziato) classe += ' parent-block-evidenziato';
+    if (problema) classe += ' problema-coerenza';
     const cerchio = creaSvg('circle', { cx: centro.x, cy: centro.y, r: raggio, class: classe, stroke: colore });
-    aggiungiTooltip(cerchio, opzioni.tooltip);
+    aggiungiTooltip(cerchio, problema ? `${opzioni.tooltip}\n\n⚠️ ${problema}` : opzioni.tooltip);
     cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req.id, idx));
     if (opzioni.alClic) {
         cerchio.addEventListener('click', (e) => { e.stopPropagation(); opzioni.alClic(); });
@@ -480,12 +497,14 @@ function createReqPin(cx, cy, req, owner, forma) {
     const pin = forma === 'quadrato'
         ? creaSvg('rect', { x: cx - raggio, y: cy - raggio, width: raggio * 2, height: raggio * 2 })
         : creaSvg('circle', { cx, cy, r: raggio });
-    pin.setAttribute('class', 'node-req-pin');
+    // L'alone sta sul pin solo per i requisiti dei blocchi; per i blocchi tondi sta sul cerchio
+    const problema = owner.ownerType === 'node' ? problemaPin(getCurrentLevel().graph, 'node', owner.ownerId, req.id) : null;
+    pin.setAttribute('class', problema ? 'node-req-pin problema-coerenza' : 'node-req-pin');
     pin.setAttribute('fill', colore);
     if (!passaFiltro(req)) pin.style.opacity = '0.25';
 
     const suggerimento = owner.ownerType === 'node' && isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '';
-    aggiungiTooltip(pin, descriviRequisito(req) + suggerimento);
+    aggiungiTooltip(pin, descriviRequisito(req) + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
 
     pin.addEventListener('mousedown', (e) => {
         if (e.shiftKey) return;

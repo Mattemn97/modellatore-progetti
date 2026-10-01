@@ -13,6 +13,9 @@
     "righeAnteprima": 200,
     "righePannello": 300
   },
+  "coerenza": {
+    "righePerGruppo": 200
+  },
   "grid": {
     "size": 20
   },
