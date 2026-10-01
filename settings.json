@@ -19,6 +19,9 @@
   "gerarchia": {
     "righeAperte": 300
   },
+  "matrice": {
+    "gruppiVisibili": 300
+  },
   "grid": {
     "size": 20
   },

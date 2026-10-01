@@ -74,6 +74,11 @@ export function progettoAperto() {
     return !!progetto.slug;
 }
 
+// Slug e nome del progetto aperto, per il file della matrice (spec 0006); slug null se nessun progetto è aperto
+export function infoProgetto() {
+    return { slug: progetto.slug, nome: progetto.nome };
+}
+
 function urlProgetto(slug, suffisso = '') {
     return `/api/progetti/${encodeURIComponent(slug)}${suffisso}`;
 }
@@ -673,8 +678,11 @@ function scarica() {
 
 // Anche il gestore di Esc della Gerarchia la usa
 export function modaleAperta() {
-    const modal = document.getElementById('reportModal');
-    return (!!modal && modal.style.display !== 'none') || importClienteAperto();
+    const aperta = id => {
+        const modal = document.getElementById(id);
+        return !!modal && modal.style.display !== 'none';
+    };
+    return aperta('reportModal') || aperta('matriceModal') || importClienteAperto();
 }
 
 function chiudiModale() {

@@ -7,6 +7,15 @@ export function downloadJsonFile(dataObj, filename) {
     document.body.appendChild(a); a.click(); a.remove();
 }
 
+// Download di un testo lungo (es. la matrice in Markdown): un Blob al posto di un URL data:, che i browser troncano
+export function scaricaFileTesto(testo, nomeFile, tipo) {
+    const url = URL.createObjectURL(new Blob([testo], { type: tipo }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeFile;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 // Legge un file JSON scelto dall'utente; gli errori di lettura diventano un messaggio
 export function leggiFileJson(event, onDati) {
     const file = event.target.files[0];

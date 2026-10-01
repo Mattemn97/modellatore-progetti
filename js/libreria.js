@@ -36,6 +36,12 @@ const libreria = {
 let conflitto = null;           // { corpo, alSuccesso, blockId, nodeId } del salvataggio rifiutato con 409
 let salvataggioInCorso = false;
 
+// Nome del file e versione della libreria caricata, per l'intestazione della matrice esportata (spec 0006)
+export function infoLibreria() {
+    if (!libreria.caricata) return { nomeFile: '', versione: null };
+    return { nomeFile: libreria.nomeFile, versione: libreria.versione };
+}
+
 /* --- PERCORSI --- */
 
 function eIndirizzoWeb(percorso) {

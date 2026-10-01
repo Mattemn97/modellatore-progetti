@@ -241,3 +241,24 @@ span.segno-ramo { cursor: default; }
 .togli-gerarchia { margin-left: auto; background: white; border: 1px solid #999; border-radius: 3px; padding: 0 6px; font-size: 12px; cursor: pointer; }
 .togli-gerarchia:hover { background: #fdecea; }
 .vuoto-gerarchia { font-size: 12px; font-style: italic; color: #888; padding: 2px 6px; }
+
+/* Matrice di tracciabilità: finestra, filtri, tabella raggruppata per padre (spec 0006) */
+.modal-matrice { width: 95%; max-width: 1400px; max-height: 90vh; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+.filtri-matrice { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 8px; }
+.filtri-matrice[hidden], .import-conteggi[hidden] { display: none; }
+.filtri-matrice .campo-import select, .filtri-matrice .campo-import input { min-width: 120px; }
+.campo-ricerca-matrice { flex: 1; min-width: 200px; }
+.campo-ricerca-matrice input { width: 100%; box-sizing: border-box; }
+.contenuto-matrice { flex: 1; min-height: 0; overflow: auto; font-size: 12px; }
+.tabella-matrice { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tabella-matrice th, .tabella-matrice td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; }
+.tabella-matrice th { background: #f0f4f8; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.tabella-matrice tbody { border-top: 2px solid #b0bac5; }
+.tabella-matrice .cella-id { font-family: monospace; font-weight: bold; white-space: nowrap; }
+.tabella-matrice .cella-numero { text-align: right; }
+.tabella-matrice .cella-nota { color: #c0392b; }
+.tabella-matrice .vai-matrice { cursor: pointer; }
+.tabella-matrice .vai-matrice:hover { background: #e1e9f1; text-decoration: underline; }
+.tabella-matrice .ritirato-matrice { text-decoration: line-through; color: #999; }
+.titolo-sezione-matrice { font-size: 13px; font-weight: bold; color: #333; margin: 14px 0 6px; }
+.altri-matrice { margin: 8px 0; }

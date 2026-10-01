@@ -74,10 +74,15 @@ export function chiaveSulCanvas(ownerType, ownerId, reqId) {
 
 // Indice completo delle occorrenze del modello, con padri e figli dai soli fili di derivazione validi (AC-4, AC-5).
 // Non cambia mai il modello
+// percorsiConContenuto: percorsi dei blocchi con almeno un blocco con definizione dentro (la condizione della Coerenza
+// per "senza figli"), usati dalla matrice (spec 0006)
 export function calcolaGerarchia(radice, libreria, cliente) {
     const occorrenze = new Map();
     const filiPerLivello = new Map();
-    if (!libreria || Object.keys(libreria).length === 0) return { occorrenze, filiPerLivello, libreriaAssente: true };
+    const percorsiConContenuto = new Set();
+    if (!libreria || Object.keys(libreria).length === 0) {
+        return { occorrenze, filiPerLivello, percorsiConContenuto, libreriaAssente: true };
+    }
 
     function registra(chiave, percorso, etichette, req, eCliente) {
         if (occorrenze.has(chiave)) return; // due nodi con lo stesso id nello stesso livello: una sola occorrenza
@@ -98,6 +103,7 @@ export function calcolaGerarchia(radice, libreria, cliente) {
         },
         nodo(ctx, nodo, def) {
             if (!def) return;
+            if (ctx.percorso.length > 0) percorsiConContenuto.add(ctx.percorso.join('/'));
             const percorso = [...ctx.percorso, nodo.id];
             const etichette = [...ctx.etichette, nodo.label || nodo.id];
             def.requisiti.forEach(req => registra(chiaveDi(percorso, req.id), percorso, etichette, req, false));
@@ -113,7 +119,7 @@ export function calcolaGerarchia(radice, libreria, cliente) {
         f.padri.add(padre);
     }));
 
-    return { occorrenze, filiPerLivello, libreriaAssente: false };
+    return { occorrenze, filiPerLivello, percorsiConContenuto, libreriaAssente: false };
 }
 
 // Tutte le chiavi raggiungibili da 'partenza' seguendo 'lato' ('padri' o 'figli'), partenza esclusa
@@ -337,6 +343,15 @@ export function scegliDaCanvas(owner, req) {
 // Dal dettaglio di un requisito cliente: accende la modalità se serve, senza cambiare livello né vista (AC-3)
 export function mostraGerarchiaCliente(reqId) {
     mostraGerarchiaDi(chiaveCliente(reqId));
+}
+
+// Da una riga della matrice (spec 0006, AC-10): accende la modalità, apre la scheda e va all'istanza come un clic
+// su una riga della scheda. Pannello e scheda sono espliciti perché accendi() esce subito a modalità già accesa
+export function apriGerarchiaSu(chiave) {
+    accendi();
+    document.getElementById('libraryPanel')?.classList.remove('collapsed');
+    mostraScheda('gerarchia');
+    vaiAOccorrenza(chiave);
 }
 
 export function mostraGerarchiaDi(chiave) {

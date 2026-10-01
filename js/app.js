@@ -9,6 +9,7 @@ import { mostraChangelog } from './libreria.js';
 import { initSchedaCliente, posizionaRequisitoCliente, impostaSelezioneCliente } from './cliente.js';
 import { initCoerenza } from './coerenza.js';
 import { initGerarchia } from './gerarchia.js';
+import { initMatrice } from './matrice.js';
 import { CAPACITA, getTipologie } from './model.js';
 import { escapeHtml, generaId } from './utils.js';
 
@@ -68,6 +69,7 @@ async function initApp() {
     initSchedaCliente();
     initCoerenza();
     initGerarchia();
+    initMatrice();
 
     // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
     // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti
