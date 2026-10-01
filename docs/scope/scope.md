@@ -19,7 +19,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 3 | Import requisiti cliente | Slice 1 | done |
 | 4 | Controllo di coerenza | Slice 2 | done |
 | 5 | Gerarchia dei requisiti | Slice 3 | planned |
-| 6 | Matrice di tracciabilità | Slice 3 | planned |
+| 6 | Matrice di tracciabilità | Slice 3 | in-progress |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | planned |
 | 8 | Filtri avanzati | Slice 4 | planned |
 | 9 | Ispettore dei collegamenti | Slice 4 | planned |
@@ -101,10 +101,17 @@ Ricostruisce l'albero dei requisiti dal cliente fino ai livelli più bassi, attr
 **Done when:** scelto un requisito vedi la catena completa padre → figli su tutti i livelli, e sul canvas si evidenziano i fili coinvolti.
 - [ ] Design it (spec): `/architect gerarchia dei requisiti`
 
-### 6. Matrice di tracciabilità · needs a decision
+### 6. Matrice di tracciabilità · in-progress
 Tabella padre → figli con i documenti di ciascun lato, a video (pulsante Matrice Requisiti) ed esportabile in Markdown, filtrabile per documento.
 **Done when:** la matrice elenca ogni derivazione con id, titolo e documenti di padre e figlio, segnala i padri senza figli, ed è esportabile in `.md`.
-- [ ] Design it (spec): `/architect matrice di tracciabilità`
+spec [0006](../specs/0006-matrice-tracciabilita/index.md)
+- [x] Design it (spec): `/architect matrice di tracciabilità`
+- [ ] Build it: `/develop matrice di tracciabilità`
+  - [ ] Filo minimo dal modello alla finestra e al file: `js/matrice.js`, `#matriceModal`, tabella raggruppata, export `.md` (AC-1, AC-3, AC-4, AC-11)
+  - [ ] Colonne complete e problemi: blocco, metodo, classe, istanze, senza figli e senza padre per istanza, ritirati, ordine (AC-2, AC-5, AC-6, AC-7)
+  - [ ] Filtri, volumi ed export completo: documento e lato, classe, ricerca, conteggi, Mostra altri, filtri ricordati (AC-8, AC-9, AC-11, AC-12, AC-13)
+  - [ ] Dalla matrice alla Gerarchia: clic su un requisito, `apriGerarchiaSu()` (AC-10)
+- [ ] Verify it: `/check verify matrice di tracciabilità`
 
 ### 7. Export documenti MIL-STD-498 · needs a decision · Beta
 Genera un file Markdown per documento (SSS, SSDD, IRS, IDD…) con la capitolazione formale del DID, mettendo ogni testo da esportare al suo posto (es. capacità e interfacce in capitoli diversi, metodi di verifica nelle disposizioni di qualifica, tracciabilità nel suo capitolo). Riferimento indicato da te: https://github.com/bradfa/MIL-STD-498
@@ -141,6 +148,7 @@ Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Annulla della libreria**: ripristinare una copia di `_versioni/` con la sua voce di changelog, from spec 0002 · needs a decision
 - **Distribuzione dell'exe**: pacchetto pronto con tutti i file accanto a `start.exe`
 - **Pulizia dei requisiti cliente ritirati**: eliminarli davvero quando la lista diventa scomoda, from spec 0003 · needs a decision
+- **Matrice per occorrenza**: righe per istanza con il percorso, accanto alla vista per id, from spec 0006 · needs a decision
 - **Lettura di `.xls` e date di Excel**: riaprire la scelta del lettore (SheetJS in `js/vendor/`), from spec 0003 · needs a decision
 
 ## Legend
