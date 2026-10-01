@@ -12,6 +12,7 @@ import { mostraDettaglioCliente } from './inspector.js';
 import { verificaCompatibilita, getTipologie, getColoreRequisito, titoloRequisito } from './model.js';
 import { escapeHtml } from './utils.js';
 import { aggiornaSchedaCoerenza } from './coerenza.js';
+import { aggiornaSchedaGerarchia } from './gerarchia.js';
 
 // Campi mappabili sulle colonne del file, nell'ordine della finestra di import
 const CAMPI = [
@@ -731,14 +732,16 @@ export function posizionaRequisitoCliente(id, coords) {
     render();
 }
 
-// Commutatore delle schede del pannello sinistro: Libreria, Cliente e Coerenza (spec 0004)
+// Commutatore delle schede del pannello sinistro: Libreria, Cliente, Coerenza (spec 0004) e Gerarchia (spec 0005)
 export function mostraScheda(nome) {
     document.querySelectorAll('.scheda-pannello').forEach(b => b.classList.toggle('attiva', b.dataset.scheda === nome));
     document.getElementById('schedaLibreria').hidden = nome !== 'libreria';
     document.getElementById('schedaCliente').hidden = nome !== 'cliente';
     document.getElementById('schedaCoerenza').hidden = nome !== 'coerenza';
+    document.getElementById('schedaGerarchia').hidden = nome !== 'gerarchia';
     if (nome === 'cliente') aggiornaSchedaCliente();
     if (nome === 'coerenza') aggiornaSchedaCoerenza(true);
+    if (nome === 'gerarchia') aggiornaSchedaGerarchia(true);
 }
 
 export function initSchedaCliente() {

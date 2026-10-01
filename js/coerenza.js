@@ -9,9 +9,8 @@ import { renderUI } from './app.js';
 import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { mostraScheda, impostaSelezioneCliente } from './cliente.js';
 import { apriPercorso } from './progetto.js';
-import {
-    verificaCompatibilita, isDerivazione, getClasseRequisito, titoloRequisito, CAPACITA, ID_CLIENTE
-} from './model.js';
+import { visitaDerivazioni, getClasseRequisito, titoloRequisito, CAPACITA, ID_CLIENTE } from './model.js';
+import { spegniGerarchia } from './gerarchia.js';
 import { escapeHtml } from './utils.js';
 
 // Gruppi della scheda, nell'ordine di AC-7; Da riparare raccoglie blocchi senza definizione e fili non validi
@@ -61,7 +60,6 @@ export function calcolaCoerenza(radice, libreria, cliente) {
     if (!libreria || Object.keys(libreria).length === 0) return risultatoVuoto({ libreriaAssente: true });
 
     const requisitiCliente = cliente?.requisiti || [];
-    const mappaCliente = new Map(requisitiCliente.map(r => [r.id, r]));
     const perTipo = {
         clienteSenzaFigli: [], senzaPadre: [], senzaFigli: [], filoDaRitirato: [],
         bloccoSenzaDefinizione: [], filoNonValido: []
@@ -74,109 +72,74 @@ export function calcolaCoerenza(radice, libreria, cliente) {
         perTipo[p.tipo].push(p);
     }
 
-    // graph = livello; nodoPadre = il nodo che lo contiene (null alla radice); nodi = pila dei nodi aperti fino a qui
-    function visita(graph, nodoPadre, percorso, etichette, nodi) {
-        const tipoPadre = nodoPadre ? nodoPadre.type : null;
-        const ownerPadre = nodoPadre ? nodoPadre.id : ID_CLIENTE;
-        const nodiLivello = graph.nodes || [];
-        const perId = new Map(nodiLivello.map(n => [n.id, n]));
-        const base = { percorso, etichette, graph, nodi };
+    const base = ctx => ({ percorso: ctx.percorso, etichette: ctx.etichette, graph: ctx.graph, nodi: ctx.nodi });
 
-        const requisitoDelPadre = reqId => tipoPadre === null
-            ? mappaCliente.get(reqId) || null
-            : libreria[tipoPadre]?.requisiti.find(r => r.id === reqId) || null;
+    // La visita del modello è condivisa con la Gerarchia (model.js); qui solo le regole della Coerenza
+    visitaDerivazioni(radice, libreria, cliente, {
+        inizioLivello(ctx) {
+            ctx.stato.padriConFigli = new Set();
+            ctx.stato.figliConPadre = new Set();
+            ctx.stato.bloccoConDefinizione = false;
+        },
 
-        // Estremo di un filo: { req, ... } oppure { mancante } / { senzaDefinizione }
-        function estremo(ownerId, reqId, ownerType) {
-            if (ownerType === 'parent') {
-                return { ownerId, reqId, ownerType, req: requisitoDelPadre(reqId), descrizione: `blocco tondo · requisito ${reqId}` };
-            }
-            const nodo = perId.get(ownerId);
-            if (!nodo) return { mancante: true, descrizione: `blocco ${ownerId} (non c'è più) · requisito ${reqId}` };
-            const def = libreria[nodo.type];
-            if (!def) return { senzaDefinizione: true };
-            return {
-                ownerId, reqId, ownerType, req: def.requisiti.find(r => r.id === reqId) || null,
-                descrizione: `blocco ${nodo.label || nodo.id} · requisito ${reqId}`
-            };
-        }
-
-        const padriConFigli = new Set();
-        const figliConPadre = new Set();
-
-        (graph.edges || []).forEach(edge => {
-            const a = estremo(edge.source, edge.sourceHandle, edge.sourceType);
-            const b = estremo(edge.target, edge.targetHandle, edge.targetType);
-            let motivo = null;
-            if (a.mancante || b.mancante) motivo = 'Il blocco collegato non esiste più.';
-            else if (a.senzaDefinizione || b.senzaDefinizione) return; // lo copre la voce del blocco
-            else motivo = verificaCompatibilita(a, b);
-
-            if (motivo) {
+        filo(ctx, edge, esito) {
+            if (esito.stato === 'ignorato') return; // lo copre la voce del blocco
+            if (esito.stato === 'nonValido') {
                 aggiungi({
-                    ...base, tipo: 'filoNonValido', ownerType: null, ownerId: null, reqId: null, req: null,
-                    nodeId: null, edgeId: edge.id, numeroFili: null, motivo, classe: null,
+                    ...base(ctx), tipo: 'filoNonValido', ownerType: null, ownerId: null, reqId: null, req: null,
+                    nodeId: null, edgeId: edge.id, numeroFili: null, motivo: esito.motivo, classe: null,
                     idVoce: 'Filo', titoloVoce: `${edge.sourceHandle} → ${edge.targetHandle}`,
-                    estremi: [a.descrizione, b.descrizione]
+                    estremi: [esito.a.descrizione, esito.b.descrizione]
                 });
                 return;
             }
-            if (!isDerivazione(edge)) return; // collegamento tra blocchi: non dà padre né figli
+            if (!esito.derivazione) return; // collegamento tra blocchi: non dà padre né figli
 
-            const [padre, figlio] = a.ownerType === 'parent' ? [a, b] : [b, a];
-            if (tipoPadre === null) filiCliente.set(padre.reqId, (filiCliente.get(padre.reqId) || 0) + 1);
+            const { padre, figlio } = esito;
+            if (ctx.tipoPadre === null) filiCliente.set(padre.reqId, (filiCliente.get(padre.reqId) || 0) + 1);
             // Alla radice un ritirato non fa da padre (il filo resta valido, spec 0003)
-            if (tipoPadre === null && padre.req.stato !== 'attivo') return;
-            padriConFigli.add(padre.reqId);
-            figliConPadre.add(`${figlio.ownerId}|${figlio.reqId}`);
-        });
+            if (ctx.tipoPadre === null && padre.req.stato !== 'attivo') return;
+            ctx.stato.padriConFigli.add(padre.reqId);
+            ctx.stato.figliConPadre.add(`${figlio.ownerId}|${figlio.reqId}`);
+        },
 
         // Blocchi senza definizione e requisiti senza padre di questo livello
-        let bloccoConDefinizione = false;
-        nodiLivello.forEach(nodo => {
-            const def = libreria[nodo.type];
+        nodo(ctx, nodo, def) {
             if (!def) {
                 aggiungi({
-                    ...base, tipo: 'bloccoSenzaDefinizione', ownerType: null, ownerId: null, reqId: null, req: null,
+                    ...base(ctx), tipo: 'bloccoSenzaDefinizione', ownerType: null, ownerId: null, reqId: null, req: null,
                     nodeId: nodo.id, edgeId: null, numeroFili: null, classe: null,
                     motivo: `Il blocco "${nodo.type}" non esiste nella libreria aperta: ripristinalo in libreria. Il suo contenuto non è controllato.`,
                     idVoce: nodo.type, titoloVoce: nodo.label || nodo.id
                 });
                 return;
             }
-            bloccoConDefinizione = true;
+            ctx.stato.bloccoConDefinizione = true;
             def.requisiti.forEach(req => {
-                if (figliConPadre.has(`${nodo.id}|${req.id}`)) return;
+                if (ctx.stato.figliConPadre.has(`${nodo.id}|${req.id}`)) return;
                 aggiungi({
-                    ...base, tipo: 'senzaPadre', ownerType: 'node', ownerId: nodo.id, reqId: req.id, req,
+                    ...base(ctx), tipo: 'senzaPadre', ownerType: 'node', ownerId: nodo.id, reqId: req.id, req,
                     nodeId: null, edgeId: null, numeroFili: null, classe: getClasseRequisito(req),
                     motivo: 'Senza padre: nessun filo di derivazione valido da un blocco tondo',
                     idVoce: req.id, titoloVoce: titoloRequisito(req)
                 });
             });
-        });
+        },
 
         // Requisiti del blocco che contiene il livello che non scendono a nessun figlio (solo livelli con contenuto)
-        if (nodoPadre && bloccoConDefinizione) {
-            (libreria[tipoPadre]?.requisiti || []).forEach(req => {
-                if (padriConFigli.has(req.id)) return;
+        fineLivello(ctx) {
+            if (!ctx.nodoPadre || !ctx.stato.bloccoConDefinizione) return;
+            (libreria[ctx.tipoPadre]?.requisiti || []).forEach(req => {
+                if (ctx.stato.padriConFigli.has(req.id)) return;
                 aggiungi({
-                    ...base, tipo: 'senzaFigli', ownerType: 'parent', ownerId: ownerPadre, reqId: req.id, req,
+                    ...base(ctx), tipo: 'senzaFigli', ownerType: 'parent', ownerId: ctx.ownerPadre, reqId: req.id, req,
                     nodeId: null, edgeId: null, numeroFili: null, classe: getClasseRequisito(req),
                     motivo: 'Senza figli: non scende a nessun blocco di questo livello',
                     idVoce: req.id, titoloVoce: titoloRequisito(req)
                 });
             });
         }
-
-        // In profondità, nell'ordine del file; il contenuto di un blocco senza definizione non è valutato
-        nodiLivello.forEach(nodo => {
-            if (!libreria[nodo.type] || !nodo.internal_graph) return;
-            visita(nodo.internal_graph, nodo, [...percorso, nodo.id], [...etichette, nodo.label || nodo.id], [...nodi, nodo]);
-        });
-    }
-
-    visita(radice, null, [], [], []);
+    });
 
     // Requisiti cliente, nell'ordine del file
     const baseRadice = { percorso: [], etichette: [], graph: radice, nodi: [] };
@@ -268,22 +231,30 @@ function aggiornaPulsante() {
     pulsante.textContent = `⚠️ Verifica Coerenza${numero}`;
 }
 
+// Spegne la modalità con linguetta, scheda, pulsante e risultato, senza render(): lo fa chi la chiama (spec 0005)
+export function spegniCoerenza() {
+    if (!modalitaAttiva) return;
+    modalitaAttiva = false;
+    ultimoRisultato = null;
+    const eraAperta = !document.getElementById('schedaCoerenza').hidden;
+    document.querySelector('.scheda-pannello[data-scheda="coerenza"]').hidden = true;
+    if (eraAperta) mostraScheda('libreria');
+    document.getElementById('schedaCoerenza').hidden = true;
+    aggiornaPulsante();
+}
+
 export function cambiaModalitaCoerenza() {
-    modalitaAttiva = !modalitaAttiva;
-    const linguetta = document.querySelector('.scheda-pannello[data-scheda="coerenza"]');
     if (modalitaAttiva) {
-        linguetta.hidden = false;
+        spegniCoerenza();
+    } else {
+        // Coerenza e Gerarchia non sono mai accese insieme
+        spegniGerarchia();
+        modalitaAttiva = true;
+        document.querySelector('.scheda-pannello[data-scheda="coerenza"]').hidden = false;
         document.getElementById('libraryPanel')?.classList.remove('collapsed');
         ultimaImpronta = null;
         aggiornaCoerenza();
         mostraScheda('coerenza');
-    } else {
-        ultimoRisultato = null;
-        const eraAperta = !document.getElementById('schedaCoerenza').hidden;
-        linguetta.hidden = true;
-        if (eraAperta) mostraScheda('libreria');
-        document.getElementById('schedaCoerenza').hidden = true;
-        aggiornaPulsante();
     }
     render();
 }

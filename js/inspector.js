@@ -6,6 +6,7 @@ import { escapeHtml, slugifyId } from './utils.js';
 import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE } from './model.js';
 import { salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog } from './libreria.js';
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
+import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
 
 const propsContent = document.getElementById('propsContent');
 
@@ -319,6 +320,8 @@ function renderEditorForm(data) {
             let filiRimossi = 0;
             if (!data.isNew) {
                 filiRimossi = aggiornaRiferimentiRequisiti(pathStack[0].graph, appState.library, blockId, mappaRinomina);
+                // Prima di qualunque render(): la scelta della Gerarchia segue l'id rinominato
+                rinominaSceltaGerarchia(blockId, mappaRinomina);
                 if (data.nodeId) {
                     const node = getCurrentLevel().graph.nodes.find(n => n.id === data.nodeId);
                     if (node) node.label = campi.titolo;
@@ -443,12 +446,14 @@ export function mostraDettaglioCliente(id) {
             ${rigaDettaglio('Fili', String(fili))}
             ${prima}
             <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                <button id="btnGerarchiaCliente" class="pulsante-progetto" title="Mostra antenati e discendenti nella scheda Gerarchia">🌳 Mostra gerarchia</button>
                 ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto">✔ Segna come visto</button>` : ''}
                 <button id="btnTogliCliente" class="pulsante-progetto" ${posizione && fili === 0 ? '' : 'disabled'}
                     title="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : 'Toglie il blocco tondo, non il requisito') : 'Non è sul canvas'}">Togli dal canvas</button>
             </div>
         </div>`;
 
+    document.getElementById('btnGerarchiaCliente')?.addEventListener('click', () => mostraGerarchiaCliente(id));
     document.getElementById('btnVistoCliente')?.addEventListener('click', () => {
         req.modificato = false;
         req.precedente = null;

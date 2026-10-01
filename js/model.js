@@ -237,6 +237,81 @@ export function isDerivazione(edge) {
     return edge.sourceType === 'parent' || edge.targetType === 'parent';
 }
 
+/* --- VISITA DELLE DERIVAZIONI: LA USANO COERENZA E GERARCHIA (spec 0005) --- */
+
+// Percorre tutto il modello e riporta all'osservatore livelli, fili (con il loro esito) e nodi. Non cambia mai il modello
+// e non ha regole sui ritirati: ognuno ci applica le sue. Per ogni livello, in quest'ordine (tutte facoltative):
+// inizioLivello(ctx), filo(ctx, edge, esito) per ogni filo, nodo(ctx, nodo, def) per ogni nodo (def null se senza
+// definizione), fineLivello(ctx), poi la discesa nei nodi con definizione e internal_graph, nell'ordine del file.
+// ctx = { graph, nodoPadre, tipoPadre, ownerPadre, percorso, etichette, nodi, stato }: stato è un oggetto vuoto per livello.
+// esito = { stato: 'valido' | 'nonValido' | 'ignorato', motivo, a, b, derivazione, padre, figlio }:
+// padre e figlio ci sono solo per un filo valido di derivazione
+export function visitaDerivazioni(radice, libreria, cliente, osservatore = {}) {
+    const mappaCliente = new Map((cliente?.requisiti || []).map(r => [r.id, r]));
+
+    // graph = livello; nodoPadre = il nodo che lo contiene (null alla radice); nodi = pila dei nodi aperti fino a qui
+    function visita(graph, nodoPadre, percorso, etichette, nodi) {
+        const tipoPadre = nodoPadre ? nodoPadre.type : null;
+        const ownerPadre = nodoPadre ? nodoPadre.id : ID_CLIENTE;
+        const nodiLivello = graph.nodes || [];
+        const perId = new Map(nodiLivello.map(n => [n.id, n]));
+        const ctx = { graph, nodoPadre, tipoPadre, ownerPadre, percorso, etichette, nodi, stato: {} };
+
+        const requisitoDelPadre = reqId => tipoPadre === null
+            ? mappaCliente.get(reqId) || null
+            : libreria[tipoPadre]?.requisiti.find(r => r.id === reqId) || null;
+
+        // Estremo di un filo: { req, ... } oppure { mancante } / { senzaDefinizione }
+        function estremo(ownerId, reqId, ownerType) {
+            if (ownerType === 'parent') {
+                return { ownerId, reqId, ownerType, req: requisitoDelPadre(reqId), descrizione: `blocco tondo · requisito ${reqId}` };
+            }
+            const nodo = perId.get(ownerId);
+            if (!nodo) return { ownerId, reqId, ownerType, mancante: true, descrizione: `blocco ${ownerId} (non c'è più) · requisito ${reqId}` };
+            const def = libreria[nodo.type];
+            if (!def) return { ownerId, reqId, ownerType, senzaDefinizione: true, descrizione: `blocco ${nodo.label || nodo.id} · requisito ${reqId}` };
+            return {
+                ownerId, reqId, ownerType, req: def.requisiti.find(r => r.id === reqId) || null,
+                descrizione: `blocco ${nodo.label || nodo.id} · requisito ${reqId}`
+            };
+        }
+
+        osservatore.inizioLivello?.(ctx);
+
+        (graph.edges || []).forEach(edge => {
+            const a = estremo(edge.source, edge.sourceHandle, edge.sourceType);
+            const b = estremo(edge.target, edge.targetHandle, edge.targetType);
+            let stato = 'valido';
+            let motivo = null;
+            if (a.mancante || b.mancante) {
+                stato = 'nonValido';
+                motivo = 'Il blocco collegato non esiste più.';
+            } else if (a.senzaDefinizione || b.senzaDefinizione) {
+                stato = 'ignorato';
+            } else {
+                motivo = verificaCompatibilita(a, b);
+                if (motivo) stato = 'nonValido';
+            }
+            const derivazione = isDerivazione(edge);
+            let padre = null;
+            let figlio = null;
+            if (stato === 'valido' && derivazione) [padre, figlio] = a.ownerType === 'parent' ? [a, b] : [b, a];
+            osservatore.filo?.(ctx, edge, { stato, motivo, a, b, derivazione, padre, figlio });
+        });
+
+        nodiLivello.forEach(nodo => osservatore.nodo?.(ctx, nodo, libreria[nodo.type] || null));
+        osservatore.fineLivello?.(ctx);
+
+        // In profondità, nell'ordine del file; il contenuto di un blocco senza definizione non è visitato
+        nodiLivello.forEach(nodo => {
+            if (!libreria[nodo.type] || !nodo.internal_graph) return;
+            visita(nodo.internal_graph, nodo, [...percorso, nodo.id], [...etichette, nodo.label || nodo.id], [...nodi, nodo]);
+        });
+    }
+
+    visita(radice, null, [], [], []);
+}
+
 /* --- AGGIORNAMENTO DEI RIFERIMENTI DOPO LA MODIFICA DI UN BLOCCO DI LIBRERIA --- */
 
 // Percorre tutto il modello (ogni livello annidato) e, per ogni riferimento ai requisiti del blocco 'blockId':

@@ -7,6 +7,10 @@ import { pianificaSalvataggio } from './progetto.js';
 import { segnaSchedaClienteDaAggiornare } from './cliente.js';
 import { coerenzaAttiva, aggiornaCoerenza, problemaPin, contatoreBlocco, segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 import {
+    gerarchiaAttiva, segnaGerarchiaDaRicalcolare, segnaSchedaGerarchiaDaAggiornare, catenaAttiva, filoInCatena,
+    filiInCatena, occorrenzaInCatena, contatoreGerarchia, coloreCatena, chiaveSulCanvas, scegliDaCanvas
+} from './gerarchia.js';
+import {
     isInterfaccia, getClasseRequisito, getColoreRequisito, descriviRequisito,
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE
 } from './model.js';
@@ -134,6 +138,8 @@ export function render() {
     pianificaSalvataggio();
     // Controllo di coerenza: calcolo puro sul modello di adesso, letto da evidenze, contatori e scheda
     if (coerenzaAttiva()) aggiornaCoerenza();
+    // Gerarchia: indice e catena si rifanno al massimo una volta per fotogramma (spec 0005)
+    if (gerarchiaAttiva()) segnaGerarchiaDaRicalcolare();
 
     updateViewportTransform();
 
@@ -158,14 +164,19 @@ export function render() {
         return req && passaFiltro(req);
     });
 
-    activeEdges.forEach(edge => renderEdge(edge, currentGraph));
+    // I fili della catena si disegnano anche se il filtro li toglierebbe; activeEdges resta per Nascondi Non Coinvolti
+    const filiCatena = filiInCatena(currentGraph);
+    const giaAttivi = new Set(activeEdges);
+    const daDisegnare = filiCatena.size === 0 ? activeEdges
+        : [...activeEdges, ...currentGraph.edges.filter(e => filiCatena.has(e.id) && !giaAttivi.has(e))];
+    daDisegnare.forEach(edge => renderEdge(edge, currentGraph));
 
     // RENDER NODI
     currentGraph.nodes.forEach(node => {
         const blockDef = getBlockDef(node.type);
         if (!blockDef) return;
 
-        if (filtroAttivo && appState.omitUninvolved) {
+        if (filtroAttivo && appState.omitUninvolved && !nodoNellaCatena(node, blockDef)) {
             const hasReqType = blockDef.requisiti.some(passaFiltro);
             const isConnectedInFilter = activeEdges.some(e => e.source === node.id || e.target === node.id);
             if (!hasReqType && !isConnectedInFilter) return;
@@ -178,6 +189,23 @@ export function render() {
     // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
     segnaSchedaClienteDaAggiornare();
     segnaSchedaCoerenzaDaAggiornare();
+    segnaSchedaGerarchiaDaAggiornare();
+}
+
+// Percorso di un nodo del livello corrente: gli id dei livelli aperti più il suo
+function percorsoNodo(node) {
+    return [...pathStack.slice(1).map(l => l.id), node.id];
+}
+
+// Un blocco con pin della catena della Gerarchia (spec 0005, AC-10)
+function haPinInCatena(node, blockDef) {
+    return blockDef.requisiti.some(r => occorrenzaInCatena(chiaveSulCanvas('node', node.id, r.id)));
+}
+
+// Pin della catena o occorrenze della catena nel contenuto: il blocco si disegna anche con Nascondi Non Coinvolti
+function nodoNellaCatena(node, blockDef) {
+    if (!catenaAttiva()) return false;
+    return haPinInCatena(node, blockDef) || contatoreGerarchia(percorsoNodo(node)) > 0;
 }
 
 function renderEdge(edge, currentGraph) {
@@ -194,8 +222,11 @@ function renderEdge(edge, currentGraph) {
     const points = [startCoords, ...edge.waypoints, endCoords];
     const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
+    // Gerarchia con una scelta: i fili della catena evidenziati, tutti gli altri attenuati
+    let classeCatena = '';
+    if (catenaAttiva()) classeCatena = filoInCatena(currentGraph, edge.id) ? ' catena-gerarchia' : ' fuori-catena';
     const path = creaSvg('path', {
-        class: derivazione ? 'edge-path edge-derivazione' : 'edge-path',
+        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + classeCatena,
         d: pathData,
         stroke: edgeColor
     });
@@ -230,6 +261,7 @@ function renderEdge(edge, currentGraph) {
         const handle = creaSvg('circle', {
             cx: wp.x, cy: wp.y, r: 5, fill: edgeColor, stroke: '#ffffff', 'stroke-width': '1.5'
         });
+        if (classeCatena === ' fuori-catena') handle.setAttribute('class', 'fuori-catena');
         handle.style.cursor = 'move';
         handle.addEventListener('mousedown', (e) => startWaypointDrag(e, wp));
         handle.addEventListener('dblclick', (e) => {
@@ -259,6 +291,13 @@ function renderNode(node, blockDef) {
     });
     labelText.textContent = node.label || blockDef.titolo || node.id;
 
+    // Gerarchia: si attenuano rettangolo e scritta, mai il gruppo, così i pin della catena restano pieni
+    const occorrenzeDentro = contatoreGerarchia(percorsoNodo(node));
+    if (catenaAttiva() && occorrenzeDentro === 0 && !haPinInCatena(node, blockDef)) {
+        rect.classList.add('fuori-catena');
+        labelText.classList.add('fuori-catena');
+    }
+
     g.appendChild(rect);
     g.appendChild(labelText);
 
@@ -275,6 +314,16 @@ function renderNode(node, blockDef) {
         contatore.appendChild(creaSvg('circle', { r: 9 }));
         const numero = creaSvg('text', { 'text-anchor': 'middle', y: 3.5 });
         numero.textContent = problemi > 99 ? '99+' : String(problemi);
+        contatore.appendChild(numero);
+        g.appendChild(contatore);
+    }
+
+    // Occorrenze della catena nel contenuto del blocco: contatore in alto a sinistra, nel colore della classe della scelta
+    if (occorrenzeDentro > 0) {
+        const contatore = creaSvg('g', { class: 'contatore-gerarchia' });
+        contatore.appendChild(creaSvg('circle', { r: 9, fill: coloreCatena() }));
+        const numero = creaSvg('text', { 'text-anchor': 'middle', y: 3.5 });
+        numero.textContent = occorrenzeDentro > 99 ? '99+' : String(occorrenzeDentro);
         contatore.appendChild(numero);
         g.appendChild(contatore);
     }
@@ -360,19 +409,25 @@ function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
     const centro = getParentBlockCenter(graph, req.id, idx);
     const colore = opzioni.ritirato ? '#9e9e9e' : getColoreRequisito(req);
     const g = creaSvg('g', { class: 'parent-block' });
-    if (!passaFiltro(req)) g.style.opacity = '0.25';
+    // Con una catena della Gerarchia decide lei cosa si attenua, al posto del filtro per classe
+    const inCatena = occorrenzaInCatena(chiaveSulCanvas('parent', ownerId, req.id));
+    if (catenaAttiva()) {
+        if (!inCatena) g.classList.add('fuori-catena');
+    } else if (!passaFiltro(req)) {
+        g.style.opacity = '0.25';
+    }
 
     const problema = problemaPin(graph, 'parent', ownerId, req.id);
     let classe = 'parent-block-circle';
     if (opzioni.ritirato) classe += ' parent-block-ritirato';
     if (opzioni.evidenziato) classe += ' parent-block-evidenziato';
     if (problema) classe += ' problema-coerenza';
+    if (inCatena) classe += ' pin-catena';
     const cerchio = creaSvg('circle', { cx: centro.x, cy: centro.y, r: raggio, class: classe, stroke: colore });
     aggiungiTooltip(cerchio, problema ? `${opzioni.tooltip}\n\n⚠️ ${problema}` : opzioni.tooltip);
-    cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req.id, idx));
-    if (opzioni.alClic) {
-        cerchio.addEventListener('click', (e) => { e.stopPropagation(); opzioni.alClic(); });
-    }
+    // Il clic (premi e rilascia senza spostare) lo decide startParentBlockDrag: il click arriverebbe solo senza tremolio
+    cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req, idx, ownerId, opzioni.alClic));
+    cerchio.addEventListener('click', (e) => { if (opzioni.alClic || gerarchiaAttiva()) e.stopPropagation(); });
     g.appendChild(cerchio);
 
     if (opzioni.modificato) {
@@ -401,21 +456,31 @@ function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
     parentLayer.appendChild(g);
 }
 
-function startParentBlockDrag(e, graph, reqId, idx) {
+// Trascina un blocco tondo; premuto e rilasciato senza cambiare casella della griglia è un clic:
+// a modalità Gerarchia accesa sceglie il requisito, altrimenti chiama alClic (il dettaglio del cliente)
+function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
     e.stopPropagation();
+    const reqId = req.id;
     const centro = getParentBlockCenter(graph, reqId, idx);
     const startCoords = getCanvasCoords(e);
     const offset = { x: startCoords.x - centro.x, y: startCoords.y - centro.y };
+    let spostato = false;
 
     function drag(ev) {
         const coords = getCanvasCoords(ev);
+        const nuova = { x: coords.x - offset.x, y: coords.y - offset.y };
+        if (!spostato && nuova.x === centro.x && nuova.y === centro.y) return;
+        spostato = true;
         if (!graph.parentReqPositions) graph.parentReqPositions = {};
-        graph.parentReqPositions[reqId] = { x: coords.x - offset.x, y: coords.y - offset.y };
+        graph.parentReqPositions[reqId] = nuova;
         render();
     }
     function endDrag() {
         window.removeEventListener('mousemove', drag);
         window.removeEventListener('mouseup', endDrag);
+        if (spostato) return;
+        if (gerarchiaAttiva()) scegliDaCanvas({ ownerType: 'parent', ownerId }, req);
+        else if (alClic) alClic();
     }
     window.addEventListener('mousemove', drag);
     window.addEventListener('mouseup', endDrag);
@@ -501,7 +566,15 @@ function createReqPin(cx, cy, req, owner, forma) {
     const problema = owner.ownerType === 'node' ? problemaPin(getCurrentLevel().graph, 'node', owner.ownerId, req.id) : null;
     pin.setAttribute('class', problema ? 'node-req-pin problema-coerenza' : 'node-req-pin');
     pin.setAttribute('fill', colore);
-    if (!passaFiltro(req)) pin.style.opacity = '0.25';
+    // Gerarchia con una scelta: alone sui pin della catena, gli altri attenuati. Il pin di un blocco tondo
+    // segue il suo gruppo (l'alone sta sul cerchio)
+    if (catenaAttiva()) {
+        if (owner.ownerType === 'node') {
+            pin.classList.add(occorrenzaInCatena(chiaveSulCanvas('node', owner.ownerId, req.id)) ? 'pin-catena' : 'fuori-catena');
+        }
+    } else if (!passaFiltro(req)) {
+        pin.style.opacity = '0.25';
+    }
 
     const suggerimento = owner.ownerType === 'node' && isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '';
     aggiungiTooltip(pin, descriviRequisito(req) + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
@@ -523,6 +596,12 @@ function createReqPin(cx, cy, req, owner, forma) {
         e.stopPropagation();
         const stessoPin = edgeStartData && edgeStartData.ownerId === owner.ownerId &&
             edgeStartData.ownerType === owner.ownerType && edgeStartData.reqId === req.id;
+        // Gerarchia: premi e rilascia sullo stesso pin sceglie il suo requisito, senza tirare un filo (AC-2)
+        if (isDrawingEdge && stessoPin && gerarchiaAttiva()) {
+            cleanupEdgeDrawing();
+            scegliDaCanvas(owner, req);
+            return;
+        }
         if (isDrawingEdge && edgeStartData && !stessoPin) {
             const graph = getCurrentLevel().graph;
             const a = { ...edgeStartData, req: trovaRequisito(edgeStartData.ownerId, edgeStartData.reqId, edgeStartData.ownerType) };

@@ -213,3 +213,31 @@ ins { color: #1e8449; text-decoration: none; }
 .pulsante-rimuovi-coerenza:hover { background: #fdecea; }
 .nota-coerenza { font-size: 11px; font-style: italic; color: #555; margin-bottom: 4px; }
 .altri-coerenza { font-size: 11px; color: #777; padding: 2px 6px; }
+
+/* Gerarchia dei requisiti: pulsante, catena sul canvas e scheda (spec 0005) */
+.canvas-toolbar .pulsante-gerarchia { background: #27ae60; color: white; border: 1px solid #27ae60; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.canvas-toolbar .pulsante-gerarchia:hover { background: #1e8449; }
+.canvas-toolbar .pulsante-gerarchia.attivo { background: #196f3d; border-color: #145a32; box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+.edge-path.catena-gerarchia { stroke-width: 5px; filter: drop-shadow(0 0 3px rgba(0, 120, 212, 0.7)); }
+.node-req-pin.pin-catena { stroke: #0078d4; stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(0, 120, 212, 0.9)); }
+.parent-block-circle.pin-catena { stroke-width: 6; filter: drop-shadow(0 0 6px rgba(0, 120, 212, 0.8)); }
+.fuori-catena { opacity: 0.25; }
+.contatore-gerarchia { pointer-events: none; }
+.contatore-gerarchia circle { stroke: white; stroke-width: 1.5; }
+.contatore-gerarchia text { fill: white; font-size: 10px; font-weight: bold; user-select: none; }
+.sezione-gerarchia { margin-bottom: 6px; }
+.titolo-sezione-gerarchia { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: #333; background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 4px; padding: 4px 8px; margin-bottom: 3px; }
+.conteggio-gerarchia { font-weight: normal; background: #e3f2fd; color: #0d47a1; border-radius: 8px; padding: 0 6px; white-space: nowrap; }
+.riga-gerarchia, .barra-gerarchia { display: flex; align-items: center; gap: 5px; padding: 3px 4px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 2px; font-size: 12px; background: #fff; }
+.riga-gerarchia { cursor: pointer; }
+.riga-gerarchia:hover { background: #e1e9f1; }
+.barra-gerarchia { border-color: #0078d4; background: #e3f2fd; font-weight: bold; margin: 6px 0; padding: 5px 6px; }
+.riga-gerarchia-ritirata .riga-gerarchia-id, .riga-gerarchia-ritirata .riga-gerarchia-titolo { text-decoration: line-through; color: #999; }
+.riga-gerarchia-id { font-family: monospace; font-weight: bold; white-space: nowrap; }
+.riga-gerarchia-titolo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.riga-gerarchia-blocco { font-size: 10px; color: #555; background: #eef2f6; border-radius: 8px; padding: 0 6px; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segno-ramo { flex: 0 0 14px; width: 14px; padding: 0; border: none; background: none; font-size: 14px; line-height: 1; color: #333; cursor: pointer; text-align: center; }
+span.segno-ramo { cursor: default; }
+.togli-gerarchia { margin-left: auto; background: white; border: 1px solid #999; border-radius: 3px; padding: 0 6px; font-size: 12px; cursor: pointer; }
+.togli-gerarchia:hover { background: #fdecea; }
+.vuoto-gerarchia { font-size: 12px; font-style: italic; color: #888; padding: 2px 6px; }

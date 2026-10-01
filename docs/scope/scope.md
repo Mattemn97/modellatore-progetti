@@ -18,7 +18,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 2 | Libreria su disco con changelog | Foundation | done |
 | 3 | Import requisiti cliente | Slice 1 | done |
 | 4 | Controllo di coerenza | Slice 2 | done |
-| 5 | Gerarchia dei requisiti | Slice 3 | planned |
+| 5 | Gerarchia dei requisiti | Slice 3 | in-progress |
 | 6 | Matrice di tracciabilità | Slice 3 | in-progress |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | planned |
 | 8 | Filtri avanzati | Slice 4 | planned |
@@ -96,10 +96,17 @@ spec [0004](../specs/0004-controllo-coerenza/index.md) · code in `js/coerenza.j
 
 ## Slice 3: Tracciabilità ed export
 
-### 5. Gerarchia dei requisiti · needs a decision
-Ricostruisce l'albero dei requisiti dal cliente fino ai livelli più bassi, attraversando i blocchi annidati, e lo mostra: scegli un requisito e vedi i suoi antenati e discendenti. Da decidere come trattare un blocco di libreria usato più volte (i suoi requisiti hanno gli stessi id in ogni istanza).
+### 5. Gerarchia dei requisiti · in-progress
+Ricostruisce l'albero dei requisiti dal cliente fino ai livelli più bassi, attraversando i blocchi annidati, e lo mostra: scegli un requisito e vedi i suoi antenati e discendenti. Un blocco di libreria usato più volte dà rami separati: l'unità è l'occorrenza (requisito più percorso dell'istanza).
 **Done when:** scelto un requisito vedi la catena completa padre → figli su tutti i livelli, e sul canvas si evidenziano i fili coinvolti.
-- [ ] Design it (spec): `/architect gerarchia dei requisiti`
+spec [0005](../specs/0005-gerarchia-requisiti/index.md) · code in `js/gerarchia.js`, `js/model.js`, `js/coerenza.js`, `js/renderer.js`, `js/inspector.js`, `js/cliente.js`, `js/progetto.js`
+- [x] Design it (spec): `/architect gerarchia dei requisiti`
+- [x] Build it: `/develop gerarchia dei requisiti`
+  - [x] Filo minimo dal clic sul pin alla scheda e ai fili evidenziati: visita condivisa in `model.js` con la Coerenza sopra, `js/gerarchia.js`, pulsante e scheda (AC-1, AC-4, AC-5, AC-11, AC-14)
+  - [x] Canvas completo: clic sui blocchi tondi, pannello destro, aloni, attenuazione, contatori, filtro (AC-2, AC-10)
+  - [x] Albero completo: righe, ritirati, rami apribili con il limite (AC-6, AC-7, AC-8)
+  - [x] Navigazione e ciclo della scelta: righe, dettaglio cliente, ✕ ed Esc, scelta sparita, rinomina, cambio progetto (AC-3, AC-9, AC-12, AC-13)
+- [x] Verify it: `/check verify gerarchia dei requisiti`
 
 ### 6. Matrice di tracciabilità · in-progress
 Tabella padre → figli con i documenti di ciascun lato, a video (pulsante Matrice Requisiti) ed esportabile in Markdown, filtrabile per documento.
@@ -148,6 +155,7 @@ Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Annulla della libreria**: ripristinare una copia di `_versioni/` con la sua voce di changelog, from spec 0002 · needs a decision
 - **Distribuzione dell'exe**: pacchetto pronto con tutti i file accanto a `start.exe`
 - **Pulizia dei requisiti cliente ritirati**: eliminarli davvero quando la lista diventa scomoda, from spec 0003 · needs a decision
+- **Coerenza dentro la gerarchia**: un segno sulle righe dell'albero con problemi di coerenza, invece di cambiare modalità, from spec 0005 · needs a decision
 - **Matrice per occorrenza**: righe per istanza con il percorso, accanto alla vista per id, from spec 0006 · needs a decision
 - **Lettura di `.xls` e date di Excel**: riaprire la scelta del lettore (SheetJS in `js/vendor/`), from spec 0003 · needs a decision
 

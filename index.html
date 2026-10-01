@@ -39,12 +39,13 @@
     <div id="bannerProgetto" class="banner-progetto" hidden></div>
 
     <div class="main-area">
-        <!-- COLONNA SINISTRA (1/5): schede Libreria, Cliente e Coerenza (quest'ultima solo a modalità accesa) -->
+        <!-- COLONNA SINISTRA (1/5): schede Libreria, Cliente, Coerenza e Gerarchia (le ultime due solo a modalità accesa) -->
         <div class="side-panel left-panel" id="libraryPanel">
             <div class="schede-pannello">
                 <button class="scheda-pannello attiva" data-scheda="libreria">Libreria</button>
                 <button class="scheda-pannello" data-scheda="cliente">Cliente</button>
                 <button class="scheda-pannello" data-scheda="coerenza" hidden>Coerenza</button>
+                <button class="scheda-pannello" data-scheda="gerarchia" hidden>Gerarchia</button>
             </div>
 
             <div id="schedaLibreria" class="contenuto-scheda">
@@ -100,6 +101,11 @@
                 <div id="coerenzaAvviso" class="avviso-coerenza" hidden></div>
                 <div id="coerenzaGruppi"></div>
             </div>
+
+            <!-- Antenati e discendenti del requisito scelto (js/gerarchia.js); solo #gerarchiaContenuto si ridisegna -->
+            <div id="schedaGerarchia" class="contenuto-scheda" hidden>
+                <div id="gerarchiaContenuto"></div>
+            </div>
         </div>
 
         <!-- COLONNA CENTRALE (3/5): Canvas -->
@@ -118,6 +124,7 @@
 
                     <button id="btnReqMatrix" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
                     <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false">⚠️ Verifica Coerenza</button>
+                    <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" title="Scegli un requisito e vedi i suoi antenati e discendenti">🌳 Gerarchia</button>
                     <button id="btnResetView" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 

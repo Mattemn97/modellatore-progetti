@@ -12,6 +12,7 @@ import {
     importClienteAperto, impostaSelezioneCliente, dettaglioClienteAperto
 } from './cliente.js';
 import { segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
+import { azzeraSceltaGerarchia } from './gerarchia.js';
 
 // 2 da quando il progetto può avere la chiave cliente (spec 0003): si leggono 1 e 2, si scrive sempre 2
 const FORMAT_VERSION = 2;
@@ -155,6 +156,8 @@ function sostituisciModello(workspace, cliente, mantieniLivello) {
         setActiveNodeId(null);
         svuotaIspettore();
     }
+    // Un altro progetto: la scelta della Gerarchia si toglie; con Annulla, Ripeti e Ricarica resta (spec 0005)
+    if (!mantieniLivello) azzeraSceltaGerarchia();
     // Il dettaglio di un requisito cliente mostrerebbe valori di un altro momento
     if (dettaglioClienteAperto()) {
         impostaSelezioneCliente(null);
@@ -668,7 +671,8 @@ function scarica() {
 
 /* --- FINESTRA APRI --- */
 
-function modaleAperta() {
+// Anche il gestore di Esc della Gerarchia la usa
+export function modaleAperta() {
     const modal = document.getElementById('reportModal');
     return (!!modal && modal.style.display !== 'none') || importClienteAperto();
 }

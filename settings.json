@@ -16,6 +16,9 @@
   "coerenza": {
     "righePerGruppo": 200
   },
+  "gerarchia": {
+    "righeAperte": 300
+  },
   "grid": {
     "size": 20
   },
