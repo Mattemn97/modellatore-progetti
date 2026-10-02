@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
 
 
 a = Analysis(
@@ -6,7 +7,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    # rich carica al volo i dati Unicode: PyInstaller non li vede da solo (spec 0014)
+    hiddenimports=collect_submodules('rich._unicode_data'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

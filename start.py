@@ -22,6 +22,111 @@ import xml.etree.ElementTree as ET
 
 PORT = 8080
 
+# --- Console (vedi docs/specs/0014-console-server-leggibile) ---
+# rich è facoltativo: senza, start.py scrive le stesse informazioni in testo semplice
+if sys.stdout is not None and not sys.stdout.isatty():
+    # Uscita rediretta su file o pipe: UTF-8, così bordi e lettere accentate non fanno fallire l'avvio
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.markup import escape as escape_markup
+except Exception:
+    Console = None
+
+def crea_console(**opzioni):
+    # Con NO_COLOR nessuna sequenza di escape, nemmeno grassetto e attenuato
+    if Console is None:
+        return None
+    try:
+        if os.environ.get('NO_COLOR'):
+            opzioni.setdefault('color_system', None)
+        return Console(highlight=False, **opzioni)
+    except Exception:
+        return None
+
+CONSOLE = crea_console()
+
+VERSIONE_SVILUPPO = 'sviluppo'
+RIGA_CHIUDI = "Chiudi questa finestra per fermare il server."
+
+def stampa_semplice(testo):
+    try:
+        print(testo, flush=True)
+    except Exception:
+        pass
+
+def stampa_con_stile(testo, stile, prefisso=''):
+    # Una riga di console con rich se c'è, altrimenti in testo semplice con lo stesso prefisso
+    if CONSOLE is not None:
+        try:
+            etichetta = f"[bold]{prefisso}[/bold] " if prefisso else ''
+            CONSOLE.print(f"[{stile}]{etichetta}{escape_markup(testo)}[/{stile}]")
+            return
+        except Exception:
+            pass
+    stampa_semplice(f"{prefisso} {testo}" if prefisso else testo)
+
+def stampa_info(testo):
+    stampa_con_stile(testo, 'dim')
+
+def stampa_avviso(testo):
+    stampa_con_stile(testo, 'yellow', 'Attenzione:')
+
+def stampa_errore(testo):
+    stampa_con_stile(testo, 'red', 'Errore:')
+
+def leggi_versione(base_dir):
+    # Contenuto di VERSIONE.txt (scritto da crea-pacchetto.ps1); 'sviluppo' se manca o è vuoto
+    try:
+        with open(os.path.join(base_dir, 'VERSIONE.txt'), encoding='utf-8-sig') as f:
+            versione = f.read().strip()
+        return versione or VERSIONE_SVILUPPO
+    except OSError:
+        return VERSIONE_SVILUPPO
+
+def stampa_avvio(versione, url, base_dir, cartella_progetti, cartella_librerie):
+    righe = [("Versione:", versione), ("Apri l'app:", url), ("Cartella dell'app:", base_dir),
+             ("Progetti:", cartella_progetti), ("Librerie:", cartella_librerie)]
+    larghezza_etichette = max(len(e) for e, _ in righe)
+    if CONSOLE is not None:
+        try:
+            # Riquadro solo se la riga del link ci sta intera: etichetta, spazio, URL, bordi e margini
+            if CONSOLE.width >= larghezza_etichette + 2 + len(url) + 6:
+                griglia = Table.grid(padding=(0, 2))
+                # Etichette sempre intere; i percorsi lunghi vanno a capo dentro la loro colonna
+                griglia.add_column(style='dim', no_wrap=True, min_width=larghezza_etichette)
+                griglia.add_column(overflow='fold')
+                for etichetta, valore in righe:
+                    if valore == url:
+                        griglia.add_row(etichetta, f"[bold cyan][link={url}]{url}[/link][/bold cyan]")
+                    else:
+                        griglia.add_row(etichetta, escape_markup(str(valore)))
+                CONSOLE.print(Panel.fit(griglia, title="[bold]Modellatore MBSE[/bold]", border_style='cyan', padding=(1, 2)))
+            else:
+                # Finestra troppo stretta: righe libere, che il terminale manda a capo senza tagliarle
+                CONSOLE.print("Modellatore MBSE", style='bold cyan', soft_wrap=True)
+                for etichetta, valore in righe:
+                    if valore == url:
+                        CONSOLE.print(f"[dim]{etichetta}[/dim] [bold cyan][link={url}]{url}[/link][/bold cyan]", soft_wrap=True)
+                    else:
+                        CONSOLE.print(f"[dim]{etichetta}[/dim] {escape_markup(str(valore))}", soft_wrap=True)
+            CONSOLE.print(RIGA_CHIUDI, style='dim', soft_wrap=True)
+            CONSOLE.file.flush()
+            return
+        except Exception:
+            pass
+    stampa_semplice("=" * 55)
+    stampa_semplice(" Modellatore MBSE")
+    for etichetta, valore in righe:
+        stampa_semplice(f" {etichetta} {valore}")
+    stampa_semplice(f" {RIGA_CHIUDI}")
+    stampa_semplice("=" * 55)
+
 # Percorsi dell'utente, relativi alla cartella dell'app (vedi docs/specs/0013-protezione-dati-aggiornamenti):
 # nessun aggiornamento può scriverli, spostarli o cancellarli. crea-pacchetto.ps1 legge questa riga
 # e si ferma se il pacchetto contiene uno di questi file o un file dentro una di queste cartelle.
@@ -81,9 +186,9 @@ def prepara_impostazioni(base_dir):
     try:
         shutil.copyfile(predefinite, percorso)
     except OSError as e:
-        print(f"Impossibile creare settings.json: {e}")
+        stampa_errore(f"Impossibile creare settings.json: {e}")
         return False
-    print("Impostazioni create da settings.predefinite.json")
+    stampa_info("Impostazioni create da settings.predefinite.json")
     return True
 
 def ensure_shared_library(base_dir):
@@ -1198,6 +1303,30 @@ class CustomHandler(SimpleHTTPRequestHandler):
     librerie = None  # impostato in main()
     max_file_cliente_mb = MAX_FILE_CLIENTE_MB_PREDEFINITO  # impostato in main()
 
+    # --- Log in console: solo le richieste fallite, una riga ciascuna (spec 0014) ---
+
+    def log_request(self, code='-', size='-'):
+        try:
+            codice = int(getattr(code, 'value', code))
+        except (TypeError, ValueError):
+            return
+        if codice < 400:
+            return
+        percorso = urlsplit(self.path).path if isinstance(getattr(self, 'path', None), str) else '-'
+        metodo = getattr(self, 'command', None) or '-'
+        if codice == 404 and metodo == 'GET' and percorso == '/favicon.ico':
+            return
+        stampa_info(f"{metodo} {percorso} → {codice}")
+
+    def log_error(self, format, *args):
+        # I messaggi di send_error ("code 404, message ...") sono già nella riga di log_request
+        if format.startswith('code '):
+            return
+        stampa_errore(format % args)
+
+    def log_message(self, format, *args):
+        stampa_info(format % args)
+
     # --- Instradamento ---
 
     def e_api(self):
@@ -1409,20 +1538,15 @@ def main():
     # le operazioni su progetti/ restano una alla volta grazie al lucchetto dell'archivio
     httpd = ThreadingHTTPServer(('127.0.0.1', PORT), CustomHandler)
 
-    print("=" * 55)
-    print(f" Modellatore MBSE Server - Attivo")
-    print(f" Percorso di lavoro: {base_dir}")
-    print(f" Progetti salvati in: {archivio.cartella}")
-    print(f" URL Locale: http://localhost:{PORT}")
-    print(" Chiudi questa finestra per fermare il server.")
-    print("=" * 55)
+    stampa_avvio(leggi_versione(base_dir), f"http://localhost:{PORT}", base_dir,
+                 archivio.cartella, os.path.join(base_dir, "shared"))
 
     threading.Thread(target=open_browser, args=(PORT,), daemon=True).start()
 
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nArresto del server in corso...")
+        stampa_info("Arresto del server in corso...")
         httpd.server_close()
 
 if __name__ == '__main__':

@@ -6,8 +6,8 @@ Browser based block diagram editor for MBSE requirements: drag blocks from a lib
 
 - **Language / Runtime**: plain JavaScript (native ES modules, no bundler), HTML, CSS; Python 3.11 for the launcher
 - **Framework**: none. Hand written SVG rendering and DOM code
-- **Key dependencies**: Python standard library `http.server` (local server in `start.py`); PyInstaller (only to build the `.exe`)
-- **Package manager**: none for the app; `pip` in `.venv` for PyInstaller
+- **Key dependencies**: Python standard library `http.server` (local server in `start.py`); `rich` for the server console (optional when running `start.py`, bundled in the exe); PyInstaller (only to build the `.exe`). Build dependencies are pinned in `requirements.txt`
+- **Package manager**: none for the app; `pip` in `.venv` for `requirements.txt`
 
 ## Build approach
 
@@ -16,8 +16,8 @@ Tracer Bullet: each feature complete and working end to end (data, canvas, file)
 ## Commands
 
 ```bash
-# Install (only needed to build the exe)
-pip install pyinstaller
+# Install (only needed to build the exe; start.py runs without it, rich is optional)
+pip install -r requirements.txt
 
 # Dev server: serves the folder on http://localhost:8080 and opens the browser
 python start.py
@@ -49,6 +49,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 - Tunable values (grid size, node size, pin radius, type colors, default library path) live in `settings.json` and are read through `appSettings`. Don't hardcode them in JS.
 - `start.py` also reads `progetti.versioni` and `libreria.versioni` from `settings.json`, only at startup: restart the server after changing them. A new key goes in `settings.json`, in `DEFAULT_SETTINGS` and in the nested merge of `loadSettings()` in `js/state.js`.
 - Each JS file opens with a `/* --- TITLE --- */` header comment naming its job.
+- Console output in `start.py` goes through `stampa_info`, `stampa_avviso`, `stampa_errore` and `stampa_avvio`, never bare `print`: they use `rich` when present and fall back to plain text (spec 0014). Successful HTTP requests are not logged.
 - Styling is mostly inline `style=""` in `index.html` and in JS template strings; `style.css` holds layout and SVG classes.
 
 ## Gotchas
@@ -61,7 +62,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 
 ## Agent skills
 
-Declined: vanilla JS / SVG, Python http.server, PyInstaller (skill and MCP discovery)
+Declined: vanilla JS / SVG, Python http.server, PyInstaller, rich (skill and MCP discovery)
 
 ## Context files
 
