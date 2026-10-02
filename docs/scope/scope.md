@@ -213,12 +213,12 @@ spec [0013](../specs/0013-protezione-dati-aggiornamenti/index.md) · code in `st
 ### 14. Console del server più leggibile · in-progress
 La finestra nera all'avvio diventa chiara a colpo d'occhio: il link su cui lavorare ben evidenziato e cliccabile, le cartelle dei dati, la versione in uso ed eventuali avvisi (come un aggiornamento disponibile) a colori. Da decidere la libreria (rich o colorama) e come entra nell'exe.
 **Done when:** avviando `start.py` o `start.exe` vedi a colori versione, link dell'app e cartelle dei dati, il link si apre con un clic dove il terminale lo permette, e la console resta leggibile anche dove i colori non sono supportati.
-spec [0014](../specs/0014-console-server-leggibile/index.md)
+spec [0014](../specs/0014-console-server-leggibile/index.md) · code in `start.py`, `start.spec`, `requirements.txt`, `.github/workflows/rilascio.yml`
 - [x] Design it (spec): `/architect console del server più leggibile`
-- [ ] Build it: `/develop console del server più leggibile`
-  - [ ] Riquadro di avvio, versione, funzioni di stampa con riserva in testo semplice (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6)
-  - [ ] Log delle richieste filtrato (AC-7)
-  - [ ] `requirements.txt`, exe con `rich` e prova di avvio (AC-8)
+- [x] Build it: `/develop console del server più leggibile`
+  - [x] Riquadro di avvio, versione, funzioni di stampa con riserva in testo semplice (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6)
+  - [x] Log delle richieste filtrato (AC-7)
+  - [x] `requirements.txt`, exe con `rich` e prova di avvio (AC-8)
 - [ ] Verify it: `/check verify console del server più leggibile`
 
 ### 15. Controllo e aggiornamento automatico · planned · needs a decision

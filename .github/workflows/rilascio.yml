@@ -33,8 +33,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Installa PyInstaller
-        run: python -m pip install --upgrade pip pyinstaller
+      - name: Installa le dipendenze di build
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
       - name: Versione
         id: versione
@@ -70,7 +72,7 @@ jobs:
       - name: Prova di avvio di start.exe
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "dist/pacchetto/ModellatoreMBSE/start.exe" -WorkingDirectory "dist/pacchetto/ModellatoreMBSE" -PassThru
+          $p = Start-Process -FilePath "dist/pacchetto/ModellatoreMBSE/start.exe" -WorkingDirectory "dist/pacchetto/ModellatoreMBSE" -PassThru -RedirectStandardOutput "dist/avvio.txt"
           try {
             $ok = $false
             for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
@@ -86,6 +88,11 @@ jobs:
               throw "settings.json non è uguale a settings.predefinite.json"
             }
             Write-Host "settings.json creato da settings.predefinite.json"
+            # Riquadro della console scritto con rich, non con la riserva in testo semplice (spec 0014)
+            $avvio = Get-Content "dist/avvio.txt" -Raw -Encoding utf8
+            Write-Host $avvio
+            if (-not $avvio.Contains("http://localhost:8080")) { throw "L'uscita di start.exe non contiene il link dell'app" }
+            if (-not $avvio.Contains([string][char]0x256D)) { throw "L'uscita di start.exe non ha il riquadro di rich" }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - uses: actions/upload-artifact@v4

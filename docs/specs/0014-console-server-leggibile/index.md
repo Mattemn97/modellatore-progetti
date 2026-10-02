@@ -1,7 +1,7 @@
 # 0014. Console del server più leggibile con rich
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
