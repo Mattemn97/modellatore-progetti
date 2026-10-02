@@ -1,22 +1,33 @@
 # --- RILASCIO ---
 # Compila start.exe e crea lo zip e lo zip autoestraente (vedi packaging/crea-pacchetto.ps1).
-# - push di un tag v* (es. v1.0.0): pubblica una GitHub Release con i due file
+# - push su main (merge o commit diretto): pubblica una GitHub Release con versione automatica,
+#   la patch dell'ultimo tag v* più uno (v1.0.0 se non ce ne sono)
+# - push di un tag v* (es. v2.0.0): pubblica la Release con quella versione, serve per alzare minor o major
 # - avvio manuale (Actions > Rilascio > Run workflow): solo artifact scaricabile dall'esecuzione
+# La descrizione della Release è il messaggio del commit (vedi .github/scripts/note-rilascio.sh).
 name: Rilascio
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Un rilascio alla volta, così due push ravvicinati non calcolano la stessa versione
+concurrency:
+  group: rilascio
+  cancel-in-progress: false
+
 jobs:
   pacchetto:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -27,11 +38,30 @@ jobs:
 
       - name: Versione
         id: versione
-        shell: pwsh
+        shell: bash
         run: |
-          if ($env:GITHUB_REF_TYPE -eq "tag") { $v = $env:GITHUB_REF_NAME -replace '^v', '' }
-          else { $v = "dev-" + $env:GITHUB_SHA.Substring(0, 7) }
-          "valore=$v" >> $env:GITHUB_OUTPUT
+          pubblica=false
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"; pubblica=true
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" = "main" ]; then
+            if [ -n "$(git tag --points-at HEAD -l 'v*')" ]; then
+              # Il commit ha già un tag v*: la Release la pubblica l'esecuzione partita dal tag
+              v="dev-${GITHUB_SHA:0:7}"
+            else
+              ultimo="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+              if [ -z "$ultimo" ]; then v="1.0.0"
+              else
+                IFS=. read -r ma mi pa <<< "${ultimo#v}"
+                v="$ma.$mi.$((${pa%%[!0-9]*} + 1))"
+              fi
+              pubblica=true
+            fi
+          else
+            v="dev-${GITHUB_SHA:0:7}"
+          fi
+          echo "valore=$v" >> "$GITHUB_OUTPUT"
+          echo "pubblica=$pubblica" >> "$GITHUB_OUTPUT"
+          echo "Versione $v, pubblica Release: $pubblica"
 
       - name: Compila e impacchetta
         shell: pwsh
@@ -58,13 +88,21 @@ jobs:
             dist/ModellatoreMBSE-*.zip
             dist/ModellatoreMBSE-*-setup.exe
 
+      - name: Note di rilascio
+        if: steps.versione.outputs.pubblica == 'true'
+        shell: bash
+        run: bash .github/scripts/note-rilascio.sh "$GITHUB_SHA" > dist/note-rilascio.md
+
       - name: Pubblica la Release
-        if: github.ref_type == 'tag'
+        if: steps.versione.outputs.pubblica == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.versione.outputs.valore }}
         run: |
-          gh release create "$env:GITHUB_REF_NAME" `
+          # Su main il tag non esiste ancora: gh lo crea sul commit indicato da --target
+          gh release create "$env:TAG" `
             (Get-ChildItem dist/ModellatoreMBSE-*.zip).FullName `
             (Get-ChildItem dist/ModellatoreMBSE-*-setup.exe).FullName `
-            --title "Modellatore MBSE $env:GITHUB_REF_NAME" --generate-notes
+            --target "$env:GITHUB_SHA" `
+            --title "Modellatore MBSE $env:TAG" --notes-file dist/note-rilascio.md

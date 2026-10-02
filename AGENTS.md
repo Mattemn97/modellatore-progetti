@@ -28,8 +28,10 @@ pyinstaller start.spec
 # Package: start.exe + app files -> dist/ModellatoreMBSE-<v>.zip and -setup.exe (7-Zip SFX)
 powershell -ExecutionPolicy Bypass -File packaging/crea-pacchetto.ps1 -Versione 1.0.0
 
-# Release: push a tag v* -> .github/workflows/rilascio.yml builds, smoke tests and publishes a GitHub Release
-git tag v1.0.0 && git push origin v1.0.0
+# Release: every push to main -> .github/workflows/rilascio.yml builds, smoke tests and publishes
+# GitHub Release v<last tag patch+1>, notes from the commit message (.github/scripts/note-rilascio.sh).
+# Push a tag v* by hand to bump minor/major.
+git push origin main
 
 # Test
 # none: no test runner by choice, changes are gated by /check verify (test-preferences.json)

@@ -67,7 +67,7 @@ js/                 tutta la logica dell'app, moduli JavaScript senza build
 start.py            server locale e API dei file (solo libreria standard di Python)
 start.spec          ricetta PyInstaller per creare start.exe
 packaging/          script che crea lo zip di distribuzione e il LEGGIMI
-.github/workflows/  rilascio automatico su GitHub a ogni tag v*
+.github/            rilascio automatico su GitHub a ogni push su main o tag v*
 shared/             librerie dei blocchi (dati, condivise tra progetti)
 progetti/           i tuoi progetti (dati, creata al primo avvio, non versionata)
 docs/guida/         questa documentazione per chi usa l'app
@@ -91,8 +91,13 @@ pyinstaller start.spec
 # Crea il pacchetto zip e lo zip autoestraente in dist/
 powershell -ExecutionPolicy Bypass -File packaging/crea-pacchetto.ps1 -Versione 1.0.0
 
-# Pubblica una release: il workflow compila, prova l'avvio dell'exe e carica i file
-git tag v1.0.0 && git push origin v1.0.0
+# Pubblica una release: basta un push su main (merge o commit diretto).
+# Il workflow compila, prova l'avvio dell'exe e crea la Release v<ultima patch + 1>
+# con zip, zip autoestraente e il messaggio del commit come descrizione
+git push origin main
+
+# Per alzare minor o major pubblica tu il tag: i rilasci successivi partono da lì
+git tag v2.0.0 && git push origin v2.0.0
 ```
 
 Qualche regola del progetto che ti conviene conoscere:
