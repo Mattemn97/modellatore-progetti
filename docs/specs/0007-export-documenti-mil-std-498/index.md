@@ -1,7 +1,7 @@
 # 0007. Export dei documenti MIL-STD-498 in Markdown, uno per documento, sopra la matrice di tracciabilità
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

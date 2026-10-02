@@ -249,6 +249,8 @@ span.segno-ramo { cursor: default; }
 .filtri-matrice .campo-import select, .filtri-matrice .campo-import input { min-width: 120px; }
 .campo-ricerca-matrice { flex: 1; min-width: 200px; }
 .campo-ricerca-matrice input { width: 100%; box-sizing: border-box; }
+.anteprima-documento { flex: 1; min-height: 0; max-height: 60vh; overflow: auto; margin: 0; padding: 8px; background: #f7f9fb; border: 1px solid #ddd; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.anteprima-documento[hidden], #documentiMessaggio[hidden] { display: none; }
 .contenuto-matrice { flex: 1; min-height: 0; overflow: auto; font-size: 12px; }
 .tabella-matrice { width: 100%; border-collapse: collapse; font-size: 12px; }
 .tabella-matrice th, .tabella-matrice td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; }

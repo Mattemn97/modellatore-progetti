@@ -22,6 +22,9 @@
   "matrice": {
     "gruppiVisibili": 300
   },
+  "documentiExport": {
+    "anteprimaCaratteri": 200000
+  },
   "grid": {
     "size": 20
   },

@@ -123,13 +123,13 @@ spec [0006](../specs/0006-matrice-tracciabilita/index.md) · code in `js/matrice
 ### 7. Export documenti MIL-STD-498 · in-progress · Beta
 Genera un file Markdown per documento (SSS, SSDD, IRS, IDD…) con la capitolazione formale del DID, mettendo ogni testo da esportare al suo posto (es. capacità e interfacce in capitoli diversi, metodi di verifica nelle disposizioni di qualifica, tracciabilità nel suo capitolo). Riferimento indicato da te: https://github.com/bradfa/MIL-STD-498
 **Done when:** scegli un documento e ottieni un `.md` con i capitoli del DID, i testi dei requisiti nei capitoli giusti, il metodo di verifica di ognuno e la sezione di tracciabilità verso il livello padre.
-spec [0007](../specs/0007-export-documenti-mil-std-498/index.md)
+spec [0007](../specs/0007-export-documenti-mil-std-498/index.md) · code in `js/documenti.js`, `js/matrice.js`, `js/utils.js`, `js/progetto.js`, `index.html`
 - [x] Design it (spec): `/architect export documenti MIL-STD-498`
-- [ ] Build it: `/develop export documenti MIL-STD-498`
-  - [ ] Filo minimo dal modello al file SSS: `js/documenti.js`, finestra, selettore, anteprima ed export (AC-1, AC-2, AC-3, AC-4, AC-6, AC-11, AC-13)
-  - [ ] Tutti i DID: SRS, IRS, SSDD, SDD, IDD e altro, componenti per blocco, riferimenti, note (AC-4, AC-5, AC-7, AC-10)
-  - [ ] Qualifica e tracciabilità (AC-8, AC-9, AC-11)
-  - [ ] Riepilogo, troncamento e volumi (AC-12, AC-14)
+- [x] Build it: `/develop export documenti MIL-STD-498`
+  - [x] Filo minimo dal modello al file SSS: `js/documenti.js`, finestra, selettore, anteprima ed export (AC-1, AC-2, AC-3, AC-4, AC-6, AC-11, AC-13)
+  - [x] Tutti i DID: SRS, IRS, SSDD, SDD, IDD e altro, componenti per blocco, riferimenti, note (AC-4, AC-5, AC-7, AC-10)
+  - [x] Qualifica e tracciabilità (AC-8, AC-9, AC-11)
+  - [x] Riepilogo, troncamento e volumi (AC-12, AC-14)
 - [ ] Verify it: `/check verify export documenti MIL-STD-498`
 - [ ] Test it: `/test export documenti MIL-STD-498`
 

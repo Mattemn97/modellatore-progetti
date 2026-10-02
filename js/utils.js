@@ -1,4 +1,4 @@
-/* --- UTILITÀ COMUNI: ID UNIVOCI, SLUG ED ESCAPE HTML --- */
+/* --- UTILITÀ COMUNI: ID UNIVOCI, SLUG, DATA ED ESCAPE HTML --- */
 
 // Id interno difficile da far collidere anche in modelli grandi (nodi, fili)
 export function generaId(prefisso) {
@@ -13,6 +13,13 @@ export function slugifyId(testo) {
         .toLowerCase().trim()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
+}
+
+// Data di oggi in ora locale, AAAA-MM-GG (export della matrice e dei documenti)
+export function dataOggi() {
+    const d = new Date();
+    const due = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}`;
 }
 
 // Da usare su ogni testo utente interpolato in un template innerHTML
