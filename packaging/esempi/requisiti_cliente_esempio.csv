@@ -1,0 +1,3 @@
+ID;Titolo;Testo;Sezione;Tipologia
+SSS-001;Fornitura acqua;Il sistema deve fornire acqua all'impianto con una portata di almeno 10 l/min.;Prestazioni;
+SSS-002;Alimentazione;Il sistema deve essere alimentato a 24 V in corrente continua.;Interfacce;Elettrica

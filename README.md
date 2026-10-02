@@ -25,7 +25,7 @@ L'app lavora in locale, per una persona alla volta, sul tuo computer. Non serve 
 
 ### Se hai il pacchetto pronto (Windows)
 
-1. Scarica `ModellatoreMBSE-<versione>.zip` (oppure `-setup.exe`, lo zip che si estrae da solo) dalla pagina Releases del repository.
+1. Scarica `ModellatoreMBSE-<versione>.zip` dalla pagina Releases del repository. Dentro c'è `TUTORIAL.md`, una guida passo passo per iniziare.
 2. Estrai tutto in una cartella a tua scelta.
 3. Fai doppio clic su `start.exe`. Si apre una finestra nera (è il piccolo server locale) e poi il browser su `http://localhost:8080`.
 4. Per chiudere l'app chiudi la finestra nera.
@@ -66,7 +66,7 @@ settings.json       valori regolabili (griglia, colori, documenti, limiti)
 js/                 tutta la logica dell'app, moduli JavaScript senza build
 start.py            server locale e API dei file (solo libreria standard di Python)
 start.spec          ricetta PyInstaller per creare start.exe
-packaging/          script che crea lo zip di distribuzione e il LEGGIMI
+packaging/          script che crea lo zip di distribuzione, il tutorial e i file di esempio
 .github/            rilascio automatico su GitHub a ogni push su main o tag v*
 shared/             librerie dei blocchi (dati, condivise tra progetti)
 progetti/           i tuoi progetti (dati, creata al primo avvio, non versionata)
@@ -88,12 +88,12 @@ python start.py
 # Crea start.exe (serve PyInstaller: pip install pyinstaller)
 pyinstaller start.spec
 
-# Crea il pacchetto zip e lo zip autoestraente in dist/
+# Crea il pacchetto zip in dist/
 powershell -ExecutionPolicy Bypass -File packaging/crea-pacchetto.ps1 -Versione 1.0.0
 
 # Pubblica una release: basta un push su main (merge o commit diretto).
 # Il workflow compila, prova l'avvio dell'exe e crea la Release v<ultima patch + 1>
-# con zip, zip autoestraente e il messaggio del commit come descrizione
+# con lo zip e il messaggio del commit come descrizione
 git push origin main
 
 # Per alzare minor o major pubblica tu il tag: i rilasci successivi partono da lì
