@@ -202,7 +202,7 @@ spec [0012](../specs/0012-tutorial-aiuto-contestuale/index.md) · code in `js/ai
 ### 13. Protezione dei dati negli aggiornamenti · in-progress
 Una regola unica su cosa appartiene all'app e cosa alle persone: progetti, librerie, versioni, cestino e impostazioni personali non vengono mai sovrascritti né cancellati da un aggiornamento. Oggi lo zip contiene `settings.json`, quindi estrarlo sopra un'installazione sostituisce le impostazioni dell'utente.
 **Done when:** aggiornando un'installazione (estraendo lo zip a mano o con l'aggiornamento automatico) `progetti/`, `shared/` e le impostazioni modificate dall'utente restano identiche, e le chiavi nuove delle impostazioni arrivano comunque con il loro valore predefinito.
-spec [0013](../specs/0013-protezione-dati-aggiornamenti.md) · code in `start.py`, `packaging/crea-pacchetto.ps1`, `.github/workflows/rilascio.yml`, `packaging/TUTORIAL.md`
+spec [0013](../specs/0013-protezione-dati-aggiornamenti/index.md) · code in `start.py`, `packaging/crea-pacchetto.ps1`, `.github/workflows/rilascio.yml`, `packaging/TUTORIAL.md`
 - [x] Design it (spec): `/architect protezione dei dati negli aggiornamenti`
 - [x] Build it: `/develop protezione dei dati negli aggiornamenti`
   - [x] `start.py`: `PERCORSI_UTENTE` e creazione di `settings.json` dai predefiniti solo se manca (AC-2, AC-3, AC-5, AC-6)
