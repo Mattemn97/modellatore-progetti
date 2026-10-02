@@ -10,7 +10,7 @@ import { infoProgetto } from './progetto.js';
 import { infoLibreria } from './libreria.js';
 import { scaricaFileTesto } from './storage.js';
 import { CAPACITA, getTipologie, getClasseRequisito, titoloRequisito } from './model.js';
-import { escapeHtml, slugifyId } from './utils.js';
+import { escapeHtml, slugifyId, dataOggi } from './utils.js';
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: la matrice si calcola quando la carichi';
 const MSG_VUOTA = 'Nessuna derivazione nel modello';
@@ -97,7 +97,7 @@ function confronta(a, b) {
 
 // Funzione pura: non cambia mai il modello. nomeRadice serve solo ai suggerimenti dei percorsi
 export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
-    if (indice.libreriaAssente) return { libreriaAssente: true, gruppi: [], senzaPadre: [], documentiExtra: [] };
+    if (indice.libreriaAssente) return { libreriaAssente: true, gruppi: [], senzaPadre: [], documentiExtra: [], voci: [] };
 
     // Gli id dei requisiti sono unici in tutta la libreria; per difesa, con un doppione vince il primo blocco
     const bloccoDi = new Map();
@@ -194,7 +194,9 @@ export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
         libreriaAssente: false,
         gruppi,
         senzaPadre,
-        documentiExtra: [...extra].sort((a, b) => a.localeCompare(b, 'it'))
+        documentiExtra: [...extra].sort((a, b) => a.localeCompare(b, 'it')),
+        // Tutte le voci, clienti compresi, nell'ordine dei gruppi: le usa l'export dei documenti (spec 0007)
+        voci: [...voci.values()].sort(confronta)
     };
 }
 
@@ -244,7 +246,8 @@ export function filtraMatrice(matrice, f) {
 
 /* --- EXPORT MARKDOWN (AC-11) --- */
 
-function cellaMd(valore) {
+// cellaMd e tabellaMd servono anche all'export dei documenti (spec 0007)
+export function cellaMd(valore) {
     return String(valore ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ').trim();
 }
 
@@ -252,7 +255,7 @@ function rigaMd(celle) {
     return `| ${celle.map(cellaMd).join(' | ')} |`;
 }
 
-function tabellaMd(intestazioni, righe) {
+export function tabellaMd(intestazioni, righe) {
     return [rigaMd(intestazioni), `|${intestazioni.map(() => ' --- ').join('|')}|`, ...righe.map(rigaMd)];
 }
 
@@ -299,12 +302,6 @@ export function matriceInMarkdown(filtrata, { nome, data, libreria, filtri: f })
         senzaPadre.length ? tabellaMd(INTESTAZIONI_SENZA_PADRE, senzaPadre).join('\n') : 'Nessuna voce'
     ];
     return `${blocchi.join('\n\n')}\n`;
-}
-
-function dataOggi() {
-    const d = new Date();
-    const due = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}`;
 }
 
 function esporta() {
