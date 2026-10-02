@@ -25,6 +25,12 @@ python start.py
 # Build: produces dist/start.exe from start.spec
 pyinstaller start.spec
 
+# Package: start.exe + app files -> dist/ModellatoreMBSE-<v>.zip and -setup.exe (7-Zip SFX)
+powershell -ExecutionPolicy Bypass -File packaging/crea-pacchetto.ps1 -Versione 1.0.0
+
+# Release: push a tag v* -> .github/workflows/rilascio.yml builds, smoke tests and publishes a GitHub Release
+git tag v1.0.0 && git push origin v1.0.0
+
 # Test
 # none: no test runner by choice, changes are gated by /check verify (test-preferences.json)
 ```
@@ -46,6 +52,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 ## Gotchas
 
 - The exe serves files from its own folder, not from inside the bundle (`datas=[]` in `start.spec`). To ship it, copy `index.html`, `style.css`, `settings.json`, `js/` and `shared/` next to `start.exe`.
+- The package (`packaging/crea-pacchetto.ps1`) leaves `shared/` and `progetti/` out on purpose, so extracting an update over an install never overwrites user data; `start.exe` creates them. A new file the app needs at runtime must be added to the copy list there.
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.
 - `build/`, `dist/`, `.venv/` are generated; `progetti/` is user data and is gitignored.
 - `start.py` is also the API: `/api/progetti`, `/api/ultimo` and `/api/libreria/{apri,salva,elimina,rinomina,changelog}`, multithreaded, with one lock serializing every file operation. The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.
