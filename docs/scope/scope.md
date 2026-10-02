@@ -23,7 +23,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 7 | Export documenti MIL-STD-498 | Slice 3 | done |
 | 8 | Filtri avanzati | Slice 4 | done |
 | 9 | Ispettore dei collegamenti | Slice 4 | done |
-| 10 | Gestione completa della libreria | Slice 4 | planned |
+| 10 | Gestione completa della libreria | Slice 4 | done |
 | 11 | Rifiniture dell'editor | Slice 4 | planned |
 
 ## Già presente
@@ -158,10 +158,16 @@ spec [0009](../specs/0009-ispettore-collegamenti/index.md) · code in `js/render
   - [x] Eliminazione e risoluzione per id dopo Annulla e Ricarica (AC-5, AC-6)
 - [x] Verify it: `/check verify ispettore dei collegamenti`
 
-### 10. Gestione completa della libreria
+### 10. Gestione completa della libreria · done
 Completa la modifica della libreria: eliminare un blocco (avvisandoti se è usato nel progetto) e rinominarne l'id senza rompere le istanze.
 **Done when:** elimini un blocco non usato, ricevi un avviso con l'elenco delle istanze se è usato, e rinominando l'id tutte le istanze lo seguono.
-- [ ] Build it: `/develop gestione completa della libreria`
+spec [0010](../specs/0010-gestione-completa-libreria/index.md) · code in `start.py`, `js/libreria.js`, `js/inspector.js`
+- [x] Design it (spec): `/architect gestione completa della libreria`
+- [x] Build it: `/develop gestione completa della libreria`
+  - [x] Server: rotte elimina e rinomina con la scrittura condivisa (AC-6, AC-7)
+  - [x] Client libreria: rotta nel conflitto, funzioni nuove, changelog (AC-1, AC-7, AC-8)
+  - [x] Ispettore: elimina con avviso delle istanze, rinomina con aggiornamento dei nodi (AC-1, AC-2, AC-3, AC-4, AC-5)
+- [x] Verify it: `/check verify gestione completa della libreria`
 
 ### 11. Rifiniture dell'editor
 Piccoli difetti trovati nel codice: il rilascio di un blocco ignora zoom e pan, e lo spostamento delle porte con Shift non si scopre da soli.

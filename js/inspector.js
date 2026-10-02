@@ -7,7 +7,9 @@ import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
     isDerivazione, verificaCompatibilita, titoloRequisito
 } from './model.js';
-import { salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog } from './libreria.js';
+import {
+    salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog, eliminaBloccoLibreria, rinominaBloccoLibreria
+} from './libreria.js';
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
 
@@ -107,7 +109,10 @@ function renderEditorForm(data) {
             <div class="prop-item">
                 <strong style="display:flex; justify-content:space-between;">
                     ${data.isNew ? 'ID Blocco Generato' : 'ID Blocco di Libreria'}
-                    ${!data.isNew ? `<a href="#" id="lnkStoria" title="Voci del changelog che toccano questo blocco" style="font-weight:normal; font-size:11px;">📜 Storia</a>` : ''}
+                    ${!data.isNew ? `<span style="font-weight:normal; font-size:11px; display:flex; gap:8px;">
+                        <a href="#" id="lnkRinominaBlocco">✏️ Rinomina ID</a>
+                        <a href="#" id="lnkStoria" title="Voci del changelog che toccano questo blocco">📜 Storia</a>
+                    </span>` : ''}
                 </strong>
                 <input type="text" id="edtBlockId" value="${data.isNew ? '' : escapeHtml(data.blockId)}" ${data.isNew ? 'readonly' : 'disabled'} placeholder="Generato dal titolo..." style="width:100%; padding:5px; box-sizing:border-box; background:#f0f4f8;">
             </div>
@@ -162,6 +167,9 @@ function renderEditorForm(data) {
                 ${!data.isNew ? `
                     <button id="btnCreateCopy" style="background:#f39c12; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         📋 Salva come Nuovo Blocco Simile
+                    </button>
+                    <button id="btnEliminaBloccoLib" style="background:#c0392b; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
+                        🗑 Elimina dalla libreria
                     </button>
                 ` : ''}
                 ${data.nodeId ? `
@@ -380,6 +388,89 @@ function renderEditorForm(data) {
     document.getElementById('btnDeleteNode')?.addEventListener('click', () => {
         if (data.nodeId) deleteNodeFromGraph(data.nodeId);
     });
+
+    // Gestione completa della libreria (spec 0010)
+    const opzioniVersione = () => ({
+        livello: document.getElementById('edtLivello')?.value || 'auto',
+        nota: (document.getElementById('edtNotaModifica')?.value || '').trim()
+    });
+    document.getElementById('btnEliminaBloccoLib')?.addEventListener('click', () => eliminaBlocco(data.blockId, opzioniVersione()));
+    document.getElementById('lnkRinominaBlocco')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
+        rinominaBlocco(data.blockId, data.nodeId || null, opzioniVersione());
+    });
+}
+
+/* --- ELIMINA E RINOMINA UN BLOCCO DI LIBRERIA (spec 0010) --- */
+
+const MAX_ISTANZE_ELENCATE = 20;
+const MSG_ID_NON_VALIDO = "L'ID può contenere solo lettere, cifre, underscore, trattino e punto (al massimo 200 caratteri).";
+
+// Ogni nodo del progetto con quel tipo, a qualsiasi livello, con il percorso di etichette dalla radice
+export function istanzeDelBlocco(idBlocco) {
+    const trovate = [];
+    function visita(graph, etichette) {
+        (graph?.nodes || []).forEach(nodo => {
+            const percorso = [...etichette, nodo.label || nodo.id];
+            if (nodo.type === idBlocco) trovate.push({ nodo, percorso: percorso.join(' › ') });
+            if (nodo.internal_graph) visita(nodo.internal_graph, percorso);
+        });
+    }
+    visita(pathStack[0].graph, [pathStack[0].label]);
+    return trovate;
+}
+
+async function eliminaBlocco(idBlocco, opzioni) {
+    const def = appState.library[idBlocco];
+    if (!def) return;
+    const titolo = def.titolo || idBlocco;
+    const istanze = istanzeDelBlocco(idBlocco);
+    if (istanze.length > 0) {
+        const righe = istanze.slice(0, MAX_ISTANZE_ELENCATE).map(i => `- ${i.percorso}`);
+        if (istanze.length > MAX_ISTANZE_ELENCATE) righe.push(`… e altre ${istanze.length - MAX_ISTANZE_ELENCATE}`);
+        alert(`Il blocco "${titolo}" è usato in ${istanze.length} istanze nel progetto e non si può eliminare. Togli prima le istanze:\n${righe.join('\n')}`);
+        return;
+    }
+    if (!confirm(`Eliminare il blocco "${titolo}" (${idBlocco}) dalla libreria? La libreria passa a una nuova versione major; gli altri progetti che lo usano lo vedranno come blocco senza definizione.`)) return;
+
+    const esito = await eliminaBloccoLibreria(idBlocco, opzioni, (risposta) => {
+        setActiveNodeId(null);
+        propsContent.innerHTML = '<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>';
+        render();
+        alert(risposta.voce
+            ? `Blocco eliminato. Libreria v${risposta.versione} (${risposta.voce.livello}).`
+            : `Blocco eliminato. ${risposta.avviso}.`);
+    });
+    if (!esito.ok && !esito.conflitto) alert(`Blocco non eliminato: ${esito.messaggio}`);
+}
+
+async function rinominaBlocco(idBlocco, nodeId, opzioni) {
+    if (!appState.library[idBlocco]) return;
+    const risposta = prompt('Nuovo ID del blocco', idBlocco);
+    if (risposta === null) return;
+    const nuovoId = risposta.trim();
+    if (!nuovoId || nuovoId === idBlocco) return;
+    if (!FORMATO_ID_REQUISITO.test(nuovoId) || nuovoId.length > 200) {
+        alert(MSG_ID_NON_VALIDO);
+        return;
+    }
+    if (Object.keys(appState.library).some(k => k !== idBlocco && k.toLowerCase() === nuovoId.toLowerCase())) {
+        alert(`Un blocco con ID "${nuovoId}" esiste già nella libreria.`);
+        return;
+    }
+
+    const esito = await rinominaBloccoLibreria(idBlocco, nuovoId, opzioni, (dati) => {
+        // Disco già scritto: ora le istanze del progetto seguono il nuovo id, poi il salvataggio automatico
+        const istanze = istanzeDelBlocco(idBlocco);
+        istanze.forEach(({ nodo }) => { nodo.type = nuovoId; });
+        render();
+        openLibraryBlock(nuovoId, nodeId);
+        alert(dati.voce
+            ? `ID rinominato: ${idBlocco} → ${nuovoId}. ${istanze.length} istanze aggiornate. Libreria v${dati.versione} (${dati.voce.livello}).`
+            : `ID rinominato: ${idBlocco} → ${nuovoId}. ${istanze.length} istanze aggiornate. ${dati.avviso}.`);
+    }, { nodeId });
+    if (!esito.ok && !esito.conflitto) alert(`ID non rinominato: ${esito.messaggio}`);
 }
 
 // Restituisce il primo problema trovato nei requisiti, oppure null

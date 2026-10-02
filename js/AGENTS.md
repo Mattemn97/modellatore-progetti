@@ -17,7 +17,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `builder.js` | Left panel library tree (categoria, then sottocategoria), search, click to edit, `impostaLibreria()`, `loadLibraryFromPath()` (goes through `libreria.js`) |
 | `storage.js` | Only helpers: `leggiFileJson()` (user picked JSON file) and `downloadJsonFile()` |
 | `progetto.js` | Project on disk (spec 0001): autosave with debounce and retries, badge, Annulla/Ripeti via server copies, Progetto menu, Apri window, conflict banner (`aggiornaBanner()`), `chiamaApi()` wrapper for `/api/` |
-| `libreria.js` | Library on disk (spec 0002): `apriLibreria()`, `salvaBloccoLibreria()`, library conflict (Ricarica / Sovrascrivi), read only state, version in the panel, Changelog window |
+| `libreria.js` | Library on disk (spec 0002, 0010): `apriLibreria()`, `salvaBloccoLibreria()`, `eliminaBloccoLibreria()`, `rinominaBloccoLibreria()` (all through `invia(rotta, …)`; a conflict keeps its route for Sovrascrivi), library conflict (Ricarica / Sovrascrivi), read only state, version in the panel, Changelog window |
 | `cliente.js` | Client requirements (spec 0003): import from Excel or CSV, Cliente tab; `mostraScheda()` switches the left panel tabs (Libreria, Cliente, Coerenza) |
 | `coerenza.js` | Coherence check (spec 0004): pure `calcolaCoerenza()` rerun by `render()` while `#btnDRC` mode is on, Coerenza tab, `problemaPin()` / `contatoreBlocco()` read by the renderer for halos and counters, `vaiAlProblema()` navigation |
 | `gerarchia.js` | Requirement hierarchy (spec 0005): pure `calcolaGerarchia()` index of occurrences (requirement + instance path) with parents and children from valid derivation edges, `#btnGerarchia` mode, Gerarchia tab, chain highlight, `apriGerarchiaSu()` |
@@ -41,6 +41,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - Mutate state in place, then call `render()` (and `initLibrary()` when the library changed). There is no store or event bus.
 - `render()` also schedules the project autosave (`pianificaSalvataggio()`), so any model change must go through it to reach disk.
 - Never write `appState.library` directly: a block change goes through `salvaBloccoLibreria()`, and memory, project and tree update only after the server confirms the write (disk first, then memory).
+- Deleting a library block is refused while the open project uses it (`istanzeDelBlocco()` in `inspector.js`); renaming a block id rewrites `node.type` of every instance after the server confirms.
 - The server (`start.py`) owns versions, diffs and the changelog; the client sends only the saved block plus `rinomine`, `livello`, `nota`.
 - Replace `pathStack` contents in place (`length = 0` then `push`), never reassign it: other modules hold the imported binding. To open a level from a list of node ids use `apriPercorso(ids)` (`progetto.js`), which returns `false` if an id is gone.
 - The selected wire (spec 0009) is `filoSelezionato = { percorso, edgeId }` in `renderer.js`, resolved again in every `render()`; delete a wire only through `eliminaFilo(graph, edgeId)`.

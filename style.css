@@ -283,3 +283,4 @@ span.segno-ramo { cursor: default; }
 .tabella-matrice .ritirato-matrice { text-decoration: line-through; color: #999; }
 .titolo-sezione-matrice { font-size: 13px; font-weight: bold; color: #333; margin: 14px 0 6px; }
 .altri-matrice { margin: 8px 0; }
+.disattivato { color: #999; cursor: not-allowed; pointer-events: auto; }

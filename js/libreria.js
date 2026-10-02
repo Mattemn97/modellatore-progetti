@@ -130,12 +130,13 @@ export async function apriLibreria(percorso) {
 
 /* --- SALVATAGGIO DI UN BLOCCO --- */
 
-async function invia(corpo, record) {
+// rotta: '/api/libreria/salva', '/api/libreria/elimina' o '/api/libreria/rinomina' (spec 0010)
+async function invia(rotta, corpo, record) {
     salvataggioInCorso = true;
     aggiornaPulsantiLibreria();
     let r;
     try {
-        r = await chiamaApi('POST', '/api/libreria/salva', corpo);
+        r = await chiamaApi('POST', rotta, corpo);
     } finally {
         salvataggioInCorso = false;
     }
@@ -153,7 +154,7 @@ async function invia(corpo, record) {
         return { ok: true, dati: d };
     }
     if (r.errore === 'conflitto') {
-        conflitto = { corpo, ...record };
+        conflitto = { rotta, corpo, ...record };
         impostaStatoLibreriaBanner({ conflitto: true });
         aggiornaPulsantiLibreria();
         return { ok: false, conflitto: true };
@@ -162,16 +163,39 @@ async function invia(corpo, record) {
     return { ok: false, messaggio: r.messaggio };
 }
 
+// Motivo per cui ora non si può scrivere la libreria, o null
+function motivoBlocco() {
+    if (!libreria.scrivibile) return libreria.motivoSolaLettura || 'La libreria è in sola lettura.';
+    if (progettoInConflitto()) return 'Risolvi prima il conflitto del progetto';
+    if (conflitto) return MSG_CONFLITTO;
+    if (salvataggioInCorso) return 'Un salvataggio della libreria è già in corso.';
+    return null;
+}
+
 // Scrive il blocco su disco; alSuccesso(dati) aggiorna memoria e progetto solo dopo la risposta positiva
 export async function salvaBloccoLibreria(richiesta, alSuccesso, aperto = {}) {
-    if (!libreria.scrivibile) return { ok: false, messaggio: libreria.motivoSolaLettura || 'La libreria è in sola lettura.' };
-    if (progettoInConflitto()) return { ok: false, messaggio: 'Risolvi prima il conflitto del progetto' };
-    if (conflitto) return { ok: false, messaggio: MSG_CONFLITTO };
-    if (salvataggioInCorso) return { ok: false, messaggio: 'Un salvataggio della libreria è già in corso.' };
+    const motivo = motivoBlocco();
+    if (motivo) return { ok: false, messaggio: motivo };
 
     const corpo = { percorso: libreria.percorso, ...richiesta, improntaAttesa: libreria.impronta };
     if (libreria.formato === 0) corpo.base = appState.library;
-    return invia(corpo, { alSuccesso, blockId: aperto.blockId || null, nodeId: aperto.nodeId || null });
+    return invia('/api/libreria/salva', corpo, { alSuccesso, blockId: aperto.blockId || null, nodeId: aperto.nodeId || null });
+}
+
+// Elimina un blocco dalla libreria su disco (spec 0010); opzioni = { livello, nota }
+export async function eliminaBloccoLibreria(idBlocco, opzioni, alSuccesso) {
+    const motivo = motivoBlocco();
+    if (motivo) return { ok: false, messaggio: motivo };
+    const corpo = { percorso: libreria.percorso, idBlocco, ...opzioni, improntaAttesa: libreria.impronta };
+    return invia('/api/libreria/elimina', corpo, { alSuccesso, blockId: null, nodeId: null });
+}
+
+// Rinomina l'id di un blocco sul disco (spec 0010); alSuccesso aggiorna le istanze del progetto
+export async function rinominaBloccoLibreria(idBlocco, nuovoId, opzioni, alSuccesso, aperto = {}) {
+    const motivo = motivoBlocco();
+    if (motivo) return { ok: false, messaggio: motivo };
+    const corpo = { percorso: libreria.percorso, idBlocco, nuovoId, ...opzioni, improntaAttesa: libreria.impronta };
+    return invia('/api/libreria/rinomina', corpo, { alSuccesso, blockId: nuovoId, nodeId: aperto.nodeId || null });
 }
 
 /* --- CONFLITTO: RICARICA O SOVRASCRIVI --- */
@@ -195,9 +219,9 @@ export async function ricaricaLibreria() {
 
 export async function sovrascriviLibreria() {
     if (!conflitto) return;
-    const { corpo, ...record } = conflitto;
-    // Lo stesso corpo rifiutato, forzato: il server applica il blocco sulla libreria attuale su disco
-    const esito = await invia({ ...corpo, forza: true }, record);
+    const { rotta, corpo, ...record } = conflitto;
+    // Lo stesso corpo rifiutato, forzato, alla stessa rotta: il server lo applica sulla libreria attuale su disco
+    const esito = await invia(rotta, { ...corpo, forza: true }, record);
     if (esito.ok) return;
     conflitto = null;
     impostaStatoLibreriaBanner({ conflitto: false });
@@ -241,6 +265,18 @@ export function aggiornaPulsantiLibreria() {
         btnCopia.disabled = !!solaLettura;
         btnCopia.title = solaLettura;
     }
+    // Elimina e Rinomina ID seguono Salva (spec 0010, AC-1)
+    const btnElimina = document.getElementById('btnEliminaBloccoLib');
+    if (btnElimina) {
+        btnElimina.disabled = !!motivo;
+        btnElimina.title = motivo || 'Elimina il blocco dalla libreria (solo se non è usato nel progetto)';
+    }
+    const lnkRinomina = document.getElementById('lnkRinominaBlocco');
+    if (lnkRinomina) {
+        lnkRinomina.classList.toggle('disattivato', !!motivo);
+        lnkRinomina.setAttribute('aria-disabled', motivo ? 'true' : 'false');
+        lnkRinomina.title = motivo || "Cambia l'ID del blocco e aggiorna le istanze del progetto";
+    }
 }
 
 /* --- FINESTRA CHANGELOG --- */
@@ -261,7 +297,8 @@ function htmlRequisito(req) {
 
 function htmlModifica(m) {
     const requisiti = Array.isArray(m.requisiti) ? m.requisiti : [];
-    return `<li><strong>${escapeHtml(m.titolo || m.blocco)}</strong> <code>${escapeHtml(m.blocco)}</code> ${escapeHtml(m.tipo)}${elencoCampi(m.campiBlocco)}
+    const precedente = m.idPrecedente ? ` (prima <code>${escapeHtml(m.idPrecedente)}</code>)` : '';
+    return `<li><strong>${escapeHtml(m.titolo || m.blocco)}</strong> <code>${escapeHtml(m.blocco)}</code> ${escapeHtml(m.tipo)}${precedente}${elencoCampi(m.campiBlocco)}
         ${requisiti.length > 0 ? `<ul>${requisiti.map(htmlRequisito).join('')}</ul>` : ''}</li>`;
 }
 
@@ -288,7 +325,7 @@ function htmlVoce(voce) {
 function toccaFiltro(voce, testo) {
     const contiene = v => typeof v === 'string' && v.toLowerCase().includes(testo);
     return (Array.isArray(voce.modifiche) ? voce.modifiche : []).some(m =>
-        contiene(m.blocco) || contiene(m.titolo) ||
+        contiene(m.blocco) || contiene(m.titolo) || contiene(m.idPrecedente) ||
         (Array.isArray(m.requisiti) ? m.requisiti : []).some(r => contiene(r.id) || contiene(r.idPrecedente)));
 }
 
