@@ -103,7 +103,15 @@ svg { width: 100%; flex: 1; display: block; }
 .banner-avviso { background: #fff3cd; color: #7a5b00; border-bottom: 1px solid #ffe08a; }
 
 /* L'attributo hidden vince sui display impostati sopra */
-.badge-salvataggio[hidden], .menu-progetto-voci[hidden], .banner-progetto[hidden] { display: none; }
+.badge-salvataggio[hidden], .menu-progetto-voci[hidden], .banner-progetto[hidden], .banner-aggiornamento[hidden] { display: none; }
+/* Banner dell'aggiornamento automatico (spec 0015) */
+.banner-aggiornamento { padding: 8px 20px; font-size: 13px; background: #e8f1fb; color: #0b4f8a; border-bottom: 1px solid #b6d4f2; z-index: 9; }
+.banner-aggiornamento-errore { background: #fdecea; color: #8a1c12; border-bottom-color: #f5b7b1; }
+.riga-aggiornamento { display: flex; align-items: center; gap: 10px; }
+.riga-aggiornamento span { flex: 1; }
+.banner-aggiornamento button { border: 1px solid currentColor; background: white; color: inherit; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.banner-aggiornamento button:disabled { opacity: 0.6; cursor: default; }
+.note-aggiornamento { margin-top: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; background: white; color: #333; border: 1px solid #b6d4f2; border-radius: 4px; padding: 8px 10px; font-size: 12px; }
 
 /* Finestra Apri progetto */
 .riga-progetto { cursor: pointer; }

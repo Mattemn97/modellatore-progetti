@@ -13,6 +13,7 @@ import { initMatrice } from './matrice.js';
 import { initDocumenti } from './documenti.js';
 import { initFiltri } from './filtri.js';
 import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
+import { avviaAggiornamenti } from './aggiornamento.js';
 import { generaId } from './utils.js';
 
 const svg = document.getElementById('workspaceSvg');
@@ -170,6 +171,8 @@ async function initApp() {
     await avviaProgetti();
     // Il tour parte da solo la prima volta (spec 0012, AC-2)
     avviaTourPrimoAvvio();
+    // Versione nuova su GitHub: banner sotto l'header (spec 0015)
+    avviaAggiornamenti();
 }
 
 initApp();
