@@ -114,13 +114,9 @@
                 <button id="toggleLeftBtn">☰ Libreria</button>
                 
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
-                    <label for="filterTypeSelect">Filtra Tipologia:</label>
-                    <!-- Opzioni generate da app.js a partire da settings.json -->
-                    <select id="filterTypeSelect" style="padding: 3px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc;"></select>
-                    
-                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-left: 8px;">
-                        <input type="checkbox" id="chkOmitUninvolved"> Nascondi Non Coinvolti
-                    </label>
+                    <!-- Filtri del canvas (js/filtri.js, spec 0008): il pannello si apre sotto la barra -->
+                    <button id="btnFiltri" class="pulsante-filtri" aria-pressed="false" title="Filtra blocchi e fili per classe, documento, categoria e sottocategoria">🔎 Filtri</button>
+                    <div id="pannelloFiltri" class="pannello-filtri" hidden></div>
 
                     <button id="btnReqMatrix" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
                     <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" title="Genera un documento MIL-STD-498 in Markdown">📄 Documenti</button>

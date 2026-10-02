@@ -222,6 +222,21 @@ ins { color: #1e8449; text-decoration: none; }
 .node-req-pin.pin-catena { stroke: #0078d4; stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(0, 120, 212, 0.9)); }
 .parent-block-circle.pin-catena { stroke-width: 6; filter: drop-shadow(0 0 6px rgba(0, 120, 212, 0.8)); }
 .fuori-catena { opacity: 0.25; }
+
+/* Filtri del canvas (spec 0008) */
+.fuori-filtro { opacity: 0.25; }
+.canvas-toolbar { position: relative; }
+.canvas-toolbar .pulsante-filtri[aria-pressed="true"] { background: #0078d4; color: white; border-color: #005a9e; }
+.pannello-filtri { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: min(900px, 96%); background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); padding: 10px 12px; z-index: 20; font-size: 12px; box-sizing: border-box; }
+.pannello-filtri[hidden] { display: none; }
+.griglia-filtri { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.gruppo-filtro { border: 1px solid #e1e4e8; border-radius: 4px; margin: 0; padding: 4px 8px 6px; min-width: 0; }
+.gruppo-filtro legend { font-weight: bold; padding: 0 4px; }
+.lista-filtro { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.voce-filtro { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.piede-filtri { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; }
+.piede-filtri label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.riepilogo-filtri { margin-left: auto; color: #555; }
 .contatore-gerarchia { pointer-events: none; }
 .contatore-gerarchia circle { stroke: white; stroke-width: 1.5; }
 .contatore-gerarchia text { fill: white; font-size: 10px; font-weight: bold; user-select: none; }

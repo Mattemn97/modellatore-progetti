@@ -9,9 +9,10 @@ import { renderUI } from './app.js';
 import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { mostraScheda, impostaSelezioneCliente } from './cliente.js';
 import { apriPercorso } from './progetto.js';
-import { visitaDerivazioni, getClasseRequisito, titoloRequisito, CAPACITA, ID_CLIENTE } from './model.js';
+import { visitaDerivazioni, getClasseRequisito, titoloRequisito, ID_CLIENTE } from './model.js';
 import { spegniGerarchia } from './gerarchia.js';
 import { escapeHtml } from './utils.js';
+import { classePassa, descriviClassi } from './filtri.js';
 
 // Gruppi della scheda, nell'ordine di AC-7; Da riparare raccoglie blocchi senza definizione e fili non validi
 const GRUPPI = [
@@ -165,8 +166,7 @@ export function calcolaCoerenza(radice, libreria, cliente) {
 
 // Filtro per classe della barra: unica fonte di pulsante, contatori ed evidenze. Da riparare passa sempre
 function passaClasse(p) {
-    const filtro = appState.activeTypeFilter;
-    return filtro === 'Tutti' || p.classe === null || p.classe === filtro;
+    return classePassa(p.classe);
 }
 
 function applicaFiltro(risultato) {
@@ -328,7 +328,7 @@ export function aggiornaSchedaCoerenza(forza = false) {
 
     // Impronta di ciò che si vede: conteggi e voci dei gruppi aperti. Se non cambia, il DOM non si tocca
     const impronta = [
-        appState.activeTypeFilter, ricerca, pathStack[0].label, r.senzaCliente, filtrati.length,
+        descriviClassi(), ricerca, pathStack[0].label, r.senzaCliente, filtrati.length,
         ...gruppi.map(g => `${g.id}:${g.aperto}:${g.voci.length}:${g.totale}:` + (g.aperto
             ? g.voci.slice(0, limite).map(p => `${p.chiave}~${p.titoloVoce}~${p.motivo}~${p.etichette.join('/')}`).join(';')
             : ''))
@@ -337,9 +337,9 @@ export function aggiornaSchedaCoerenza(forza = false) {
     ultimaImpronta = impronta;
 
     casella.hidden = false;
-    const filtro = appState.activeTypeFilter;
-    avviso.hidden = filtro === 'Tutti';
-    avviso.textContent = filtro === 'Tutti' ? '' : `Filtro attivo: ${filtro === CAPACITA ? 'Capacità' : filtro}`;
+    const classi = descriviClassi();
+    avviso.hidden = !classi;
+    avviso.textContent = classi ? `Filtro attivo: ${classi}` : '';
 
     if (filtrati.length === 0) {
         contenitore.innerHTML = `<div class="empty-props">Nessun problema: ogni requisito è collegato</div>`;

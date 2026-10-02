@@ -15,6 +15,7 @@ import {
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE
 } from './model.js';
 import { generaId } from './utils.js';
+import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const svg = document.getElementById('workspaceSvg');
@@ -127,9 +128,45 @@ function trovaRequisito(ownerId, reqId, ownerType) {
     return getBlockDef(tipo)?.requisiti.find(r => r.id === reqId) || null;
 }
 
-function passaFiltro(req) {
-    const filtro = appState.activeTypeFilter;
-    return filtro === 'Tutti' || getClasseRequisito(req) === filtro;
+/* --- FILTRI (spec 0008): COSA È INCLUSO NEL LIVELLO --- */
+
+const chiaveEstremo = (ownerType, ownerId, reqId) => `${ownerType}:${ownerId}:${reqId}`;
+
+// Inclusi del livello, una volta per disegno: estremi (pin e blocchi tondi), nodi e fili. Funzione pura
+function calcolaInclusi(graph, parentNode) {
+    const tutti = filtriAttivi() === 0;
+    const estremi = new Set();
+    const nodi = new Set();
+    const fili = new Set();
+    // Blocchi tondi: solo i filtri di requisito, mai quelli di blocco (AC-5)
+    const tondi = parentNode ? getBlockDef(parentNode.type)?.requisiti || [] : requisitiPadre(null);
+    const ownerTondi = parentNode ? parentNode.id : ID_CLIENTE;
+    tondi.forEach(req => {
+        if (tutti || requisitoIncluso(req)) estremi.add(chiaveEstremo('parent', ownerTondi, req.id));
+    });
+    (graph.nodes || []).forEach(node => {
+        const def = getBlockDef(node.type);
+        if (!def) return;
+        if (tutti || bloccoIncluso(def)) nodi.add(node.id);
+        const passa = tutti || bloccoPassa(def);
+        def.requisiti.forEach(req => {
+            if (passa && (tutti || requisitoIncluso(req))) estremi.add(chiaveEstremo('node', node.id, req.id));
+        });
+    });
+    // Un filo è incluso se almeno un estremo lo è; un estremo che non si trova non conta (AC-5, AC-10)
+    (graph.edges || []).forEach(edge => {
+        if (estremi.has(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle))
+            || estremi.has(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle))) fili.add(edge.id);
+    });
+    return { estremi, nodi, fili };
+}
+
+// Inclusi del disegno in corso e fili disegnati (per Nascondi: gli estremi dei fili disegnati restano)
+let inclusi = { estremi: new Set(), nodi: new Set(), fili: new Set() };
+let estremiDisegnati = new Set();
+
+function estremoIncluso(ownerType, ownerId, reqId) {
+    return inclusi.estremi.has(chiaveEstremo(ownerType, ownerId, reqId));
 }
 
 export function render() {
@@ -150,7 +187,23 @@ export function render() {
     edgesLayer.innerHTML = '';
     parentLayer.innerHTML = '';
 
-    const filtroAttivo = appState.activeTypeFilter !== 'Tutti';
+    // FILTRI: inclusi del livello, poi cosa si disegna (spec 0008, AC-5, AC-6, AC-11)
+    inclusi = calcolaInclusi(currentGraph, currentLevel.parentNode);
+    const nascondi = modoNascondi();
+    const filiCatena = filiInCatena(currentGraph);
+    // Un filo senza requisito di partenza non si è mai disegnato
+    const candidati = currentGraph.edges.filter(edge => trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType));
+    const daDisegnare = candidati.filter(edge => !nascondi || inclusi.fili.has(edge.id) || filiCatena.has(edge.id));
+    estremiDisegnati = new Set();
+    daDisegnare.forEach(edge => {
+        estremiDisegnati.add(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle));
+        estremiDisegnati.add(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle));
+    });
+    const nodiDiFili = new Set();
+    daDisegnare.forEach(edge => {
+        if (edge.sourceType === 'node') nodiDiFili.add(edge.source);
+        if (edge.targetType === 'node') nodiDiFili.add(edge.target);
+    });
 
     if (currentLevel.parentNode) {
         renderParentBlocks(currentLevel.parentNode, currentGraph);
@@ -159,31 +212,19 @@ export function render() {
     }
 
     // RENDER FILI (EDGES)
-    const activeEdges = currentGraph.edges.filter(edge => {
-        const req = trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType);
-        return req && passaFiltro(req);
-    });
-
-    // I fili della catena si disegnano anche se il filtro li toglierebbe; activeEdges resta per Nascondi Non Coinvolti
-    const filiCatena = filiInCatena(currentGraph);
-    const giaAttivi = new Set(activeEdges);
-    const daDisegnare = filiCatena.size === 0 ? activeEdges
-        : [...activeEdges, ...currentGraph.edges.filter(e => filiCatena.has(e.id) && !giaAttivi.has(e))];
     daDisegnare.forEach(edge => renderEdge(edge, currentGraph));
 
-    // RENDER NODI
+    // RENDER NODI: con Nascondi un blocco escluso resta se è nella catena o estremo di un filo disegnato
+    let blocchiEsclusi = 0;
     currentGraph.nodes.forEach(node => {
         const blockDef = getBlockDef(node.type);
         if (!blockDef) return;
-
-        if (filtroAttivo && appState.omitUninvolved && !nodoNellaCatena(node, blockDef)) {
-            const hasReqType = blockDef.requisiti.some(passaFiltro);
-            const isConnectedInFilter = activeEdges.some(e => e.source === node.id || e.target === node.id);
-            if (!hasReqType && !isConnectedInFilter) return;
-        }
-
+        const incluso = inclusi.nodi.has(node.id);
+        if (!incluso) blocchiEsclusi++;
+        if (nascondi && !incluso && !nodiDiFili.has(node.id) && !nodoNellaCatena(node, blockDef)) return;
         renderNode(node, blockDef);
     });
+    aggiornaRiepilogoFiltri(blocchiEsclusi, candidati.filter(e => !inclusi.fili.has(e.id)).length);
 
     renderUI();
     // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
@@ -225,6 +266,8 @@ function renderEdge(edge, currentGraph) {
     // Gerarchia con una scelta: i fili della catena evidenziati, tutti gli altri attenuati
     let classeCatena = '';
     if (catenaAttiva()) classeCatena = filoInCatena(currentGraph, edge.id) ? ' catena-gerarchia' : ' fuori-catena';
+    // Senza catena attenua il filtro: un filo escluso si disegna solo con Attenua (spec 0008, AC-6)
+    else if (!inclusi.fili.has(edge.id)) classeCatena = ' fuori-filtro';
     const path = creaSvg('path', {
         class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + classeCatena,
         d: pathData,
@@ -261,7 +304,8 @@ function renderEdge(edge, currentGraph) {
         const handle = creaSvg('circle', {
             cx: wp.x, cy: wp.y, r: 5, fill: edgeColor, stroke: '#ffffff', 'stroke-width': '1.5'
         });
-        if (classeCatena === ' fuori-catena') handle.setAttribute('class', 'fuori-catena');
+        // Gli snodi seguono il filo (AC-11)
+        if (classeCatena === ' fuori-catena' || classeCatena === ' fuori-filtro') handle.setAttribute('class', classeCatena.trim());
         handle.style.cursor = 'move';
         handle.addEventListener('mousedown', (e) => startWaypointDrag(e, wp));
         handle.addEventListener('dblclick', (e) => {
@@ -296,6 +340,10 @@ function renderNode(node, blockDef) {
     if (catenaAttiva() && occorrenzeDentro === 0 && !haPinInCatena(node, blockDef)) {
         rect.classList.add('fuori-catena');
         labelText.classList.add('fuori-catena');
+    } else if (!catenaAttiva() && !inclusi.nodi.has(node.id)) {
+        // Filtri: blocco escluso attenuato, i pin seguono solo la propria inclusione (spec 0008, AC-6, AC-11)
+        rect.classList.add('fuori-filtro');
+        labelText.classList.add('fuori-filtro');
     }
 
     g.appendChild(rect);
@@ -411,10 +459,13 @@ function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
     const g = creaSvg('g', { class: 'parent-block' });
     // Con una catena della Gerarchia decide lei cosa si attenua, al posto del filtro per classe
     const inCatena = occorrenzaInCatena(chiaveSulCanvas('parent', ownerId, req.id));
+    const incluso = estremoIncluso('parent', ownerId, req.id);
+    // Nascondi: un blocco tondo escluso resta se è nella catena o estremo di un filo disegnato (spec 0008, AC-6)
+    if (modoNascondi() && !incluso && !inCatena && !estremiDisegnati.has(chiaveEstremo('parent', ownerId, req.id))) return;
     if (catenaAttiva()) {
         if (!inCatena) g.classList.add('fuori-catena');
-    } else if (!passaFiltro(req)) {
-        g.style.opacity = '0.25';
+    } else if (!incluso) {
+        g.classList.add('fuori-filtro');
     }
 
     const problema = problemaPin(graph, 'parent', ownerId, req.id);
@@ -572,8 +623,8 @@ function createReqPin(cx, cy, req, owner, forma) {
         if (owner.ownerType === 'node') {
             pin.classList.add(occorrenzaInCatena(chiaveSulCanvas('node', owner.ownerId, req.id)) ? 'pin-catena' : 'fuori-catena');
         }
-    } else if (!passaFiltro(req)) {
-        pin.style.opacity = '0.25';
+    } else if (!estremoIncluso(owner.ownerType, owner.ownerId, req.id)) {
+        pin.classList.add('fuori-filtro');
     }
 
     const suggerimento = owner.ownerType === 'node' && isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '';
