@@ -25,7 +25,7 @@ python start.py
 # Build: produces dist/start.exe from start.spec
 pyinstaller start.spec
 
-# Package: start.exe + app files -> dist/ModellatoreMBSE-<v>.zip and -setup.exe (7-Zip SFX)
+# Package: start.exe + app files + TUTORIAL.md -> dist/ModellatoreMBSE-<v>.zip (no SFX: a "setup" exe triggers UAC)
 powershell -ExecutionPolicy Bypass -File packaging/crea-pacchetto.ps1 -Versione 1.0.0
 
 # Release: every push to main -> .github/workflows/rilascio.yml builds, smoke tests and publishes
@@ -54,7 +54,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 ## Gotchas
 
 - The exe serves files from its own folder, not from inside the bundle (`datas=[]` in `start.spec`). To ship it, copy `index.html`, `style.css`, `settings.json`, `js/` and `shared/` next to `start.exe`.
-- The package (`packaging/crea-pacchetto.ps1`) leaves `shared/` and `progetti/` out on purpose, so extracting an update over an install never overwrites user data; `start.exe` creates them. A new file the app needs at runtime must be added to the copy list there.
+- The package (`packaging/crea-pacchetto.ps1`) ships `shared/` and `progetti/` empty on purpose, so extracting an update over an install never overwrites user data; `start.exe` fills them. The user tutorial is `packaging/TUTORIAL.md` (with `packaging/esempi/`), keep it in step with UI changes. A new file the app needs at runtime must be added to the copy list there.
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.
 - `build/`, `dist/`, `.venv/` are generated; `progetti/` is user data and is gitignored.
 - `start.py` is also the API: `/api/progetti`, `/api/ultimo` and `/api/libreria/{apri,salva,elimina,rinomina,changelog}`, multithreaded, with one lock serializing every file operation. The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.

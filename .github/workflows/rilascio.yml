@@ -1,5 +1,5 @@
 # --- RILASCIO ---
-# Compila start.exe e crea lo zip e lo zip autoestraente (vedi packaging/crea-pacchetto.ps1).
+# Compila start.exe e crea lo zip (vedi packaging/crea-pacchetto.ps1).
 # - push su main (merge o commit diretto): pubblica una GitHub Release con versione automatica,
 #   la patch dell'ultimo tag v* più uno (v1.0.0 se non ce ne sono)
 # - push di un tag v* (es. v2.0.0): pubblica la Release con quella versione, serve per alzare minor o major
@@ -84,9 +84,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ModellatoreMBSE-${{ steps.versione.outputs.valore }}
-          path: |
-            dist/ModellatoreMBSE-*.zip
-            dist/ModellatoreMBSE-*-setup.exe
+          path: dist/ModellatoreMBSE-*.zip
 
       - name: Note di rilascio
         if: steps.versione.outputs.pubblica == 'true'
@@ -103,6 +101,5 @@ jobs:
           # Su main il tag non esiste ancora: gh lo crea sul commit indicato da --target
           gh release create "$env:TAG" `
             (Get-ChildItem dist/ModellatoreMBSE-*.zip).FullName `
-            (Get-ChildItem dist/ModellatoreMBSE-*-setup.exe).FullName `
             --target "$env:GITHUB_SHA" `
             --title "Modellatore MBSE $env:TAG" --notes-file dist/note-rilascio.md
