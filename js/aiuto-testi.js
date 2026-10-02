@@ -9,6 +9,12 @@ export const SUGGERIMENTI = {
     'header.progetto': { titolo: 'Menu Progetto', testo: "Crea, apri, copia, rinomina o elimina un progetto della cartella progetti/. Da qui puoi anche importare o scaricare il progetto come JSON." },
     'header.aiuto': { titolo: 'Aiuto', testo: "Rilancia il tour guidato dell'interfaccia e mostra o nasconde le icone (i) accanto ai campi." },
 
+    // Banner dell'aggiornamento (spec 0015)
+    'aggiornamento.novita': { titolo: 'Novità', testo: "Mostra le note della nuova versione, come scritte nella Release su GitHub." },
+    'aggiornamento.installa': { titolo: 'Aggiorna e riavvia', testo: "Scarica la nuova versione, ne controlla l'impronta e sostituisce solo i file dell'app: progetti/, shared/ e settings.json non vengono toccati. L'app si riavvia da sola; se la nuova versione non parte, torna quella di prima." },
+    'aggiornamento.pagina': { titolo: 'Pagina della versione', testo: "Apre la Release su GitHub: da lì puoi scaricare lo zip ed estrarlo sopra la cartella dell'app." },
+    'aggiornamento.rimanda': { titolo: 'Più tardi', testo: "Nasconde l'avviso fino al prossimo avvio di start.exe. Per spegnere del tutto il controllo metti aggiornamenti.controllo a false in settings.json." },
+
     // Libreria (pannello sinistro)
     'libreria.titolo': { titolo: 'Libreria Blocchi', testo: "I tipi di blocco che puoi usare nel progetto, salvati su disco. Il numero accanto è la versione della libreria: sale da sola a ogni modifica (patch, minor o major) e ogni passo finisce nel Changelog." },
     'libreria.changelog': { titolo: 'Changelog', testo: "Elenco di tutte le modifiche alla libreria: quando, quale blocco, quali requisiti e con quale livello di versione." },

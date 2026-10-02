@@ -11,10 +11,15 @@ import binascii
 import posixpath
 import time
 import getpass
+import errno
 import hashlib
 import shutil
+import socket
+import subprocess
 import threading
 import webbrowser
+import urllib.error
+import urllib.request
 from datetime import datetime
 from urllib.parse import urlsplit, unquote, parse_qs
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -1301,6 +1306,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
     timeout = 10
     archivio = None  # impostato in main()
     librerie = None  # impostato in main()
+    aggiornamento = None  # impostato in main()
     max_file_cliente_mb = MAX_FILE_CLIENTE_MB_PREDEFINITO  # impostato in main()
 
     # --- Log in console: solo le richieste fallite, una riga ciascuna (spec 0014) ---
@@ -1422,6 +1428,9 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 if metodo != 'POST':
                     raise ErroreApi(405, 'metodo_non_consentito', 'Metodo non consentito.')
                 return self.invia_json(200, leggi_file_cliente(self.leggi_corpo(), self.max_file_cliente_mb))
+            if segmenti[0] == 'aggiornamento':
+                # Fuori dal lucchetto dei file: lo stato ha il suo, l'installazione lavora in un thread
+                return self.gestisci_aggiornamento(metodo, segmenti)
             corpo = self.leggi_corpo() if metodo in ('POST', 'PUT') else {}
             with self.archivio.lucchetto:
                 stato, risposta = self.instrada(metodo, segmenti, corpo)
@@ -1431,6 +1440,21 @@ class CustomHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self.log_error('Errore interno su %s %s: %r', metodo, self.path, e)
             self.invia_json(500, {'errore': 'errore_interno', 'messaggio': f'Errore interno del server: {e}'})
+
+    def gestisci_aggiornamento(self, metodo, segmenti):
+        stato = self.aggiornamento
+        if segmenti == ['aggiornamento']:
+            if metodo != 'GET':
+                raise ErroreApi(405, 'metodo_non_consentito', 'Metodo non consentito.')
+            return self.invia_json(200, stato.pubblico())
+        if segmenti == ['aggiornamento', 'installa']:
+            if metodo != 'POST':
+                raise ErroreApi(405, 'metodo_non_consentito', 'Metodo non consentito.')
+            corpo = self.leggi_corpo()
+            stato.avvia_installazione(corpo.get('versione'))
+            threading.Thread(target=installa_aggiornamento, args=(stato, self.server, stato.base_dir)).start()
+            return self.invia_json(202, {'stato': 'download'})
+        raise ErroreApi(404, 'non_trovato', 'Indirizzo API sconosciuto.')
 
     def instrada(self, metodo, segmenti, corpo):
         archivio = self.archivio
@@ -1513,6 +1537,390 @@ class CustomHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corpo)
 
+# --- AGGIORNAMENTO AUTOMATICO (vedi docs/specs/0015-aggiornamento-automatico) ---
+
+CARTELLA_AGGIORNAMENTO = '_aggiornamento'
+REPOSITORY_PREDEFINITO = 'Mattemn97/modellatore-progetti'
+FORMATO_REPOSITORY = re.compile(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
+FORMATO_DIGEST = re.compile(r'^sha256:([0-9a-fA-F]{64})$')
+PREFISSO_PACCHETTO = 'ModellatoreMBSE/'
+FILE_OBBLIGATORI_PACCHETTO = ('start.exe', 'index.html', 'VERSIONE.txt')
+MAX_ZIP_AGGIORNAMENTO = 200 * 1024 * 1024
+LUNGHEZZA_MAX_NOTE = 5000
+TIMEOUT_CONTROLLO = 5
+ATTESA_SALUTE = 60
+ATTESA_PORTA = 15
+ATTESA_PULIZIA = 60
+DURATA_PULIZIA = 30
+STATI_AGGIORNAMENTO_IN_CORSO = ('download', 'verifica', 'installazione', 'riavvio')
+ERRORI_PORTA_OCCUPATA = (10048, 10013)
+MSG_SOLO_EXE = "L'aggiornamento automatico funziona solo con start.exe."
+
+class ErroreAggiornamento(Exception):
+    pass
+
+def leggi_impostazioni_aggiornamenti(base_dir):
+    # aggiornamenti.controllo e aggiornamenti.repository da settings.json; predefiniti se mancano
+    controllo, repository = True, REPOSITORY_PREDEFINITO
+    try:
+        with open(os.path.join(base_dir, "settings.json"), encoding="utf-8") as f:
+            sezione = json.load(f).get("aggiornamenti", {})
+        if isinstance(sezione.get("controllo"), bool):
+            controllo = sezione["controllo"]
+        if "repository" in sezione:
+            repository = sezione["repository"]
+    except (OSError, ValueError, AttributeError):
+        pass
+    return controllo, repository
+
+def tupla_versione(testo):
+    if not isinstance(testo, str) or not FORMATO_SEMVER.match(testo):
+        return None
+    return tuple(int(parte) for parte in testo.split('.'))
+
+def con_riprova(funzione, *argomenti, tentativi=5, attesa=0.5):
+    # Un file appena scritto può restare bloccato per un attimo (antivirus, indicizzazione)
+    for tentativo in range(tentativi):
+        try:
+            return funzione(*argomenti)
+        except OSError:
+            if tentativo == tentativi - 1:
+                raise
+            time.sleep(attesa)
+
+class StatoAggiornamento:
+    # Stato del controllo e dell'installazione, letto dal browser con GET /api/aggiornamento
+    def __init__(self, base_dir, versione):
+        self.base_dir = base_dir
+        self.lucchetto = threading.Lock()
+        self.dati = {'stato': 'disattivato', 'attuale': versione, 'nuova': None, 'note': '',
+                     'pagina': None, 'installabile': False, 'motivo': ''}
+        self.url_zip = None
+        self.sha256 = None
+        self.prefisso_download = None
+        self.errore_iniziale = ''
+
+    def pubblico(self):
+        with self.lucchetto:
+            return dict(self.dati)
+
+    def imposta(self, **valori):
+        with self.lucchetto:
+            self.dati.update(valori)
+
+    def valore(self, chiave):
+        with self.lucchetto:
+            return self.dati[chiave]
+
+    def avvia_installazione(self, versione):
+        # Una sola installazione alla volta; parte solo dalla versione mostrata nel banner
+        with self.lucchetto:
+            stato = self.dati['stato']
+            if stato in STATI_AGGIORNAMENTO_IN_CORSO:
+                raise ErroreApi(409, 'installazione_in_corso', "Un aggiornamento è già in corso.")
+            if stato not in ('disponibile', 'errore') or not self.dati['nuova'] or not self.url_zip:
+                raise ErroreApi(409, 'aggiornamento_non_disponibile', "Non c'è un aggiornamento da installare.")
+            if versione != self.dati['nuova']:
+                raise ErroreApi(409, 'versione_diversa', "La versione richiesta non è quella disponibile: ricarica la pagina.")
+            if not self.dati['installabile']:
+                raise ErroreApi(409, 'non_installabile', self.dati['motivo'] or "Questa versione non si può installare da qui.")
+            self.dati.update(stato='download', motivo='')
+
+def motivo_errore_rete(e):
+    if isinstance(e, urllib.error.HTTPError):
+        if e.code == 403:
+            return "GitHub ha rifiutato la richiesta (limite di richieste raggiunto, riprova più tardi)"
+        if e.code == 404:
+            return "nessuna Release pubblicata"
+        return f"GitHub ha risposto con il codice {e.code}"
+    if isinstance(e, urllib.error.URLError):
+        return f"rete non raggiungibile ({e.reason})"
+    if isinstance(e, (TimeoutError, socket.timeout)):
+        return "tempo scaduto"
+    if isinstance(e, ValueError):
+        return "risposta non valida"
+    return str(e) or e.__class__.__name__
+
+def controlla_aggiornamenti(stato, repository):
+    attuale = stato.valore('attuale')
+    url = os.environ.get('MODELLATORE_URL_RELEASE')
+    if url:
+        # Solo per le prove (spec 0015): server finto delle Release
+        parti = urlsplit(url)
+        stato.prefisso_download = f"{parti.scheme}://{parti.netloc}/"
+    else:
+        url = f"https://api.github.com/repos/{repository}/releases/latest"
+        stato.prefisso_download = f"https://github.com/{repository}/releases/download/"
+    stato.imposta(stato='controllo')
+    richiesta = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
+                                                     'User-Agent': f'ModellatoreMBSE/{attuale}'})
+    try:
+        with urllib.request.urlopen(richiesta, timeout=TIMEOUT_CONTROLLO) as risposta:
+            release = json.loads(risposta.read(5 * 1024 * 1024).decode('utf-8'))
+        if not isinstance(release, dict):
+            raise ValueError('risposta non valida')
+    except Exception as e:
+        motivo = motivo_errore_rete(e)
+        stato.imposta(stato='errore' if stato.errore_iniziale else 'errore_controllo',
+                      motivo=stato.errore_iniziale or motivo)
+        stampa_info(f"Controllo aggiornamenti non riuscito: {motivo}")
+        return
+    tag = str(release.get('tag_name') or '')
+    nuova = tag[1:] if tag.startswith('v') else tag
+    if tupla_versione(nuova) is None or tupla_versione(nuova) <= tupla_versione(attuale):
+        stato.imposta(stato='errore' if stato.errore_iniziale else 'aggiornato', motivo=stato.errore_iniziale)
+        return
+    nome_zip = f"ModellatoreMBSE-{nuova}.zip"
+    asset = next((a for a in release.get('assets') or [] if isinstance(a, dict) and a.get('name') == nome_zip), None)
+    digest = FORMATO_DIGEST.match(str(asset.get('digest') or '')) if asset else None
+    url_zip = str(asset.get('browser_download_url') or '') if asset else ''
+    if not asset:
+        installabile, motivo = False, f"La Release non contiene {nome_zip}."
+    elif not digest:
+        installabile, motivo = False, "La Release non indica l'impronta SHA256 dello zip: aggiorna a mano dalla pagina."
+    elif not url_zip.startswith(stato.prefisso_download):
+        installabile, motivo = False, "L'indirizzo dello zip non è quello atteso."
+    elif not getattr(sys, 'frozen', False):
+        installabile, motivo = False, MSG_SOLO_EXE
+    else:
+        installabile, motivo = True, ''
+    stato.url_zip = url_zip if installabile else None
+    stato.sha256 = digest.group(1).lower() if digest else None
+    pagina = str(release.get('html_url') or '') or None
+    stato.imposta(stato='errore' if stato.errore_iniziale else 'disponibile', nuova=nuova,
+                  note=str(release.get('body') or '')[:LUNGHEZZA_MAX_NOTE], pagina=pagina,
+                  installabile=installabile, motivo=stato.errore_iniziale or motivo)
+    stampa_avviso(f"È disponibile la versione {nuova} (hai la {attuale}). Apri l'app per aggiornare: {pagina or ''}".rstrip())
+
+def scarica_zip(url, destinazione, sha256_atteso):
+    richiesta = urllib.request.Request(url, headers={'User-Agent': 'ModellatoreMBSE'})
+    impronta = hashlib.sha256()
+    letti = 0
+    with urllib.request.urlopen(richiesta, timeout=30) as risposta, open(destinazione, 'wb') as f:
+        while True:
+            blocco = risposta.read(1024 * 1024)
+            if not blocco:
+                break
+            letti += len(blocco)
+            if letti > MAX_ZIP_AGGIORNAMENTO:
+                raise ErroreAggiornamento("Il file scaricato supera 200 MB: aggiornamento annullato.")
+            impronta.update(blocco)
+            f.write(blocco)
+    if impronta.hexdigest() != sha256_atteso:
+        raise ErroreAggiornamento("L'impronta del file scaricato non corrisponde: aggiornamento annullato.")
+
+def percorso_vietato(relativo):
+    return relativo.split('/')[0] in PERCORSI_UTENTE
+
+def controlla_zip(archivio_zip, nuova):
+    # Restituisce le voci (info, percorso relativo) dei file da installare; nessun file viene scritto qui
+    voci, totale = [], 0
+    for info in archivio_zip.infolist():
+        nome = info.filename.replace('\\', '/')
+        if not nome.startswith(PREFISSO_PACCHETTO):
+            raise ErroreAggiornamento(f"Lo zip contiene una voce fuori da ModellatoreMBSE/: {nome}")
+        relativo = nome[len(PREFISSO_PACCHETTO):]
+        parti = [p for p in relativo.split('/') if p]
+        if not parti:
+            continue
+        if relativo.startswith('/') or ':' in relativo or '..' in parti:
+            raise ErroreAggiornamento(f"Lo zip contiene un percorso non valido: {nome}")
+        relativo = '/'.join(parti)
+        if percorso_vietato(relativo):
+            if info.is_dir() and len(parti) == 1:
+                continue
+            raise ErroreAggiornamento(f"Lo zip contiene file dell'utente ({relativo}): aggiornamento annullato.")
+        if info.is_dir():
+            continue
+        totale += info.file_size
+        voci.append((info, relativo))
+    if totale > MAX_DECOMPRESSO:
+        raise ErroreAggiornamento("Lo zip decompresso è troppo grande: aggiornamento annullato.")
+    presenti = {relativo for _, relativo in voci}
+    mancanti = [f for f in FILE_OBBLIGATORI_PACCHETTO if f not in presenti]
+    if mancanti:
+        raise ErroreAggiornamento(f"Lo zip non contiene {', '.join(mancanti)}: aggiornamento annullato.")
+    info_versione = next(info for info, relativo in voci if relativo == 'VERSIONE.txt')
+    versione_zip = archivio_zip.read(info_versione).decode('utf-8-sig', 'replace').strip()
+    if versione_zip != nuova:
+        raise ErroreAggiornamento(f"Lo zip contiene la versione {versione_zip}, non la {nuova}: aggiornamento annullato.")
+    return voci
+
+def estrai_voci(archivio_zip, voci, cartella):
+    for info, relativo in voci:
+        destinazione = os.path.join(cartella, *relativo.split('/'))
+        os.makedirs(os.path.dirname(destinazione), exist_ok=True)
+        with archivio_zip.open(info) as sorgente, open(destinazione, 'wb') as f:
+            shutil.copyfileobj(sorgente, f)
+
+def ripristina_file(fatti, tentativi=5):
+    # Rimette le copie di sicurezza e toglie i file nuovi che non avevano una copia, in ordine inverso
+    for destinazione, copia in reversed(fatti):
+        if copia:
+            if os.path.lexists(copia):
+                con_riprova(os.replace, copia, destinazione, tentativi=tentativi)
+        elif os.path.lexists(destinazione):
+            con_riprova(os.remove, destinazione, tentativi=tentativi)
+
+def sostituisci_file(base_dir, cartella_nuova, cartella_copie, relativi):
+    # Lista ammessa: solo i file dello zip, start.exe per ultimo; ogni file attuale va prima nelle copie
+    ordine = [r for r in relativi if r != 'start.exe'] + [r for r in relativi if r == 'start.exe']
+    fatti = []
+    relativo = ''
+    try:
+        for relativo in ordine:
+            if percorso_vietato(relativo):
+                raise ErroreAggiornamento(f"Percorso dell'utente nell'elenco: {relativo}")
+            destinazione = os.path.join(base_dir, *relativo.split('/'))
+            nuovo = os.path.join(cartella_nuova, *relativo.split('/'))
+            copia = None
+            if os.path.lexists(destinazione):
+                copia = os.path.join(cartella_copie, *relativo.split('/'))
+                os.makedirs(os.path.dirname(copia), exist_ok=True)
+                con_riprova(os.replace, destinazione, copia)
+            fatti.append((destinazione, copia))
+            os.makedirs(os.path.dirname(destinazione), exist_ok=True)
+            con_riprova(os.replace, nuovo, destinazione)
+    except (OSError, ErroreAggiornamento) as e:
+        try:
+            ripristina_file(fatti)
+        except OSError as e2:
+            raise ErroreAggiornamento(f"Impossibile sostituire {relativo} ({e}) e ripristino incompleto ({e2}): "
+                                      f"le copie sono in {cartella_copie}.")
+        raise ErroreAggiornamento(f"Impossibile sostituire {relativo}: {e}. Ripristinata la versione precedente.")
+    return fatti
+
+def opzioni_nuovo_processo():
+    opzioni = {'close_fds': True, 'env': dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT='1')}
+    if os.name == 'nt':
+        opzioni['creationflags'] = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP
+    return opzioni
+
+def risponde_con_versione(versione):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/aggiornamento", timeout=1) as risposta:
+            return json.loads(risposta.read().decode('utf-8')).get('attuale') == versione
+    except Exception:
+        return False
+
+def termina_albero(processo):
+    # L'exe onefile ha un processo padre e un figlio Python: si termina tutto l'albero
+    if os.name == 'nt':
+        subprocess.run(['taskkill', '/PID', str(processo.pid), '/T', '/F'], capture_output=True)
+    else:
+        processo.kill()
+    try:
+        processo.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
+
+def riavvia_dopo_installazione(server, base_dir, vecchia, nuova, fatti):
+    # Libera la porta, avvia la versione nuova e aspetta che risponda; se non parte rimette la vecchia
+    server.shutdown()
+    server.server_close()
+    exe = sys.executable
+    stampa_info(f"Avvio della versione {nuova}...")
+    try:
+        processo = subprocess.Popen([exe, '--dopo-aggiornamento', vecchia], cwd=base_dir, **opzioni_nuovo_processo())
+    except OSError as e:
+        processo = None
+        stampa_errore(f"Impossibile avviare la versione nuova: {e}")
+    scadenza = time.monotonic() + ATTESA_SALUTE
+    while processo is not None and time.monotonic() < scadenza:
+        if processo.poll() is not None:
+            break
+        if risponde_con_versione(nuova):
+            os._exit(0)
+        time.sleep(0.5)
+    if processo is not None:
+        termina_albero(processo)
+    stampa_errore(f"La versione {nuova} non è partita: ripristino della versione {vecchia}.")
+    try:
+        ripristina_file(fatti, tentativi=20)
+        subprocess.Popen([exe, '--dopo-ripristino', nuova], cwd=base_dir, **opzioni_nuovo_processo())
+    except OSError as e:
+        stampa_errore(f"Ripristino non riuscito ({e}): le copie sono in {os.path.join(base_dir, CARTELLA_AGGIORNAMENTO, 'backup')}. "
+                      "Estrai a mano lo zip della versione che vuoi usare.")
+        time.sleep(30)
+    os._exit(0)
+
+def installa_aggiornamento(stato, server, base_dir):
+    vecchia, nuova = stato.valore('attuale'), stato.valore('nuova')
+    cartella = os.path.join(base_dir, CARTELLA_AGGIORNAMENTO)
+    try:
+        shutil.rmtree(cartella, ignore_errors=True)
+        os.makedirs(cartella, exist_ok=True)
+        stampa_info(f"Scaricamento della versione {nuova}...")
+        file_zip = os.path.join(cartella, 'download.zip')
+        scarica_zip(stato.url_zip, file_zip, stato.sha256)
+        stato.imposta(stato='verifica')
+        cartella_nuova = os.path.join(cartella, 'nuova')
+        with zipfile.ZipFile(file_zip) as archivio_zip:
+            voci = controlla_zip(archivio_zip, nuova)
+            estrai_voci(archivio_zip, voci, cartella_nuova)
+        stato.imposta(stato='installazione')
+        fatti = sostituisci_file(base_dir, cartella_nuova, os.path.join(cartella, 'backup'),
+                                 [relativo for _, relativo in voci])
+    except ErroreAggiornamento as e:
+        stato.imposta(stato='errore', motivo=str(e))
+        stampa_errore(str(e))
+        return
+    except Exception as e:
+        motivo = f"Aggiornamento non riuscito: {motivo_errore_rete(e) if isinstance(e, (urllib.error.URLError, socket.timeout, TimeoutError)) else e}"
+        stato.imposta(stato='errore', motivo=motivo)
+        stampa_errore(motivo)
+        return
+    stato.imposta(stato='riavvio')
+    stampa_info(f"Versione {nuova} installata, riavvio...")
+    riavvia_dopo_installazione(server, base_dir, vecchia, nuova, fatti)
+
+def pulisci_cartella_aggiornamento(stato, base_dir):
+    # Dopo un minuto dall'avvio, se nessun aggiornamento è in corso, toglie _aggiornamento/
+    time.sleep(ATTESA_PULIZIA)
+    cartella = os.path.join(base_dir, CARTELLA_AGGIORNAMENTO)
+    scadenza = time.monotonic() + DURATA_PULIZIA
+    while os.path.exists(cartella) and time.monotonic() < scadenza:
+        if stato.valore('stato') in STATI_AGGIORNAMENTO_IN_CORSO:
+            return
+        shutil.rmtree(cartella, ignore_errors=True)
+        if os.path.exists(cartella):
+            time.sleep(2)
+
+def argomento(nome):
+    if nome in sys.argv:
+        indice = sys.argv.index(nome)
+        if indice + 1 < len(sys.argv):
+            return sys.argv[indice + 1]
+    return None
+
+class ServerApp(ThreadingHTTPServer):
+    # Porta esclusiva: su Windows SO_REUSEADDR lascerebbe aprire la stessa porta a due server insieme
+    allow_reuse_address = os.name != 'nt'
+
+    def server_bind(self):
+        if os.name == 'nt' and hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+def porta_occupata(e):
+    return e.errno == errno.EADDRINUSE or getattr(e, 'winerror', None) in ERRORI_PORTA_OCCUPATA
+
+def crea_server(riprova):
+    # Dopo un aggiornamento la porta può restare occupata qualche istante dal processo vecchio
+    scadenza = time.monotonic() + (ATTESA_PORTA if riprova else 0)
+    while True:
+        try:
+            return ServerApp(('127.0.0.1', PORT), CustomHandler)
+        except OSError as e:
+            if not porta_occupata(e):
+                raise
+            if time.monotonic() >= scadenza:
+                stampa_errore(f"La porta {PORT} è occupata: chiudi le altre finestre nere e avvia di nuovo start.exe.")
+                if not riprova:
+                    time.sleep(5)
+                sys.exit(1)
+            time.sleep(0.5)
+
 def open_browser(port):
     time.sleep(1.0)
     webbrowser.open(f"http://localhost:{port}")
@@ -1534,14 +1942,42 @@ def main():
     CustomHandler.librerie = librerie
     CustomHandler.max_file_cliente_mb = leggi_max_file_cliente(base_dir)
 
+    versione = leggi_versione(base_dir)
+    dopo_aggiornamento = argomento('--dopo-aggiornamento')
+    dopo_ripristino = argomento('--dopo-ripristino')
+    aggiornamento = StatoAggiornamento(base_dir, versione)
+    CustomHandler.aggiornamento = aggiornamento
+
     # Multithread: il server a thread singolo si blocca sui socket che Chrome lascia aperti;
     # le operazioni su progetti/ restano una alla volta grazie al lucchetto dell'archivio
-    httpd = ThreadingHTTPServer(('127.0.0.1', PORT), CustomHandler)
+    httpd = crea_server(riprova=bool(dopo_aggiornamento or dopo_ripristino))
 
-    stampa_avvio(leggi_versione(base_dir), f"http://localhost:{PORT}", base_dir,
+    stampa_avvio(versione, f"http://localhost:{PORT}", base_dir,
                  archivio.cartella, os.path.join(base_dir, "shared"))
 
-    threading.Thread(target=open_browser, args=(PORT,), daemon=True).start()
+    if dopo_aggiornamento:
+        stampa_info(f"Aggiornamento dalla versione {dopo_aggiornamento} completato.")
+    elif dopo_ripristino:
+        aggiornamento.errore_iniziale = f"La versione {dopo_ripristino} non è partita: ripristinata la versione precedente."
+        aggiornamento.imposta(stato='errore', motivo=aggiornamento.errore_iniziale)
+        stampa_avviso(aggiornamento.errore_iniziale)
+    # Dopo un aggiornamento la pagina già aperta si ricarica da sola: niente scheda nuova
+    if not (dopo_aggiornamento or dopo_ripristino):
+        threading.Thread(target=open_browser, args=(PORT,), daemon=True).start()
+
+    controllo, repository = leggi_impostazioni_aggiornamenti(base_dir)
+    if not controllo:
+        aggiornamento.imposta(motivo="Controllo degli aggiornamenti spento in settings.json (aggiornamenti.controllo).")
+    elif not isinstance(repository, str) or not FORMATO_REPOSITORY.match(repository):
+        aggiornamento.imposta(motivo="aggiornamenti.repository in settings.json non è nella forma proprietario/nome.")
+    elif tupla_versione(versione) is None:
+        aggiornamento.imposta(motivo=f"Versione di sviluppo ({versione}): nessun controllo degli aggiornamenti.")
+    else:
+        threading.Thread(target=controlla_aggiornamenti, args=(aggiornamento, repository), daemon=True).start()
+    if dopo_ripristino:
+        # Lo stato resta errore anche se il controllo è spento o la versione è di sviluppo
+        aggiornamento.imposta(stato='errore', motivo=aggiornamento.errore_iniziale)
+    threading.Thread(target=pulisci_cartella_aggiornamento, args=(aggiornamento, base_dir), daemon=True).start()
 
     try:
         httpd.serve_forever()

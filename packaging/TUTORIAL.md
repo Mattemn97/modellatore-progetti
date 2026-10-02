@@ -241,7 +241,18 @@ I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni 
 
 **Backup:** copia le cartelle `progetti\` e `shared\` in un posto sicuro. Contengono tutti i tuoi dati.
 
-**Aggiornare a una nuova versione:**
+**Aggiornamento automatico:**
+
+All'avvio `start.exe` controlla su GitHub se c'è una versione più recente. Se c'è, lo scrive nella finestra nera e mostra un banner azzurro in cima all'app:
+
+- **Novità** mostra cosa cambia nella nuova versione.
+- **Aggiorna e riavvia** salva il progetto, scarica la nuova versione, ne controlla l'impronta (così un file rovinato non viene mai installato) e sostituisce solo i file dell'app. `progetti\`, `shared\` e `settings.json` non vengono toccati. La finestra nera si chiude, se ne apre una nuova e la pagina si ricarica da sola con la nuova versione.
+- Se la nuova versione non parte, l'app rimette da sola quella di prima e il banner ti dice cosa è successo.
+- **Più tardi** nasconde l'avviso fino al prossimo avvio.
+
+Senza rete l'app parte come sempre, senza avvisi. Per spegnere il controllo apri `settings.json` e metti `"controllo": false` nella sezione `"aggiornamenti"`, poi riavvia `start.exe`.
+
+**Aggiornare a mano a una nuova versione** (se preferisci, o se l'aggiornamento automatico non è possibile):
 
 1. Chiudi la finestra nera.
 2. Estrai il nuovo zip **nella stessa posizione** del precedente e conferma la sovrascrittura dei file.

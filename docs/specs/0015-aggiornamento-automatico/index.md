@@ -1,7 +1,7 @@
 # 0015. Controllo e aggiornamento automatico dalle Release di GitHub
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
