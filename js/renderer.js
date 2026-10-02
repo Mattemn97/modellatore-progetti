@@ -480,6 +480,8 @@ function renderNode(node, blockDef) {
     interfacce.forEach((req, idx) => {
         const pos = getReqPerimeterPos(node, req.id, idx, interfacce.length);
         const pin = createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'cerchio');
+        // Con Shift premuto il cursore diventa quello di spostamento (spec 0011, AC-3)
+        pin.classList.add('porta-interfaccia');
         pin.addEventListener('mousedown', (e) => {
             if (e.shiftKey) {
                 e.stopPropagation();
@@ -638,15 +640,21 @@ function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
 
 /* --- COORDINATE --- */
 
-export function getCanvasCoords(e) {
+// Punto del canvas sotto il cursore, con zoom e pan tolti, senza aggancio alla griglia (spec 0011)
+export function puntoCanvas(e) {
     const rect = svg.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const gridSize = appSettings.grid.size;
-
     return {
-        x: Math.round(((mouseX - zoomState.x) / zoomState.scale) / gridSize) * gridSize,
-        y: Math.round(((mouseY - zoomState.y) / zoomState.scale) / gridSize) * gridSize
+        x: (e.clientX - rect.left - zoomState.x) / zoomState.scale,
+        y: (e.clientY - rect.top - zoomState.y) / zoomState.scale
+    };
+}
+
+export function getCanvasCoords(e) {
+    const p = puntoCanvas(e);
+    const gridSize = appSettings.grid.size;
+    return {
+        x: Math.round(p.x / gridSize) * gridSize,
+        y: Math.round(p.y / gridSize) * gridSize
     };
 }
 

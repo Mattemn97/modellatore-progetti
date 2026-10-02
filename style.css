@@ -284,3 +284,9 @@ span.segno-ramo { cursor: default; }
 .titolo-sezione-matrice { font-size: 13px; font-weight: bold; color: #333; margin: 14px 0 6px; }
 .altri-matrice { margin: 8px 0; }
 .disattivato { color: #999; cursor: not-allowed; pointer-events: auto; }
+
+/* Rifiniture dell'editor (spec 0011) */
+.aiuto-canvas { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: rgba(255, 255, 255, 0.92); border: 1px solid #ddd; border-radius: 4px; font-size: 11px; color: #555; pointer-events: none; z-index: 5; box-sizing: border-box; }
+.aiuto-canvas[hidden] { display: none; }
+.aiuto-canvas button { pointer-events: auto; border: none; background: none; cursor: pointer; font-size: 12px; color: #777; padding: 0 2px; }
+.shift-premuto .porta-interfaccia { cursor: move; }
