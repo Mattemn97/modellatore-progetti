@@ -12,6 +12,7 @@ import posixpath
 import time
 import getpass
 import hashlib
+import shutil
 import threading
 import webbrowser
 from datetime import datetime
@@ -20,6 +21,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 
 PORT = 8080
+
+# Percorsi dell'utente, relativi alla cartella dell'app (vedi docs/specs/0013-protezione-dati-aggiornamenti):
+# nessun aggiornamento può scriverli, spostarli o cancellarli. crea-pacchetto.ps1 legge questa riga
+# e si ferma se il pacchetto contiene uno di questi file o un file dentro una di queste cartelle.
+PERCORSI_UTENTE = ('progetti', 'shared', 'settings.json')
+FILE_IMPOSTAZIONI = 'settings.json'
+FILE_IMPOSTAZIONI_PREDEFINITE = 'settings.predefinite.json'
 
 # Limiti e formati dell'API dei progetti (vedi docs/specs/0001-salvataggio-automatico-progetto)
 MAX_CORPO = 50 * 1024 * 1024
@@ -62,6 +70,21 @@ def get_base_dir():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
+
+def prepara_impostazioni(base_dir):
+    # Crea settings.json dai valori di fabbrica solo se manca: un settings.json esistente
+    # (anche non valido) non si scrive, non si sposta e non si cancella mai
+    percorso = os.path.join(base_dir, FILE_IMPOSTAZIONI)
+    predefinite = os.path.join(base_dir, FILE_IMPOSTAZIONI_PREDEFINITE)
+    if os.path.exists(percorso) or not os.path.isfile(predefinite):
+        return False
+    try:
+        shutil.copyfile(predefinite, percorso)
+    except OSError as e:
+        print(f"Impossibile creare settings.json: {e}")
+        return False
+    print("Impostazioni create da settings.predefinite.json")
+    return True
 
 def ensure_shared_library(base_dir):
     # Crea automaticamente la cartella 'shared' e una libreria di prova se assenti
@@ -1369,6 +1392,8 @@ def main():
     base_dir = get_base_dir()
     os.chdir(base_dir)
 
+    # Prima di ogni lettura delle impostazioni
+    prepara_impostazioni(base_dir)
     ensure_shared_library(base_dir)
 
     archivio = ArchivioProgetti(base_dir, leggi_max_versioni(base_dir, "progetti"))

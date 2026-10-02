@@ -21,7 +21,7 @@ L'app non si installa: è una cartella che estrai e usi. Non servono diritti di 
    |---|---|
    | `start.exe` | Il programma da avviare (un piccolo server locale) |
    | `index.html`, `style.css`, `js\` | L'app vera e propria, che si apre nel browser |
-   | `settings.json` | Le impostazioni (colori, tipologie, documenti…) |
+   | `settings.predefinite.json` | Le impostazioni di fabbrica (colori, tipologie, documenti…). Al primo avvio diventano `settings.json`, il file che puoi modificare |
    | `progetti\` | Qui finiscono i tuoi progetti |
    | `shared\` | Qui finiscono le librerie dei blocchi |
    | `esempi\` | Un file di requisiti cliente da usare in questo tutorial |
@@ -244,10 +244,13 @@ I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni 
 **Aggiornare a una nuova versione:**
 
 1. Chiudi la finestra nera.
-2. Se avevi modificato `settings.json`, salvane una copia.
-3. Estrai il nuovo zip **nella stessa posizione** del precedente e conferma la sovrascrittura dei file.
+2. Estrai il nuovo zip **nella stessa posizione** del precedente e conferma la sovrascrittura dei file.
 
-I tuoi progetti e le tue librerie non vengono toccati: lo zip contiene `progetti\` e `shared\` vuote, quindi non sovrascrive nulla al loro interno.
+Un aggiornamento non tocca mai il tuo lavoro: `progetti\`, `shared\` e `settings.json` non sono nello zip, quindi non vengono sovrascritti né cancellati. Vengono sostituiti solo i file dell'app.
+
+- `settings.predefinite.json` contiene le impostazioni di fabbrica della nuova versione. Se cancelli `settings.json`, al prossimo avvio l'app lo ricrea da lì (utile per tornare ai valori di fabbrica).
+- I file di `esempi\` vengono sovrascritti a ogni aggiornamento: se vuoi modificarli, copiali prima in un'altra cartella.
+- La protezione vale solo se estrai sopra la cartella esistente. Se cancelli la cartella e la estrai da capo, i dati se ne vanno con lei: tieni sempre un backup di `progetti\` e `shared\`.
 
 ---
 
