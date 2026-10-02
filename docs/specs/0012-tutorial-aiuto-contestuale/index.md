@@ -24,7 +24,7 @@ L'app ha molte aree e molti campi con un significato preciso (tipologia, metodo 
 - **AC-7**: Il riflettore e il fumetto seguono l'area quando la finestra del browser cambia dimensione o l'area scorre.
 - **AC-8**: Le finestre Matrice, Documenti e Import cliente hanno un pulsante `❓` nella testata, accanto al ✕; il pannello Filtri ne ha uno in alto. Il `❓` avvia il mini tour di quella finestra (Matrice: filtri, conteggi, tabella, export · Documenti: scelta del documento, riepilogo, anteprima, export · Import cliente: file, foglio e riga di intestazione, mappatura delle colonne, modalità, anteprima, conferma · Filtri: gruppi, Attenua o Nascondi, Azzera). Nei mini tour un passo la cui area non c'è in quel momento viene saltato e il conteggio `Passo N di M` conta solo i passi presenti. I mini tour non toccano `modellatore.tourVisto`. Chiuso il mini tour, la finestra resta aperta com'era.
 - **AC-9**: Accanto a ogni campo elencato nell'inventario (sezione *Inventario delle (i)*) c'è un'icona (i) piccola e rotonda. Passando il mouse sopra l'icona, dopo circa 300 ms, compare un suggerimento con il testo di quel campo; con Tab l'icona prende il fuoco e il suggerimento compare subito. Uscendo con il mouse, perdendo il fuoco, premendo Esc, scorrendo o cliccando altrove il suggerimento sparisce. Il suggerimento resta dentro la finestra del browser (sopra l'icona se c'è spazio, altrimenti sotto, spostato in orizzontale per non uscire dai bordi).
-- **AC-10**: I pulsanti elencati nell'inventario mostrano lo stesso suggerimento ricco passandoci sopra o con il fuoco, senza (i); il loro vecchio attributo `title` viene tolto, così non compaiono due suggerimenti insieme.
+- **AC-10**: I pulsanti elencati nell'inventario mostrano lo stesso suggerimento ricco passandoci sopra o con il fuoco, senza (i); il loro vecchio attributo `title` viene tolto, così non compaiono due suggerimenti insieme. Se un pulsante ha un motivo di stato (perché è disabilitato: sola lettura, conflitto, salvataggio in corso, non è sul canvas), il motivo compare come riga in più in fondo al suggerimento.
 - **AC-11**: Le (i) compaiono anche nei contenuti ridisegnati dal codice (ispettore, dettaglio cliente, dettaglio collegamento, import cliente, Filtri, Changelog) ogni volta che vengono ridisegnati, e il suggerimento funziona senza registrare ascoltatori nuovi a ogni ridisegno.
 - **AC-12**: La voce `Mostra le (i)` toglie o rimette tutte le icone (i) in tutta l'app, anche in quelle disegnate dopo; la scelta resta per quel browser (`modellatore.iconeAiutoNascoste = '1'` quando nascoste). I suggerimenti dei pulsanti (AC-10) restano sempre attivi.
 - **AC-13**: Ogni chiave usata da una (i), da un pulsante o da un passo di tour esiste in `js/aiuto-testi.js`; una chiave mancante non rompe nulla (nessun suggerimento, un `console.warn` con la chiave). I testi sono in italiano, spiegano cosa rappresenta il campo e, dove serve, l'effetto (per esempio "Tipologia: con una tipologia il requisito è di interfaccia, porta sul bordo; vuota è di capacità, pin quadrato interno").
@@ -38,7 +38,8 @@ L'app ha molte aree e molti campi con un significato preciso (tipologia, metodo 
 - **Un solo elemento suggerimento** `#suggerimento` (`role="tooltip"`) creato una volta e riposizionato; il trigger riceve `aria-describedby="suggerimento"` mentre è visibile. Scartato: un suggerimento CSS puro per ogni icona (non si sposta ai bordi, non funziona bene dentro i pannelli che tagliano l'overflow).
 - **Delega degli eventi**: `mouseover`, `mouseout`, `focusin`, `focusout` sul `document` cercano `closest('[data-aiuto]')`. Così il contenuto rifatto con `innerHTML` funziona da solo (AC-11). Scartato: ascoltatori a ogni ridisegno (si moltiplicano e si perdono).
 - **Icona**: `iconaAiuto(chiave)` esportata da `aiuto.js` restituisce `<span class="icona-aiuto" data-aiuto="chiave" tabindex="0" role="button" aria-label="Informazioni: <titolo>">i</span>`; nell'HTML statico lo stesso markup scritto a mano. Per nasconderle: classe `senza-icone-aiuto` sul `body` e CSS `.senza-icone-aiuto .icona-aiuto { display: none; }` (vale anche per il contenuto disegnato dopo, AC-12).
-- **Pulsanti**: `data-aiuto` direttamente sul pulsante, nessuna icona; il `title` viene tolto dall'HTML e dai template (AC-10). I pulsanti che cambiano `title` a runtime (`btnTogliCliente`) passano a una chiave scelta dal codice nello stesso punto.
+- **Pulsanti**: `data-aiuto` direttamente sul pulsante, nessuna icona; il `title` viene tolto dall'HTML e dai template (AC-10).
+- **Motivi di stato** (aggiornato il 2026-10-02, dopo la verifica): il codice che oggi scrive il motivo nel `title` (`aggiornaPannelloLibreria()` e `aggiornaPulsantiLibreria()` in `libreria.js`, `aggiornaPulsantiCliente()` in `cliente.js`, il badge in `progetto.js`, `btnTogliCliente` in `inspector.js`) lo scrive invece in `data-titolo-nativo`, vuoto quando non c'è un motivo. Il suggerimento mostra prima la voce di `SUGGERIMENTI`, poi il motivo (se non vuoto e diverso dal testo) in una riga in più. Come rete di sicurezza, `aiuto.js` sposta in `data-titolo-nativo` anche un `title` rimasto su un elemento con `data-aiuto`, al primo passaggio del mouse o del fuoco. Chrome invia `mouseover` anche ai pulsanti disabilitati, quindi il motivo resta leggibile. Scartato: una chiave di testo diversa per ogni stato (moltiplica le voci e separa il motivo dal codice che lo calcola).
 - **Riflettore**: un `div` `#tourRiflettore` posizionato sul rettangolo dell'area (più 6 px di margine) con `box-shadow: 0 0 0 9999px rgba(0,0,0,.55)` e bordi arrotondati, sotto il fumetto, dentro un `#tourOverlay` fisso a tutto schermo che intercetta i clic (AC-4). Scartato: maschera SVG con un buco (più codice, stesso effetto).
 - **Posizione del fumetto**: prova destra, sinistra, sotto, sopra dell'area, sceglie il primo lato dove entra tutto, altrimenti quello con più spazio, poi lo stringe dentro la finestra con 8 px di margine (AC-3). Ricalcolo su `resize` e su `scroll` in fase di cattura (AC-7).
 - **Tastiera**: un ascoltatore `keydown` su `window` in fase di cattura, attivo solo durante il tour, che gestisce i tasti e chiama `stopPropagation()`; in più `modaleAperta()` di `progetto.js` restituisce `true` mentre il tour è aperto, così Ctrl+Z e l'Esc della Gerarchia restano fermi anche se un evento passasse (AC-4).
@@ -73,6 +74,7 @@ Forma dei dati in `js/aiuto-testi.js`:
 | Azione | Valore | Sorgente |
 |---|---|---|
 | Suggerimento | titolo e testo | `SUGGERIMENTI[el.dataset.aiuto]` |
+| Suggerimento | motivo di stato | `el.dataset.titoloNativo`, scritto dal codice che calcola il motivo |
 | Suggerimento | posizione | `getBoundingClientRect()` del trigger e `window.innerWidth/innerHeight` |
 | Passo | area | `document.querySelector(passo.area)` al momento del passo |
 | Passo | `N di M` | indice nella lista dei passi del tour (nei mini tour, dopo il filtro dei passi presenti) |
@@ -113,6 +115,7 @@ Forma dei dati in `js/aiuto-testi.js`:
 - Durante il tour: clic sul canvas e Ctrl+Z non cambiano il modello; Esc chiude solo il tour (una scelta della Gerarchia resta). Verifica **AC-4**.
 - Hover sulla (i) di Tipologia in un blocco aperto: dopo circa 300 ms compare il testo; Tab fino all'icona: compare subito; Esc la chiude. Aggiungo un requisito (ridisegno): la (i) funziona ancora. Verifica **AC-9**, **AC-11**.
 - Menu ❓ → togli la spunta: nessuna `.icona-aiuto` visibile, anche dopo aver aperto un altro blocco; ricarica: ancora nascoste; il pulsante Gerarchia mostra ancora il suo suggerimento e non ha `title`. Verifica **AC-10**, **AC-12**.
+- Requisito cliente non sul canvas, hover su Togli dal canvas (disabilitato): il suggerimento ha la riga in più "Non è sul canvas". Verifica **AC-10**.
 - Matrice aperta, ❓: mini tour sui passi presenti, alla chiusura la Matrice è ancora aperta; Import cliente aperto prima di scegliere un file: i passi senza area sono saltati e il conteggio è giusto. Verifica **AC-8**.
 - Script che raccoglie ogni `data-aiuto` del DOM in ogni superficie e ogni `area` dei tour: tutte le chiavi esistono in `SUGGERIMENTI` e nessun `console.warn`. Verifica **AC-13**.
 
@@ -139,7 +142,7 @@ Tracer Bullet: prima un filo completo e sottile (menu, una (i), un tour corto) d
 
 **Neutral**:
 - Cambia `modaleAperta()` (ora include il tour) e `rigaDettaglio()` (parametro facoltativo).
-- I `title` dei pulsanti dell'inventario spariscono a favore del suggerimento ricco.
+- I `title` dei pulsanti dell'inventario spariscono a favore del suggerimento ricco; i motivi di stato passano in `data-titolo-nativo`.
 
 ## Follow-up
 
