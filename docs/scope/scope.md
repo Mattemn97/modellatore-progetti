@@ -18,8 +18,8 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 2 | Libreria su disco con changelog | Foundation | done |
 | 3 | Import requisiti cliente | Slice 1 | done |
 | 4 | Controllo di coerenza | Slice 2 | done |
-| 5 | Gerarchia dei requisiti | Slice 3 | in-progress |
-| 6 | Matrice di tracciabilità | Slice 3 | in-progress |
+| 5 | Gerarchia dei requisiti | Slice 3 | done |
+| 6 | Matrice di tracciabilità | Slice 3 | done |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | done |
 | 8 | Filtri avanzati | Slice 4 | planned |
 | 9 | Ispettore dei collegamenti | Slice 4 | planned |
@@ -96,7 +96,7 @@ spec [0004](../specs/0004-controllo-coerenza/index.md) · code in `js/coerenza.j
 
 ## Slice 3: Tracciabilità ed export
 
-### 5. Gerarchia dei requisiti · in-progress
+### 5. Gerarchia dei requisiti · done
 Ricostruisce l'albero dei requisiti dal cliente fino ai livelli più bassi, attraversando i blocchi annidati, e lo mostra: scegli un requisito e vedi i suoi antenati e discendenti. Un blocco di libreria usato più volte dà rami separati: l'unità è l'occorrenza (requisito più percorso dell'istanza).
 **Done when:** scelto un requisito vedi la catena completa padre → figli su tutti i livelli, e sul canvas si evidenziano i fili coinvolti.
 spec [0005](../specs/0005-gerarchia-requisiti/index.md) · code in `js/gerarchia.js`, `js/model.js`, `js/coerenza.js`, `js/renderer.js`, `js/inspector.js`, `js/cliente.js`, `js/progetto.js`
@@ -108,7 +108,7 @@ spec [0005](../specs/0005-gerarchia-requisiti/index.md) · code in `js/gerarchia
   - [x] Navigazione e ciclo della scelta: righe, dettaglio cliente, ✕ ed Esc, scelta sparita, rinomina, cambio progetto (AC-3, AC-9, AC-12, AC-13)
 - [x] Verify it: `/check verify gerarchia dei requisiti`
 
-### 6. Matrice di tracciabilità · in-progress
+### 6. Matrice di tracciabilità · done
 Tabella padre → figli con i documenti di ciascun lato, a video (pulsante Matrice Requisiti) ed esportabile in Markdown, filtrabile per documento.
 **Done when:** la matrice elenca ogni derivazione con id, titolo e documenti di padre e figlio, segnala i padri senza figli, ed è esportabile in `.md`.
 spec [0006](../specs/0006-matrice-tracciabilita/index.md) · code in `js/matrice.js`, `js/gerarchia.js`, `js/progetto.js`, `js/libreria.js`, `js/storage.js`, `index.html`

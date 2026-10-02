@@ -1,7 +1,7 @@
 # 0005. Gerarchia dei requisiti per istanza, in una scheda e sul canvas
 
 **Date**: 2026-10-01
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

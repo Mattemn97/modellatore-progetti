@@ -1,7 +1,7 @@
 # 0006. Matrice di tracciabilità per id, raggruppata per padre, con export Markdown
 
 **Date**: 2026-10-01
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
