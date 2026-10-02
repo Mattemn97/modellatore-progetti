@@ -21,7 +21,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 5 | Gerarchia dei requisiti | Slice 3 | done |
 | 6 | Matrice di tracciabilità | Slice 3 | done |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | done |
-| 8 | Filtri avanzati | Slice 4 | in-progress |
+| 8 | Filtri avanzati | Slice 4 | done |
 | 9 | Ispettore dei collegamenti | Slice 4 | planned |
 | 10 | Gestione completa della libreria | Slice 4 | planned |
 | 11 | Rifiniture dell'editor | Slice 4 | planned |
@@ -135,17 +135,17 @@ spec [0007](../specs/0007-export-documenti-mil-std-498/index.md) · code in `js/
 
 ## Slice 4: Editor rifinito
 
-### 8. Filtri avanzati · in-progress
+### 8. Filtri avanzati · done
 Filtri su categoria, sottocategoria, documento e classe (capacità o tipologia di interfaccia), applicati a blocchi e fili, combinabili.
 **Done when:** puoi combinare più filtri, blocchi e fili esclusi si attenuano o si nascondono, e i filtri restano attivi quando entri o esci da un blocco.
-spec [0008](../specs/0008-filtri-avanzati/index.md)
+spec [0008](../specs/0008-filtri-avanzati/index.md) · code in `js/filtri.js`, `js/renderer.js`, `js/coerenza.js`, `js/builder.js`, `index.html`
 - [x] Design it (spec): `/architect filtri avanzati`
-- [ ] Build it: `/develop filtri avanzati`
-  - [ ] Filo minimo: pannello con Classe e Attenua al posto del filtro di oggi, Coerenza sulla classe (AC-1, AC-3, AC-5, AC-6, AC-7)
-  - [ ] Tutti i gruppi: Documento, Categoria, Sottocategoria, Azzera (AC-2, AC-3, AC-4)
-  - [ ] Nascondi, riepilogo e catena della Gerarchia (AC-6, AC-7, AC-8, AC-10, AC-11)
-  - [ ] Persistenza tra livelli e riallineamento alla libreria (AC-9)
-- [ ] Verify it: `/check verify filtri avanzati`
+- [x] Build it: `/develop filtri avanzati`
+  - [x] Filo minimo: pannello con Classe e Attenua al posto del filtro di oggi, Coerenza sulla classe (AC-1, AC-3, AC-5, AC-6, AC-7)
+  - [x] Tutti i gruppi: Documento, Categoria, Sottocategoria, Azzera (AC-2, AC-3, AC-4)
+  - [x] Nascondi, riepilogo e catena della Gerarchia (AC-6, AC-7, AC-8, AC-10, AC-11)
+  - [x] Persistenza tra livelli e riallineamento alla libreria (AC-9)
+- [x] Verify it: `/check verify filtri avanzati`
 
 ### 9. Ispettore dei collegamenti
 Clic su un filo: nel pannello a destra vedi i due requisiti collegati, la loro classe, il tipo di relazione (derivazione o collegamento tra blocchi) e puoi eliminarlo.

@@ -1,7 +1,7 @@
 # 0008. Filtri avanzati del canvas: classe, documento, categoria e sottocategoria, combinabili, con attenua o nascondi
 
 **Date**: 2026-10-02
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
