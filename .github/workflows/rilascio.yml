@@ -92,7 +92,7 @@ jobs:
             $avvio = Get-Content "dist/avvio.txt" -Raw -Encoding utf8
             Write-Host $avvio
             if (-not $avvio.Contains("http://localhost:8080")) { throw "L'uscita di start.exe non contiene il link dell'app" }
-            if (-not $avvio.Contains([string][char]0x256D)) { throw "L'uscita di start.exe non ha il riquadro di rich" }
+            if (-not $avvio.Contains([string][char]0x2502)) { throw "L'uscita di start.exe non ha il riquadro di rich" }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - uses: actions/upload-artifact@v4

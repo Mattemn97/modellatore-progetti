@@ -35,9 +35,21 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.markup import escape as escape_markup
-    CONSOLE = Console(highlight=False)
 except Exception:
-    CONSOLE = None
+    Console = None
+
+def crea_console(**opzioni):
+    # Con NO_COLOR nessuna sequenza di escape, nemmeno grassetto e attenuato
+    if Console is None:
+        return None
+    try:
+        if os.environ.get('NO_COLOR'):
+            opzioni.setdefault('color_system', None)
+        return Console(highlight=False, **opzioni)
+    except Exception:
+        return None
+
+CONSOLE = crea_console()
 
 VERSIONE_SVILUPPO = 'sviluppo'
 RIGA_CHIUDI = "Chiudi questa finestra per fermare il server."
@@ -80,19 +92,30 @@ def leggi_versione(base_dir):
 def stampa_avvio(versione, url, base_dir, cartella_progetti, cartella_librerie):
     righe = [("Versione:", versione), ("Apri l'app:", url), ("Cartella dell'app:", base_dir),
              ("Progetti:", cartella_progetti), ("Librerie:", cartella_librerie)]
+    larghezza_etichette = max(len(e) for e, _ in righe)
     if CONSOLE is not None:
         try:
-            griglia = Table.grid(padding=(0, 2))
-            griglia.add_column(style='dim', no_wrap=True)
-            # Valori mai spezzati: l'URL resta intero anche con l'uscita rediretta a 80 colonne
-            griglia.add_column(no_wrap=True, overflow='ignore')
-            for etichetta, valore in righe:
-                if valore == url:
-                    griglia.add_row(etichetta, f"[bold cyan][link={url}]{url}[/link][/bold cyan]")
-                else:
-                    griglia.add_row(etichetta, escape_markup(str(valore)))
-            CONSOLE.print(Panel.fit(griglia, title="[bold]Modellatore MBSE[/bold]", border_style='cyan', padding=(1, 2)))
-            CONSOLE.print(RIGA_CHIUDI, style='dim')
+            # Riquadro solo se la riga del link ci sta intera: etichetta, spazio, URL, bordi e margini
+            if CONSOLE.width >= larghezza_etichette + 2 + len(url) + 6:
+                griglia = Table.grid(padding=(0, 2))
+                # Etichette sempre intere; i percorsi lunghi vanno a capo dentro la loro colonna
+                griglia.add_column(style='dim', no_wrap=True, min_width=larghezza_etichette)
+                griglia.add_column(overflow='fold')
+                for etichetta, valore in righe:
+                    if valore == url:
+                        griglia.add_row(etichetta, f"[bold cyan][link={url}]{url}[/link][/bold cyan]")
+                    else:
+                        griglia.add_row(etichetta, escape_markup(str(valore)))
+                CONSOLE.print(Panel.fit(griglia, title="[bold]Modellatore MBSE[/bold]", border_style='cyan', padding=(1, 2)))
+            else:
+                # Finestra troppo stretta: righe libere, che il terminale manda a capo senza tagliarle
+                CONSOLE.print("Modellatore MBSE", style='bold cyan', soft_wrap=True)
+                for etichetta, valore in righe:
+                    if valore == url:
+                        CONSOLE.print(f"[dim]{etichetta}[/dim] [bold cyan][link={url}]{url}[/link][/bold cyan]", soft_wrap=True)
+                    else:
+                        CONSOLE.print(f"[dim]{etichetta}[/dim] {escape_markup(str(valore))}", soft_wrap=True)
+            CONSOLE.print(RIGA_CHIUDI, style='dim', soft_wrap=True)
             CONSOLE.file.flush()
             return
         except Exception:

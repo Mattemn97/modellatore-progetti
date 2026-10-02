@@ -1,7 +1,7 @@
 # 0014. Console del server più leggibile con rich
 
 **Date**: 2026-10-02
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
@@ -15,13 +15,13 @@ La finestra nera che si apre con `start.exe` diventa chiara a colpo d'occhio: un
 
 **Acceptance criteria**:
 - **AC-1**: Con `rich` disponibile, all'avvio la console mostra un riquadro con titolo `Modellatore MBSE` e cinque righe etichetta e valore, nell'ordine e con queste etichette: `Versione:`, `Apri l'app:` (il link, in grassetto colorato e come collegamento cliccabile OSC 8 dove il terminale lo supporta), `Cartella dell'app:`, `Progetti:`, `Librerie:` (la cartella `shared/`). Sotto il riquadro: `Chiudi questa finestra per fermare il server.`
-- **AC-2**: Il link è sempre scritto per intero come testo (`http://localhost:<PORT>`) su una sola riga, mai spezzato dall'a capo automatico (colonna dei valori con `no_wrap=True` e `overflow="ignore"`), così si legge e si copia anche dove il collegamento cliccabile non funziona e quando l'uscita è rediretta.
+- **AC-2**: Il link è sempre scritto per intero come testo (`http://localhost:<PORT>`) su una sola riga, mai tagliato né spezzato, così si legge e si copia anche dove il collegamento cliccabile non funziona e quando l'uscita è rediretta. Le etichette sono sempre intere (colonna con larghezza minima); i percorsi lunghi vanno a capo dentro la loro colonna. Se la finestra è più stretta della riga del link (etichette, spazio, URL, bordi e margini), al posto del riquadro escono righe libere `<etichetta> <valore>` che il terminale manda a capo senza tagliarle.
 - **AC-3**: Senza `rich` (import fallito, o errore nel creare la console), `start.py` parte comunque e scrive in testo semplice: una riga di 55 `=`, ` Modellatore MBSE`, poi le cinque righe dell'AC-1 nella forma ` <etichetta> <valore>`, la riga ` Chiudi questa finestra per fermare il server.` e un'altra riga di `=`. Se una stampa con `rich` fallisce (per esempio un carattere non codificabile), la stessa informazione esce in testo semplice e l'avvio continua.
 - **AC-4**: Con la variabile d'ambiente `NO_COLOR` impostata, o con l'uscita rediretta su file o pipe, la console non contiene sequenze di escape ANSI (`[`), ma contiene tutte le informazioni dell'AC-1. Con l'uscita rediretta `start.py` la riconfigura in UTF-8 con `errors="replace"` (`sys.stdout.reconfigure`, solo se `not sys.stdout.isatty()`), così i bordi del riquadro e le lettere accentate non fanno fallire l'avvio, e dopo il riquadro svuota il buffer (`flush`), così chi legge l'uscita la trova subito.
 - **AC-5**: La versione è il contenuto di `VERSIONE.txt` nella cartella dell'app, senza spazi ai bordi; se il file manca o è vuoto la versione è `sviluppo`. La legge `leggi_versione(base_dir)` in `start.py`.
 - **AC-6**: `start.py` ha `stampa_avviso(testo)` (giallo, prefisso `Attenzione:`) e `stampa_errore(testo)` (rosso, prefisso `Errore:`); senza `rich` scrivono lo stesso prefisso in testo semplice. I messaggi di oggi passano da lì: `Impossibile creare settings.json: …` è un errore; `Impostazioni create da settings.predefinite.json` è una riga informativa (`stampa_info`, testo semplice attenuato). Tutte le funzioni di stampa si possono chiamare anche prima di `main()`: la console `rich` si crea all'import del modulo, dentro un `try`.
 - **AC-7**: Le richieste del browser riuscite (codice sotto 400) non scrivono più una riga in console. Le richieste con codice 400 o più scrivono una sola riga attenuata `<METODO> <percorso> → <codice>`, tranne `GET /favicon.ico` con 404. `log_error` ignora i messaggi che `send_error` genera (quelli che iniziano con `code `, già coperti dalla riga di `log_request`) e passa gli altri (per esempio un timeout) a `stampa_errore`; `log_message` passa da `stampa_info`.
-- **AC-8**: `requirements.txt` nella radice contiene esattamente `pyinstaller==6.22.3` e `rich==14.3.2`; il passo del workflow di rilascio che oggi installa PyInstaller diventa `python -m pip install -r requirements.txt`; `start.spec` include i sottomoduli caricati al volo da `rich` (`hiddenimports=collect_submodules('rich._unicode_data')`). La prova di avvio nel workflow avvia `start.exe` con l'uscita rediretta su file e, dopo la risposta HTTP 200, controlla che il file (letto in UTF-8) contenga `http://localhost:8080` e il bordo del riquadro `╭` (prova che l'exe usa davvero `rich` e non la riserva in testo semplice). La versione nel riquadro dell'exe viene da `VERSIONE.txt`, che `crea-pacchetto.ps1` scrive già con il parametro `-Versione`.
+- **AC-8**: `requirements.txt` nella radice contiene esattamente `pyinstaller==6.22.3` e `rich==14.3.2`; il passo del workflow di rilascio che oggi installa PyInstaller diventa `python -m pip install -r requirements.txt`; `start.spec` include i sottomoduli caricati al volo da `rich` (`hiddenimports=collect_submodules('rich._unicode_data')`). La prova di avvio nel workflow avvia `start.exe` con l'uscita rediretta su file e, dopo la risposta HTTP 200, controlla che il file (letto in UTF-8) contenga `http://localhost:8080` e il bordo verticale del riquadro `│` (rich lo disegna sia con gli angoli arrotondati di un terminale moderno sia con quelli squadrati della modalità Windows classica; prova che l'exe usa davvero `rich` e non la riserva in testo semplice). La versione nel riquadro dell'exe viene da `VERSIONE.txt`, che `crea-pacchetto.ps1` scrive già con il parametro `-Versione`.
 
 ## Decision
 
@@ -88,7 +88,7 @@ Ragionamento e opzioni: vedi [rationale.md](rationale.md).
 
 1. `leggi_versione`, funzioni di stampa con import facoltativo di `rich` e riserva in testo semplice, riconfigurazione UTF-8 dell'uscita rediretta, riquadro di avvio al posto delle righe di `=`, messaggi delle impostazioni sulle nuove funzioni. Satisfies **AC-1**, **AC-2**, **AC-3**, **AC-4**, **AC-5**, **AC-6**.
 2. Log delle richieste filtrato nel gestore. Satisfies **AC-7**.
-3. `requirements.txt`, `hiddenimports` in `start.spec`, workflow che installa da lì e controlla l'uscita di `start.exe` (URL e bordo `╭`), exe ricostruito e provato. Satisfies **AC-8**.
+3. `requirements.txt`, `hiddenimports` in `start.spec`, workflow che installa da lì e controlla l'uscita di `start.exe` (URL e bordo `│`), exe ricostruito e provato. Satisfies **AC-8**.
 
 ## Consequences
 
