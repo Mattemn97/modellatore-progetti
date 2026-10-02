@@ -1,7 +1,7 @@
 /* --- MOTORE DI RENDERING, ZOOM/PAN, BLOCCHI TONDI DEL PADRE E COLLEGAMENTI --- */
 
 import { appState, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId, appSettings } from './state.js';
-import { selectNode, mostraDettaglioCliente } from './inspector.js';
+import { selectNode, mostraDettaglioCliente, mostraDettaglioCollegamento, aggiornaDettaglioCollegamento, chiudiDettaglioCollegamento } from './inspector.js';
 import { renderUI } from './app.js';
 import { pianificaSalvataggio } from './progetto.js';
 import { segnaSchedaClienteDaAggiornare } from './cliente.js';
@@ -38,6 +38,69 @@ let startPan = { x: 0, y: 0 };
 
 // Requisito cliente evidenziato sul canvas dal dettaglio nell'ispettore
 let idClienteEvidenziato = null;
+
+/* --- FILO SELEZIONATO (spec 0009): per id, mai per oggetto --- */
+
+// { percorso: id dei livelli aperti uniti da '/', edgeId }
+let filoSelezionato = null;
+let dettaglioFiloRichiesto = false;
+
+function percorsoLivello() {
+    return pathStack.map(l => l.id).join('/');
+}
+
+export function filoSelezionatoId() {
+    return filoSelezionato && filoSelezionato.percorso === percorsoLivello() ? filoSelezionato.edgeId : null;
+}
+
+// Restituisce vero se cera un filo selezionato (chi chiama decide se ridisegnare)
+export function togliSelezioneFilo() {
+    const cera = filoSelezionato !== null;
+    filoSelezionato = null;
+    return cera;
+}
+
+export function selezionaFilo(edgeId) {
+    const edge = getCurrentLevel().graph.edges.find(e => e.id === edgeId);
+    if (!edge) return;
+    filoSelezionato = { percorso: percorsoLivello(), edgeId };
+    setActiveNodeId(null);
+    evidenziaCliente(null);
+    mostraDettaglioCollegamento(edge);
+    render();
+}
+
+// Toglie un filo dal livello: usata dal clic destro e dal pulsante dell'ispettore
+export function eliminaFilo(graph, edgeId) {
+    graph.edges = graph.edges.filter(e => e.id !== edgeId);
+    if (filoSelezionato?.edgeId === edgeId) {
+        filoSelezionato = null;
+        chiudiDettaglioCollegamento(edgeId);
+    }
+    render();
+}
+
+// A ogni disegno: un filo sparito (Annulla, Ricarica, cambio livello) si deseleziona; altrimenti il dettaglio si
+// riallinea al più una volta per fotogramma (AC-6)
+function risolviFiloSelezionato(graph) {
+    if (!filoSelezionato) return;
+    const id = filoSelezionatoId();
+    const edge = id ? graph.edges.find(e => e.id === id) : null;
+    if (!edge) {
+        const vecchio = filoSelezionato.edgeId;
+        filoSelezionato = null;
+        chiudiDettaglioCollegamento(vecchio);
+        return;
+    }
+    if (dettaglioFiloRichiesto) return;
+    dettaglioFiloRichiesto = true;
+    requestAnimationFrame(() => {
+        dettaglioFiloRichiesto = false;
+        const idOra = filoSelezionatoId();
+        const edgeOra = idOra ? getCurrentLevel().graph.edges.find(e => e.id === idOra) : null;
+        if (edgeOra) aggiornaDettaglioCollegamento(edgeOra);
+    });
+}
 
 export function evidenziaCliente(id) {
     idClienteEvidenziato = id;
@@ -89,8 +152,23 @@ svg.addEventListener('wheel', (e) => {
     updateViewportTransform();
 });
 
+// Clic sullo sfondo senza spostarsi: toglie la selezione del filo (il pan non la toglie)
+let premutoSfondo = null;
+
+svg.addEventListener('mouseup', (e) => {
+    const p = premutoSfondo;
+    premutoSfondo = null;
+    if (!p || !filoSelezionato) return;
+    if (Math.abs(e.clientX - p.x) > 3 || Math.abs(e.clientY - p.y) > 3) return;
+    const vecchio = filoSelezionato.edgeId;
+    filoSelezionato = null;
+    chiudiDettaglioCollegamento(vecchio);
+    render();
+});
+
 svg.addEventListener('mousedown', (e) => {
     if (e.button === 1 || e.target === svg || e.target.id === 'gridBackground') { // Tasto centrale o sfondo
+        if (e.button === 0) premutoSfondo = { x: e.clientX, y: e.clientY };
         isPanning = true;
         startPan = { x: e.clientX - zoomState.x, y: e.clientY - zoomState.y };
         svg.style.cursor = 'grabbing';
@@ -126,6 +204,21 @@ function trovaRequisito(ownerId, reqId, ownerType) {
     if (ownerType === 'parent') return requisitoPadre(tipoPadreCorrente(), reqId);
     const tipo = getCurrentLevel().graph.nodes.find(n => n.id === ownerId)?.type;
     return getBlockDef(tipo)?.requisiti.find(r => r.id === reqId) || null;
+}
+
+// Estremo di un filo del livello corrente per l'ispettore dei collegamenti (spec 0009): requisito, nodo e definizione,
+// o mancante. I campi ownerId, reqId, ownerType servono a verificaCompatibilita()
+export function descriviEstremo(ownerId, reqId, ownerType) {
+    const base = { ownerId, reqId, ownerType };
+    if (ownerType === 'parent') {
+        const parentNode = getCurrentLevel().parentNode || null;
+        const req = requisitoPadre(tipoPadreCorrente(), reqId);
+        return req ? { ...base, req, tondo: true, cliente: !parentNode, parentNode } : { ...base, mancante: true };
+    }
+    const nodo = getCurrentLevel().graph.nodes.find(n => n.id === ownerId) || null;
+    const def = nodo ? getBlockDef(nodo.type) : null;
+    const req = def?.requisiti.find(r => r.id === reqId) || null;
+    return req ? { ...base, req, nodo, def, tondo: false, cliente: false } : { ...base, mancante: true };
 }
 
 /* --- FILTRI (spec 0008): COSA È INCLUSO NEL LIVELLO --- */
@@ -186,6 +279,8 @@ export function render() {
     nodesLayer.innerHTML = '';
     edgesLayer.innerHTML = '';
     parentLayer.innerHTML = '';
+
+    risolviFiloSelezionato(currentGraph);
 
     // FILTRI: inclusi del livello, poi cosa si disegna (spec 0008, AC-5, AC-6, AC-11)
     inclusi = calcolaInclusi(currentGraph, currentLevel.parentNode);
@@ -268,8 +363,9 @@ function renderEdge(edge, currentGraph) {
     if (catenaAttiva()) classeCatena = filoInCatena(currentGraph, edge.id) ? ' catena-gerarchia' : ' fuori-catena';
     // Senza catena attenua il filtro: un filo escluso si disegna solo con Attenua (spec 0008, AC-6)
     else if (!inclusi.fili.has(edge.id)) classeCatena = ' fuori-filtro';
+    const selezionato = filoSelezionatoId() === edge.id ? ' filo-selezionato' : '';
     const path = creaSvg('path', {
-        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + classeCatena,
+        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + classeCatena + selezionato,
         d: pathData,
         stroke: edgeColor
     });
@@ -278,7 +374,13 @@ function renderEdge(edge, currentGraph) {
     aggiungiTooltip(path,
         `${relazione} [${getClasseRequisito(srcReq)}]\n` +
         `${srcReq.id} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
-        `Doppio clic: aggiungi snodo · Clic destro: elimina`);
+        `Clic: dettaglio · Doppio clic: aggiungi snodo · Clic destro: elimina`);
+
+    // Clic: seleziona il filo e ne mostra il dettaglio nell'ispettore (spec 0009)
+    path.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selezionaFilo(edge.id);
+    });
 
     // Aggiungi Snodo con Doppio Clic
     path.addEventListener('dblclick', (e) => {
@@ -292,10 +394,7 @@ function renderEdge(edge, currentGraph) {
     path.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (confirm("Vuoi eliminare questo collegamento?")) {
-            currentGraph.edges = currentGraph.edges.filter(eItem => eItem.id !== edge.id);
-            render();
-        }
+        if (confirm("Vuoi eliminare questo collegamento?")) eliminaFilo(currentGraph, edge.id);
     });
 
     edgesLayer.appendChild(path);

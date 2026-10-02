@@ -13,7 +13,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `model.js` | Data model rules: interface vs capability, link rules (`verificaCollegamento`), migration of old formats (`normalizzaLibreria`), updating references after a block edit (`aggiornaRiferimentiRequisiti`) |
 | `utils.js` | `generaId`, `slugifyId`, `dataOggi`, `escapeHtml` |
 | `renderer.js` | `render()`, zoom and pan, node drag and resize, pin drag, edge drawing, waypoints, round parent blocks, entering a block |
-| `inspector.js` | Right panel form: create, edit, copy a library block, its requirements and export texts; delete a node |
+| `inspector.js` | Right panel form: create, edit, copy a library block, its requirements and export texts; delete a node; client requirement detail; connection detail (spec 0009, `mostraDettaglioCollegamento()`, wrapper with `data-filo`) |
 | `builder.js` | Left panel library tree (categoria, then sottocategoria), search, click to edit, `impostaLibreria()`, `loadLibraryFromPath()` (goes through `libreria.js`) |
 | `storage.js` | Only helpers: `leggiFileJson()` (user picked JSON file) and `downloadJsonFile()` |
 | `progetto.js` | Project on disk (spec 0001): autosave with debounce and retries, badge, Annulla/Ripeti via server copies, Progetto menu, Apri window, conflict banner (`aggiornaBanner()`), `chiamaApi()` wrapper for `/api/` |
@@ -43,6 +43,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - Never write `appState.library` directly: a block change goes through `salvaBloccoLibreria()`, and memory, project and tree update only after the server confirms the write (disk first, then memory).
 - The server (`start.py`) owns versions, diffs and the changelog; the client sends only the saved block plus `rinomine`, `livello`, `nota`.
 - Replace `pathStack` contents in place (`length = 0` then `push`), never reassign it: other modules hold the imported binding. To open a level from a list of node ids use `apriPercorso(ids)` (`progetto.js`), which returns `false` if an id is gone.
+- The selected wire (spec 0009) is `filoSelezionato = { percorso, edgeId }` in `renderer.js`, resolved again in every `render()`; delete a wire only through `eliminaFilo(graph, edgeId)`.
 - View only state (a mode, a computed report) lives in module variables, never in `appState`, so it cannot reach `testoProgetto()` and trigger a save. Resolve clicks again from ids (path, keys), never from `graph`/`node` objects kept from before: Annulla, Ripeti and Ricarica replace the model objects.
 - Canvas coordinates go through `getCanvasCoords()`, which undoes zoom and pan and snaps to `appSettings.grid.size`.
 - New internal ids come from `generaId(prefix)` (`edge_`, `node_`). Block ids come from `slugifyId(titolo)`; new requirement ids from `idRequisitoLibero()` (`<block>_001`), editable by the user.
