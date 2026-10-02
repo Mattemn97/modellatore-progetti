@@ -26,7 +26,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 10 | Gestione completa della libreria | Slice 4 | done |
 | 11 | Rifiniture dell'editor | Slice 4 | done |
 | 12 | Tutorial e aiuto contestuale | Slice 5 | done |
-| 13 | Protezione dei dati negli aggiornamenti | Slice 6 | in-progress |
+| 13 | Protezione dei dati negli aggiornamenti | Slice 6 | done |
 | 14 | Console del server più leggibile | Slice 6 | planned |
 | 15 | Controllo e aggiornamento automatico | Slice 6 | planned |
 
@@ -199,7 +199,7 @@ spec [0012](../specs/0012-tutorial-aiuto-contestuale/index.md) · code in `js/ai
 
 ## Slice 6: Aggiornamenti
 
-### 13. Protezione dei dati negli aggiornamenti · in-progress
+### 13. Protezione dei dati negli aggiornamenti · done
 Una regola unica su cosa appartiene all'app e cosa alle persone: progetti, librerie, versioni, cestino e impostazioni personali non vengono mai sovrascritti né cancellati da un aggiornamento. Oggi lo zip contiene `settings.json`, quindi estrarlo sopra un'installazione sostituisce le impostazioni dell'utente.
 **Done when:** aggiornando un'installazione (estraendo lo zip a mano o con l'aggiornamento automatico) `progetti/`, `shared/` e le impostazioni modificate dall'utente restano identiche, e le chiavi nuove delle impostazioni arrivano comunque con il loro valore predefinito.
 spec [0013](../specs/0013-protezione-dati-aggiornamenti/index.md) · code in `start.py`, `packaging/crea-pacchetto.ps1`, `.github/workflows/rilascio.yml`, `packaging/TUTORIAL.md`
@@ -208,7 +208,7 @@ spec [0013](../specs/0013-protezione-dati-aggiornamenti/index.md) · code in `st
   - [x] `start.py`: `PERCORSI_UTENTE` e creazione di `settings.json` dai predefiniti solo se manca (AC-2, AC-3, AC-5, AC-6)
   - [x] Pacchetto e rilascio: `settings.predefinite.json`, controllo dei percorsi utente, prova di avvio (AC-1, AC-8)
   - [x] Tutorial e prova di aggiornamento sopra un'installazione piena di dati (AC-4, AC-7)
-- [ ] Verify it: `/check verify protezione dei dati negli aggiornamenti`
+- [x] Verify it: `/check verify protezione dei dati negli aggiornamenti`
 
 ### 14. Console del server più leggibile · planned · needs a decision
 La finestra nera all'avvio diventa chiara a colpo d'occhio: il link su cui lavorare ben evidenziato e cliccabile, le cartelle dei dati, la versione in uso ed eventuali avvisi (come un aggiornamento disponibile) a colori. Da decidere la libreria (rich o colorama) e come entra nell'exe.

@@ -1,7 +1,7 @@
 # 0013. Protezione dei dati negli aggiornamenti: impostazioni dell'utente fuori dal pacchetto
 
 **Date**: 2026-10-02
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
