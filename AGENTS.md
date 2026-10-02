@@ -48,7 +48,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 - The exe serves files from its own folder, not from inside the bundle (`datas=[]` in `start.spec`). To ship it, copy `index.html`, `style.css`, `settings.json`, `js/` and `shared/` next to `start.exe`.
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.
 - `build/`, `dist/`, `.venv/` are generated; `progetti/` is user data and is gitignored.
-- `start.py` is also the API: `/api/progetti`, `/api/ultimo` and `/api/libreria/{apri,salva,changelog}`, multithreaded, with one lock serializing every file operation. The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.
+- `start.py` is also the API: `/api/progetti`, `/api/ultimo` and `/api/libreria/{apri,salva,elimina,rinomina,changelog}`, multithreaded, with one lock serializing every file operation. The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.
 
 ## Agent skills
 
