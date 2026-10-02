@@ -11,8 +11,8 @@ import { initCoerenza } from './coerenza.js';
 import { initGerarchia } from './gerarchia.js';
 import { initMatrice } from './matrice.js';
 import { initDocumenti } from './documenti.js';
-import { CAPACITA, getTipologie } from './model.js';
-import { escapeHtml, generaId } from './utils.js';
+import { initFiltri } from './filtri.js';
+import { generaId } from './utils.js';
 
 const svg = document.getElementById('workspaceSvg');
 const canvasContainer = document.getElementById('canvasContainer');
@@ -54,19 +54,9 @@ export function renderUI() {
     };
 }
 
-// Opzioni del filtro: tutti, capacità e ogni tipologia di interfaccia da settings.json
-function popolaFiltroTipologia() {
-    const select = document.getElementById('filterTypeSelect');
-    if (!select) return;
-    const voci = [['Tutti', 'Tutti i Requisiti'], [CAPACITA, 'Capacità'], ...getTipologie().map(t => [t, `Interfaccia: ${t}`])];
-    select.innerHTML = voci.map(([valore, etichetta]) =>
-        `<option value="${escapeHtml(valore)}">${escapeHtml(etichetta)}</option>`).join('');
-    select.value = appState.activeTypeFilter;
-}
-
 async function initApp() {
     await loadSettings();
-    popolaFiltroTipologia();
+    initFiltri();
     initSchedaCliente();
     initCoerenza();
     initGerarchia();
@@ -94,16 +84,6 @@ async function initApp() {
     document.getElementById('libSearchInput')?.addEventListener('input', (e) => {
         appState.librarySearchQuery = e.target.value;
         initLibrary();
-    });
-
-    document.getElementById('filterTypeSelect')?.addEventListener('change', (e) => {
-        appState.activeTypeFilter = e.target.value;
-        render();
-    });
-
-    document.getElementById('chkOmitUninvolved')?.addEventListener('change', (e) => {
-        appState.omitUninvolved = e.target.checked;
-        render();
     });
 
     document.getElementById('toggleLeftBtn')?.addEventListener('click', () => document.getElementById('libraryPanel').classList.toggle('collapsed'));

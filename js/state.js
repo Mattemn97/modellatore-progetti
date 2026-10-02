@@ -25,8 +25,6 @@ const DEFAULT_SETTINGS = {
 };
 
 export const appState = {
-    activeTypeFilter: 'Tutti',
-    omitUninvolved: false,
     librarySearchQuery: '',
     // Libreria di esempio, sostituita da quella caricata da libraryPath
     library: {

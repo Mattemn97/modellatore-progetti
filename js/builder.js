@@ -6,6 +6,7 @@ import { openLibraryBlock } from './inspector.js';
 import { normalizzaLibreria, trovaIdRequisitiDuplicati } from './model.js';
 import { escapeHtml } from './utils.js';
 import { apriLibreria } from './libreria.js';
+import { riallineaFiltri } from './filtri.js';
 
 // Sostituisce la libreria corrente convertendola al formato attuale; segnala gli id requisito duplicati
 export function impostaLibreria(dati) {
@@ -90,4 +91,7 @@ export function initLibrary() {
 
         libraryContent.appendChild(catGroup);
     });
+
+    // Le voci dei filtri seguono la libreria: una scelta sparita si toglie (spec 0008, AC-9)
+    riallineaFiltri();
 }

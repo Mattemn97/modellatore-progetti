@@ -9,7 +9,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | File | Owns |
 |---|---|
 | `app.js` | Entry point: `initApp()`, wires every toolbar button, canvas drop, breadcrumb (`renderUI`) |
-| `state.js` | `appState` (library, workspace, filters), `pathStack`, `activeNodeId`, `loadSettings()` merged over `DEFAULT_SETTINGS` |
+| `state.js` | `appState` (library, workspace, cliente), `pathStack`, `activeNodeId`, `loadSettings()` merged over `DEFAULT_SETTINGS` |
 | `model.js` | Data model rules: interface vs capability, link rules (`verificaCollegamento`), migration of old formats (`normalizzaLibreria`), updating references after a block edit (`aggiornaRiferimentiRequisiti`) |
 | `utils.js` | `generaId`, `slugifyId`, `dataOggi`, `escapeHtml` |
 | `renderer.js` | `render()`, zoom and pan, node drag and resize, pin drag, edge drawing, waypoints, round parent blocks, entering a block |
@@ -22,6 +22,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `coerenza.js` | Coherence check (spec 0004): pure `calcolaCoerenza()` rerun by `render()` while `#btnDRC` mode is on, Coerenza tab, `problemaPin()` / `contatoreBlocco()` read by the renderer for halos and counters, `vaiAlProblema()` navigation |
 | `gerarchia.js` | Requirement hierarchy (spec 0005): pure `calcolaGerarchia()` index of occurrences (requirement + instance path) with parents and children from valid derivation edges, `#btnGerarchia` mode, Gerarchia tab, chain highlight, `apriGerarchiaSu()` |
 | `matrice.js` | Traceability matrix (spec 0006): pure `calcolaMatrice()` grouped by requirement id (also returns `voci`, every entry in group order), `filtraMatrice()`, `#matriceModal`, Markdown export; exports `cellaMd()` / `tabellaMd()` |
+| `filtri.js` | Canvas filters (spec 0008): view only state (classe, documento, categoria, sottocategoria, attenua or nascondi), pure rules `requisitoIncluso()` / `bloccoPassa()` / `bloccoIncluso()` / `classePassa()`, the `#pannelloFiltri` panel; `riallineaFiltri()` runs from `initLibrary()` |
 | `documenti.js` | MIL-STD-498 documents (spec 0007): DID chapter trees as data (`DID`), pure `generaDocumento()` over the matrix, `#documentiModal` with selector, summary, preview and `.md` download |
 
 ## Data model
@@ -45,7 +46,8 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - View only state (a mode, a computed report) lives in module variables, never in `appState`, so it cannot reach `testoProgetto()` and trigger a save. Resolve clicks again from ids (path, keys), never from `graph`/`node` objects kept from before: Annulla, Ripeti and Ricarica replace the model objects.
 - Canvas coordinates go through `getCanvasCoords()`, which undoes zoom and pan and snaps to `appSettings.grid.size`.
 - New internal ids come from `generaId(prefix)` (`edge_`, `node_`). Block ids come from `slugifyId(titolo)`; new requirement ids from `idRequisitoLibero()` (`<block>_001`), editable by the user.
-- Tipologie, their colors, the capability color, verification methods and documents come from `settings.json`; the filter and the inspector selects are built from it.
+- Tipologie, their colors, the capability color, verification methods and documents come from `settings.json`; the filter panel and the inspector selects are built from it.
+- What the canvas dims or hides is decided once per `render()` by `calcolaInclusi()` (`renderer.js`) from the rules in `filtri.js`; a Gerarchia chain overrides it (chain elements always drawn, dimming by `fuori-catena`). Use the `.fuori-filtro` class, never inline opacity.
 - Escape every user text interpolated into `innerHTML` with `escapeHtml()`.
 - User feedback uses `alert()` and `confirm()`, in Italian.
 
