@@ -20,7 +20,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 4 | Controllo di coerenza | Slice 2 | done |
 | 5 | Gerarchia dei requisiti | Slice 3 | in-progress |
 | 6 | Matrice di tracciabilità | Slice 3 | in-progress |
-| 7 | Export documenti MIL-STD-498 | Slice 3 | in-progress |
+| 7 | Export documenti MIL-STD-498 | Slice 3 | done |
 | 8 | Filtri avanzati | Slice 4 | planned |
 | 9 | Ispettore dei collegamenti | Slice 4 | planned |
 | 10 | Gestione completa della libreria | Slice 4 | planned |
@@ -120,7 +120,7 @@ spec [0006](../specs/0006-matrice-tracciabilita/index.md) · code in `js/matrice
   - [x] Dalla matrice alla Gerarchia: clic su un requisito, `apriGerarchiaSu()` (AC-10)
 - [x] Verify it: `/check verify matrice di tracciabilità`
 
-### 7. Export documenti MIL-STD-498 · in-progress · Beta
+### 7. Export documenti MIL-STD-498 · done · Beta
 Genera un file Markdown per documento (SSS, SSDD, IRS, IDD…) con la capitolazione formale del DID, mettendo ogni testo da esportare al suo posto (es. capacità e interfacce in capitoli diversi, metodi di verifica nelle disposizioni di qualifica, tracciabilità nel suo capitolo). Riferimento indicato da te: https://github.com/bradfa/MIL-STD-498
 **Done when:** scegli un documento e ottieni un `.md` con i capitoli del DID, i testi dei requisiti nei capitoli giusti, il metodo di verifica di ognuno e la sezione di tracciabilità verso il livello padre.
 spec [0007](../specs/0007-export-documenti-mil-std-498/index.md) · code in `js/documenti.js`, `js/matrice.js`, `js/utils.js`, `js/progetto.js`, `index.html`
@@ -130,8 +130,8 @@ spec [0007](../specs/0007-export-documenti-mil-std-498/index.md) · code in `js/
   - [x] Tutti i DID: SRS, IRS, SSDD, SDD, IDD e altro, componenti per blocco, riferimenti, note (AC-4, AC-5, AC-7, AC-10)
   - [x] Qualifica e tracciabilità (AC-8, AC-9, AC-11)
   - [x] Riepilogo, troncamento e volumi (AC-12, AC-14)
-- [ ] Verify it: `/check verify export documenti MIL-STD-498`
-- [ ] Test it: `/test export documenti MIL-STD-498`
+- [x] Verify it: `/check verify export documenti MIL-STD-498`
+- [ ] Test it: `/test export documenti MIL-STD-498` (saltato: nessun test runner per scelta del progetto, il controllo è `/check verify`)
 
 ## Slice 4: Editor rifinito
 

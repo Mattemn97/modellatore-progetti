@@ -11,7 +11,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `app.js` | Entry point: `initApp()`, wires every toolbar button, canvas drop, breadcrumb (`renderUI`) |
 | `state.js` | `appState` (library, workspace, filters), `pathStack`, `activeNodeId`, `loadSettings()` merged over `DEFAULT_SETTINGS` |
 | `model.js` | Data model rules: interface vs capability, link rules (`verificaCollegamento`), migration of old formats (`normalizzaLibreria`), updating references after a block edit (`aggiornaRiferimentiRequisiti`) |
-| `utils.js` | `generaId`, `slugifyId`, `escapeHtml` |
+| `utils.js` | `generaId`, `slugifyId`, `dataOggi`, `escapeHtml` |
 | `renderer.js` | `render()`, zoom and pan, node drag and resize, pin drag, edge drawing, waypoints, round parent blocks, entering a block |
 | `inspector.js` | Right panel form: create, edit, copy a library block, its requirements and export texts; delete a node |
 | `builder.js` | Left panel library tree (categoria, then sottocategoria), search, click to edit, `impostaLibreria()`, `loadLibraryFromPath()` (goes through `libreria.js`) |
@@ -20,6 +20,9 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `libreria.js` | Library on disk (spec 0002): `apriLibreria()`, `salvaBloccoLibreria()`, library conflict (Ricarica / Sovrascrivi), read only state, version in the panel, Changelog window |
 | `cliente.js` | Client requirements (spec 0003): import from Excel or CSV, Cliente tab; `mostraScheda()` switches the left panel tabs (Libreria, Cliente, Coerenza) |
 | `coerenza.js` | Coherence check (spec 0004): pure `calcolaCoerenza()` rerun by `render()` while `#btnDRC` mode is on, Coerenza tab, `problemaPin()` / `contatoreBlocco()` read by the renderer for halos and counters, `vaiAlProblema()` navigation |
+| `gerarchia.js` | Requirement hierarchy (spec 0005): pure `calcolaGerarchia()` index of occurrences (requirement + instance path) with parents and children from valid derivation edges, `#btnGerarchia` mode, Gerarchia tab, chain highlight, `apriGerarchiaSu()` |
+| `matrice.js` | Traceability matrix (spec 0006): pure `calcolaMatrice()` grouped by requirement id (also returns `voci`, every entry in group order), `filtraMatrice()`, `#matriceModal`, Markdown export; exports `cellaMd()` / `tabellaMd()` |
+| `documenti.js` | MIL-STD-498 documents (spec 0007): DID chapter trees as data (`DID`), pure `generaDocumento()` over the matrix, `#documentiModal` with selector, summary, preview and `.md` download |
 
 ## Data model
 
@@ -55,7 +58,8 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - `render()` also fills in missing fields on the model (`edge.waypoints`, `node.pinPositions`) and runs on every mousemove while dragging.
 - Modules import each other in a cycle (`app` ↔ `renderer` ↔ `inspector` ↔ `builder` ↔ `storage`). Top level code may only look up DOM elements; never call an imported function at import time.
 - The drop position of a new block ignores zoom and pan.
-- `#btnReqMatrix` exists in `index.html` but has no handler yet.
+- Modal windows (`#reportModal`, `#matriceModal`, `#documentiModal`, import cliente) must be listed in `modaleAperta()` (`progetto.js`), so Esc and Ctrl+Z / Ctrl+Y do not act behind them.
+- Gerarchia, Coerenza, Matrice and Documenti share one rule set for parents, children and "senza padre": the visit in `model.js` (`visitaDerivazioni`), then `calcolaGerarchia()`, then `calcolaMatrice()`. Build new views on top of these, never with a separate walk.
 - The Cliente and Coerenza tabs redraw only when `render()` marks them (once per frame, only if visible). A change that skips `render()` but alters what they show (e.g. the project rename, which calls only `renderUI()`) must call `segnaSchedaCoerenzaDaAggiornare()` itself. `#reportModal` is shared by the Apri window (`progetto.js`) and the Changelog window (`libreria.js`).
 - The banner under the header has one owner, `progetto.js`; `libreria.js` feeds it through `impostaStatoLibreriaBanner({ conflitto, avviso })`. Priority: project conflict, library conflict, project save error, notices.
 
