@@ -743,7 +743,7 @@ function aggiornaInterfaccia() {
         badge.hidden = !progetto.slug;
         badge.textContent = ETICHETTE_STATO[stato];
         badge.className = `badge-salvataggio stato-${motivoErrore && stato !== 'salvataggio' ? 'errore' : stato}`;
-        badge.title = motivoErrore;
+        badge.dataset.titoloNativo = motivoErrore || '';
     }
 
     const bloccato = stato === 'conflitto';

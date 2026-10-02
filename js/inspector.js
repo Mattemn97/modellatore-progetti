@@ -556,7 +556,7 @@ export function mostraDettaglioCliente(id) {
                 <button id="btnGerarchiaCliente" class="pulsante-progetto" data-aiuto="cliente.dett.gerarchia">🌳 Mostra gerarchia</button>
                 ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto" data-aiuto="cliente.dett.visto">✔ Segna come visto</button>` : ''}
                 <button id="btnTogliCliente" class="pulsante-progetto" data-aiuto="cliente.dett.togli" ${posizione && fili === 0 ? '' : 'disabled'}
-                    title="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : 'Toglie il blocco tondo, non il requisito') : 'Non è sul canvas'}">Togli dal canvas</button>
+                    data-titolo-nativo="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : '') : 'Non è sul canvas'}">Togli dal canvas</button>
             </div>
         </div>`;
 

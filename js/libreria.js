@@ -239,19 +239,20 @@ export function aggiornaPannelloLibreria() {
     const etichetta = document.getElementById('etichettaSolaLettura');
     if (etichetta) {
         etichetta.hidden = !libreria.caricata || libreria.scrivibile;
-        etichetta.title = libreria.motivoSolaLettura;
+        etichetta.dataset.titoloNativo = libreria.motivoSolaLettura || '';
     }
 
     const btnChangelog = document.getElementById('btnChangelog');
     if (btnChangelog) {
         btnChangelog.disabled = !libreria.percorso;
-        btnChangelog.title = libreria.percorso
-            ? 'Mostra il changelog della libreria'
+        btnChangelog.dataset.titoloNativo = libreria.percorso
+            ? ''
             : "Il changelog è disponibile solo per le librerie aperte tramite l'app";
     }
 }
 
-// Salva e Crea copia dell'ispettore: disabilitati in sola lettura, Salva anche in conflitto e durante la richiesta
+// Salva e Crea copia dell'ispettore: disabilitati in sola lettura, Salva anche in conflitto e durante la richiesta.
+// Il motivo va in data-titolo-nativo: il suggerimento dell'aiuto lo mostra come riga in più (spec 0012)
 export function aggiornaPulsantiLibreria() {
     const solaLettura = libreria.scrivibile ? '' : (libreria.motivoSolaLettura || 'La libreria è in sola lettura.');
     const motivo = solaLettura || (conflitto ? MSG_CONFLITTO : '') || (salvataggioInCorso ? 'Salvataggio in corso…' : '');
@@ -259,24 +260,24 @@ export function aggiornaPulsantiLibreria() {
     const btnSalva = document.getElementById('btnSaveBlockToLib');
     if (btnSalva) {
         btnSalva.disabled = !!motivo;
-        btnSalva.title = motivo;
+        btnSalva.dataset.titoloNativo = motivo;
     }
     const btnCopia = document.getElementById('btnCreateCopy');
     if (btnCopia) {
         btnCopia.disabled = !!solaLettura;
-        btnCopia.title = solaLettura;
+        btnCopia.dataset.titoloNativo = solaLettura;
     }
     // Elimina e Rinomina ID seguono Salva (spec 0010, AC-1)
     const btnElimina = document.getElementById('btnEliminaBloccoLib');
     if (btnElimina) {
         btnElimina.disabled = !!motivo;
-        btnElimina.title = motivo || 'Elimina il blocco dalla libreria (solo se non è usato nel progetto)';
+        btnElimina.dataset.titoloNativo = motivo;
     }
     const lnkRinomina = document.getElementById('lnkRinominaBlocco');
     if (lnkRinomina) {
         lnkRinomina.classList.toggle('disattivato', !!motivo);
         lnkRinomina.setAttribute('aria-disabled', motivo ? 'true' : 'false');
-        lnkRinomina.title = motivo || "Cambia l'ID del blocco e aggiorna le istanze del progetto";
+        lnkRinomina.dataset.titoloNativo = motivo;
     }
 }
 

@@ -640,7 +640,7 @@ export function aggiornaPulsantiCliente() {
     if (!progettoAperto()) motivo = 'Apri un progetto per importare i requisiti cliente';
     else if (progettoInConflitto()) motivo = 'Risolvi prima il conflitto del progetto (banner in alto)';
     pulsante.disabled = !!motivo;
-    pulsante.title = motivo || 'Importa i requisiti cliente da un file .xlsx o .csv';
+    pulsante.dataset.titoloNativo = motivo;
 }
 
 function passaFiltriScheda(req, fili, query) {
