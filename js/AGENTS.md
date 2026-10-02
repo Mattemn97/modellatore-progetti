@@ -27,6 +27,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `aiuto.js` | Contextual help (spec 0012): one shared `#suggerimento` tooltip driven by delegated `mouseover`/`focusin` on any `[data-aiuto]`, `iconaAiuto(chiave)` for the (i) icon in templates, the ❓ Aiuto menu (tour, show or hide the icons), `[data-tour-avvia]` buttons, first launch tour |
 | `tour.js` | Guided tour (spec 0012): overlay, spotlight and bubble, keyboard in capture phase, opens panels or tabs for a step and restores them, `tourAttivo()` read by `modaleAperta()` |
 | `aiuto-testi.js` | All help texts as data: `SUGGERIMENTI` (key → titolo, testo) and `TOUR` (step lists with CSS selector areas) |
+| `aggiornamento.js` | Self update (spec 0015): owns `#bannerAggiornamento`, reads `GET /api/aggiornamento`, Novità, Più tardi (`sessionStorage`), Aggiorna e riavvia (`svuota()` first, then `POST /api/aggiornamento/installa`), follows the phases and reloads the page when the new version answers |
 
 ## Data model
 
@@ -70,6 +71,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - Tour steps in `TOUR` point at CSS selectors (`#btnDRC`, `#schedaLibreria`, …): renaming or moving one of those elements needs the step updated too, or the step falls back to a centred bubble without spotlight.
 - Gerarchia, Coerenza, Matrice and Documenti share one rule set for parents, children and "senza padre": the visit in `model.js` (`visitaDerivazioni`), then `calcolaGerarchia()`, then `calcolaMatrice()`. Build new views on top of these, never with a separate walk.
 - The Cliente and Coerenza tabs redraw only when `render()` marks them (once per frame, only if visible). A change that skips `render()` but alters what they show (e.g. the project rename, which calls only `renderUI()`) must call `segnaSchedaCoerenzaDaAggiornare()` itself. `#reportModal` is shared by the Apri window (`progetto.js`) and the Changelog window (`libreria.js`).
+- `#bannerAggiornamento` (spec 0015) is separate from `#bannerProgetto` and owned by `aggiornamento.js`, so an update notice never hides a save conflict.
 - The banner under the header has one owner, `progetto.js`; `libreria.js` feeds it through `impostaStatoLibreriaBanner({ conflitto, avviso })`. Priority: project conflict, library conflict, project save error, notices.
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._
