@@ -61,7 +61,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - Layer order in `index.html` matters: edges, then round parent blocks, then nodes, so parent pins stay clickable. The temporary edge line has `pointer-events: none` so the mouse release reaches the target pin.
 - `render()` also fills in missing fields on the model (`edge.waypoints`, `node.pinPositions`) and runs on every mousemove while dragging.
 - Modules import each other in a cycle (`app` ↔ `renderer` ↔ `inspector` ↔ `builder` ↔ `storage`). Top level code may only look up DOM elements; never call an imported function at import time.
-- The drop position of a new block ignores zoom and pan.
+- Canvas coordinates: `puntoCanvas(e)` gives the unsnapped point (zoom and pan removed), `getCanvasCoords(e)` snaps it; a dropped block is centred under the cursor (spec 0011).
 - Modal windows (`#reportModal`, `#matriceModal`, `#documentiModal`, import cliente) must be listed in `modaleAperta()` (`progetto.js`), so Esc and Ctrl+Z / Ctrl+Y do not act behind them.
 - Gerarchia, Coerenza, Matrice and Documenti share one rule set for parents, children and "senza padre": the visit in `model.js` (`visitaDerivazioni`), then `calcolaGerarchia()`, then `calcolaMatrice()`. Build new views on top of these, never with a separate walk.
 - The Cliente and Coerenza tabs redraw only when `render()` marks them (once per frame, only if visible). A change that skips `render()` but alters what they show (e.g. the project rename, which calls only `renderUI()`) must call `segnaSchedaCoerenzaDaAggiornare()` itself. `#reportModal` is shared by the Apri window (`progetto.js`) and the Changelog window (`libreria.js`).

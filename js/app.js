@@ -1,7 +1,7 @@
 /* --- CONTROLLER PRINCIPALE E INIZIALIZZAZIONE --- */
 
 import { loadSettings, pathStack, getCurrentLevel, appState, setActiveNodeId, appSettings } from './state.js';
-import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, evidenziaCliente } from './renderer.js';
+import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, puntoCanvas, evidenziaCliente } from './renderer.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
@@ -54,9 +54,39 @@ export function renderUI() {
     };
 }
 
+/* --- AIUTO DEL CANVAS E SHIFT SULLE PORTE (spec 0011) --- */
+
+const CHIAVE_AIUTO = 'modellatore.aiutoCanvasNascosto';
+
+function initAiutoCanvas() {
+    const aiuto = document.getElementById('aiutoCanvas');
+    let nascosto = false;
+    try {
+        nascosto = localStorage.getItem(CHIAVE_AIUTO) === '1';
+    } catch {
+        nascosto = false;
+    }
+    if (aiuto) aiuto.hidden = nascosto;
+    document.getElementById('btnChiudiAiuto')?.addEventListener('click', () => {
+        aiuto.hidden = true;
+        try {
+            localStorage.setItem(CHIAVE_AIUTO, '1');
+        } catch {
+            // Senza localStorage la riga resta nascosta solo fino al ricaricamento
+        }
+    });
+
+    // Shift premuto: cursore di spostamento sulle porte
+    const impostaShift = (premuto) => document.body.classList.toggle('shift-premuto', premuto);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Shift') impostaShift(true); });
+    window.addEventListener('keyup', (e) => { if (e.key === 'Shift') impostaShift(false); });
+    window.addEventListener('blur', () => impostaShift(false));
+}
+
 async function initApp() {
     await loadSettings();
     initFiltri();
+    initAiutoCanvas();
     initSchedaCliente();
     initCoerenza();
     initGerarchia();
@@ -95,18 +125,21 @@ async function initApp() {
         const typeId = e.dataTransfer.getData('blockType');
         if (typeId && appState.library[typeId]) {
             const blockDef = appState.library[typeId];
-            const rect = svg.getBoundingClientRect();
             const gridSize = appSettings.grid.size;
+            const larghezza = appSettings.node.width;
+            const altezza = appSettings.node.height;
+            // Centrato sotto il cursore a qualsiasi zoom e pan, angolo agganciato alla griglia (spec 0011, AC-1)
+            const punto = puntoCanvas(e);
 
             const newNode = {
                 id: generaId('node'),
                 type: typeId,
                 label: blockDef.titolo,
-                width: appSettings.node.width,
-                height: appSettings.node.height,
+                width: larghezza,
+                height: altezza,
                 position: {
-                    x: Math.round((e.clientX - rect.left - 80) / gridSize) * gridSize,
-                    y: Math.round((e.clientY - rect.top - 30) / gridSize) * gridSize
+                    x: Math.round((punto.x - larghezza / 2) / gridSize) * gridSize,
+                    y: Math.round((punto.y - altezza / 2) / gridSize) * gridSize
                 },
                 internal_graph: { nodes: [], edges: [] }
             };
