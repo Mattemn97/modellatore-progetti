@@ -70,7 +70,8 @@ def stampa_con_stile(testo, stile, prefisso=''):
     if CONSOLE is not None:
         try:
             etichetta = f"[bold]{prefisso}[/bold] " if prefisso else ''
-            CONSOLE.print(f"[{stile}]{etichetta}{escape_markup(testo)}[/{stile}]")
+            # soft_wrap: niente a capo inseriti, un link resta intero anche nell'uscita rediretta
+            CONSOLE.print(f"[{stile}]{etichetta}{escape_markup(testo)}[/{stile}]", soft_wrap=True)
             return
         except Exception:
             pass
@@ -1452,7 +1453,8 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 raise ErroreApi(405, 'metodo_non_consentito', 'Metodo non consentito.')
             corpo = self.leggi_corpo()
             stato.avvia_installazione(corpo.get('versione'))
-            threading.Thread(target=installa_aggiornamento, args=(stato, self.server, stato.base_dir)).start()
+            # Non daemon (i thread delle richieste lo sono): il processo deve restare vivo fino al riavvio
+            threading.Thread(target=installa_aggiornamento, args=(stato, self.server, stato.base_dir), daemon=False).start()
             return self.invia_json(202, {'stato': 'download'})
         raise ErroreApi(404, 'non_trovato', 'Indirizzo API sconosciuto.')
 
@@ -1618,11 +1620,11 @@ class StatoAggiornamento:
             stato = self.dati['stato']
             if stato in STATI_AGGIORNAMENTO_IN_CORSO:
                 raise ErroreApi(409, 'installazione_in_corso', "Un aggiornamento è già in corso.")
-            if stato not in ('disponibile', 'errore') or not self.dati['nuova'] or not self.url_zip:
+            if stato not in ('disponibile', 'errore') or not self.dati['nuova']:
                 raise ErroreApi(409, 'aggiornamento_non_disponibile', "Non c'è un aggiornamento da installare.")
             if versione != self.dati['nuova']:
                 raise ErroreApi(409, 'versione_diversa', "La versione richiesta non è quella disponibile: ricarica la pagina.")
-            if not self.dati['installabile']:
+            if not self.dati['installabile'] or not self.url_zip:
                 raise ErroreApi(409, 'non_installabile', self.dati['motivo'] or "Questa versione non si può installare da qui.")
             self.dati.update(stato='download', motivo='')
 
@@ -1790,11 +1792,21 @@ def sostituisci_file(base_dir, cartella_nuova, cartella_copie, relativi):
         raise ErroreAggiornamento(f"Impossibile sostituire {relativo}: {e}. Ripristinata la versione precedente.")
     return fatti
 
-def opzioni_nuovo_processo():
+def opzioni_nuovo_processo(fuori_dal_job=True):
     opzioni = {'close_fds': True, 'env': dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT='1')}
     if os.name == 'nt':
         opzioni['creationflags'] = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP
+        if fuori_dal_job:
+            # Il bootloader dell'exe onefile chiude con sé i processi del suo job: il nuovo exe deve uscirne
+            opzioni['creationflags'] |= subprocess.CREATE_BREAKAWAY_FROM_JOB
     return opzioni
+
+def avvia_processo(argomenti, base_dir):
+    try:
+        return subprocess.Popen(argomenti, cwd=base_dir, **opzioni_nuovo_processo())
+    except OSError:
+        # Job che non permette di uscire: si avvia comunque, dentro il job
+        return subprocess.Popen(argomenti, cwd=base_dir, **opzioni_nuovo_processo(fuori_dal_job=False))
 
 def risponde_con_versione(versione):
     try:
@@ -1821,7 +1833,7 @@ def riavvia_dopo_installazione(server, base_dir, vecchia, nuova, fatti):
     exe = sys.executable
     stampa_info(f"Avvio della versione {nuova}...")
     try:
-        processo = subprocess.Popen([exe, '--dopo-aggiornamento', vecchia], cwd=base_dir, **opzioni_nuovo_processo())
+        processo = avvia_processo([exe, '--dopo-aggiornamento', vecchia], base_dir)
     except OSError as e:
         processo = None
         stampa_errore(f"Impossibile avviare la versione nuova: {e}")
@@ -1837,7 +1849,7 @@ def riavvia_dopo_installazione(server, base_dir, vecchia, nuova, fatti):
     stampa_errore(f"La versione {nuova} non è partita: ripristino della versione {vecchia}.")
     try:
         ripristina_file(fatti, tentativi=20)
-        subprocess.Popen([exe, '--dopo-ripristino', nuova], cwd=base_dir, **opzioni_nuovo_processo())
+        avvia_processo([exe, '--dopo-ripristino', nuova], base_dir)
     except OSError as e:
         stampa_errore(f"Ripristino non riuscito ({e}): le copie sono in {os.path.join(base_dir, CARTELLA_AGGIORNAMENTO, 'backup')}. "
                       "Estrai a mano lo zip della versione che vuoi usare.")

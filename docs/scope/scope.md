@@ -28,7 +28,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 12 | Tutorial e aiuto contestuale | Slice 5 | done |
 | 13 | Protezione dei dati negli aggiornamenti | Slice 6 | done |
 | 14 | Console del server più leggibile | Slice 6 | done |
-| 15 | Controllo e aggiornamento automatico | Slice 6 | in-progress |
+| 15 | Controllo e aggiornamento automatico | Slice 6 | done |
 
 ## Già presente
 
@@ -221,17 +221,17 @@ spec [0014](../specs/0014-console-server-leggibile/index.md) · code in `start.p
   - [x] `requirements.txt`, exe con `rich` e prova di avvio (AC-8)
 - [x] Verify it: `/check verify console del server più leggibile`
 
-### 15. Controllo e aggiornamento automatico · in-progress
+### 15. Controllo e aggiornamento automatico · done
 All'avvio il programma chiede alla repo GitHub se c'è una Release più recente; se c'è te lo dice nella console e con un banner nell'app e, se confermi, scarica la nuova versione, sostituisce i file dell'app e riparte, rispettando le regole della funzionalità 13.
 **Done when:** con una Release più recente vedi l'avviso in console e nell'app con le note della versione; confermando, l'app si aggiorna e riparte con progetti, librerie e impostazioni intatti; senza rete, o se il download si interrompe, l'app parte comunque con la versione di prima e te lo dice.
-spec [0015](../specs/0015-aggiornamento-automatico/index.md)
+spec [0015](../specs/0015-aggiornamento-automatico/index.md) · code in `start.py`, `js/aggiornamento.js`, `index.html`, `style.css`, `js/aiuto-testi.js`, `settings.json`, `js/state.js`, `packaging/TUTORIAL.md`
 - [x] Design it (spec): `/architect controllo e aggiornamento automatico`
-- [ ] Build it: `/develop controllo e aggiornamento automatico`
-  - [ ] Controllo all'avvio, stato e messaggi in console (AC-1, AC-2, AC-3, AC-4, AC-15)
-  - [ ] Banner nell'app con novità, più tardi e aiuto (AC-5, AC-16)
-  - [ ] Installazione: impronta, controllo dello zip, sostituzione con copie e ripristino (AC-6, AC-7, AC-8, AC-9, AC-10)
-  - [ ] Riavvio con controllo di salute, ripristino, pulizia e tutorial (AC-11, AC-12, AC-13, AC-14, AC-16)
-- [ ] Verify it: `/check verify controllo e aggiornamento automatico`
+- [x] Build it: `/develop controllo e aggiornamento automatico`
+  - [x] Controllo all'avvio, stato e messaggi in console (AC-1, AC-2, AC-3, AC-4, AC-15)
+  - [x] Banner nell'app con novità, più tardi e aiuto (AC-5, AC-16)
+  - [x] Installazione: impronta, controllo dello zip, sostituzione con copie e ripristino (AC-6, AC-7, AC-8, AC-9, AC-10)
+  - [x] Riavvio con controllo di salute, ripristino, pulizia e tutorial (AC-11, AC-12, AC-13, AC-14, AC-16)
+- [x] Verify it: `/check verify controllo e aggiornamento automatico`
 
 ## Deferred
 Fuori da questo giro, tenuti qui perché il piano resti onesto.

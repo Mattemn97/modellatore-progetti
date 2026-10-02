@@ -86,11 +86,14 @@ async function seguiInstallazione(nuova) {
     for (;;) {
         await attendi(INTERVALLO_INSTALLAZIONE_MS);
         const s = await leggiStato();
+        // La versione nuova risponde: si ricarica, anche se lo stato riavvio è durato troppo poco per vederlo
+        if (s && s.attuale === nuova) {
+            location.reload();
+            return;
+        }
+        // Server muto durante l'installazione: è il cambio di processo
+        if (!s && !attesaRiavvio) attesaRiavvio = { nuova, inizio: Date.now() };
         if (attesaRiavvio) {
-            if (s && s.attuale === nuova) {
-                location.reload();
-                return;
-            }
             if (s && s.stato === 'errore' && s.attuale !== nuova && s.motivo) {
                 // Ripristino: la versione vecchia è di nuovo su e dice perché
                 attesaRiavvio = null;

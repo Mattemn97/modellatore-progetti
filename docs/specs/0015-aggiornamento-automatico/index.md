@@ -1,7 +1,7 @@
 # 0015. Controllo e aggiornamento automatico dalle Release di GitHub
 
 **Date**: 2026-10-02
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
@@ -44,6 +44,7 @@ All'avvio `start.exe` chiede a GitHub se c'è una Release più recente della sua
 - Solo `start.exe`: lanciando `start.py` (sviluppo) la versione è `sviluppo` e il controllo non parte; con un `VERSIONE.txt` accanto allo script il controllo parte ma `installabile` è `false` (`motivo`: `L'aggiornamento automatico funziona solo con start.exe.`).
 - Banner separato `#bannerAggiornamento`, posseduto da un modulo nuovo `js/aggiornamento.js`: `#bannerProgetto` resta per conflitti ed errori di salvataggio, che non devono essere coperti da un avviso.
 - Prove: la variabile d'ambiente `MODELLATORE_URL_RELEASE` (solo per `/check verify`, non documentata nel tutorial) sostituisce l'URL di `releases/latest`; in quel caso il prefisso ammesso per `browser_download_url` diventa schema e host di quell'URL più `/` (per esempio `http://127.0.0.1:8098/`). Senza la variabile vale solo `https://github.com/<repository>/releases/download/`. Scartato: provare solo contro GitHub vero (servirebbe pubblicare una Release finta).
+- Emersi in verifica: il server usa una porta esclusiva (`ServerApp`, `SO_EXCLUSIVEADDRUSE` su Windows, dove `SO_REUSEADDR` lascerebbe aprire la stessa porta a due server insieme e l'AC-12 non vedrebbe mai la porta occupata); il thread dell'installazione è non daemon (quelli delle richieste lo sono, e il processo uscirebbe prima di avviare la versione nuova); il nuovo exe parte con `CREATE_BREAKAWAY_FROM_JOB` quando il job lo permette, altrimenti senza.
 - Stato del server in un dizionario protetto da un `threading.Lock` dedicato (`StatoAggiornamento`), separato dal lucchetto dei file di progetti e librerie.
 
 **Implementation skills**: none.
