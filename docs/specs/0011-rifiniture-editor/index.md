@@ -1,7 +1,7 @@
 # 0011. Rifiniture dell'editor: rilascio sotto il cursore e spostamento delle porte scopribile
 
 **Date**: 2026-10-02
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
