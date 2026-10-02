@@ -1,7 +1,7 @@
 # 0010. Gestione completa della libreria: eliminare un blocco e rinominarne l'id
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

@@ -39,6 +39,7 @@ FORMATO_SEMVER = re.compile(r'^\d+\.\d+\.\d+$')
 ORDINE_LIVELLI = {'patch': 0, 'minor': 1, 'major': 2}
 LUNGHEZZA_MAX_NOTA = 2000
 LUNGHEZZA_MAX_ID_BLOCCO = 200
+FORMATO_ID_BLOCCO = re.compile(r'^[A-Za-z0-9_.-]+$')
 SUFFISSO_CHANGELOG = '.changelog.json'
 
 MSG_SLUG_NON_VALIDO = "Il nome deve contenere almeno una lettera o cifra e non può essere un nome riservato di Windows"
@@ -556,7 +557,7 @@ def livello_di(modifiche):
     # major: requisito rimosso o rinominato, tipologia cambiata, blocco eliminato; minor: blocco o requisito nuovo
     livello = 'patch'
     for m in modifiche:
-        if m['tipo'] == 'eliminato':
+        if m['tipo'] in ('eliminato', 'rinominato'):
             return 'major'
         for r in m['requisiti']:
             if r['tipo'] in ('rimosso', 'rinominato') or 'tipologia' in r['campi']:
@@ -843,6 +844,11 @@ class ArchivioLibrerie:
             return {'invariata': True, 'versione': versione_corrente, 'impronta': impronta_attuale,
                     'libreria': oggetto, 'formato': formato, 'vociAggiunte': voci_aggiunte}
 
+        return self._applica(f, dati, changelog, voci_aggiunte, library_nuova, modifica, livello, nota)
+
+    def _applica(self, f, dati, changelog, voci_aggiunte, library_nuova, modifica, livello, nota):
+        # Scrittura comune a salva, elimina e rinomina: versione, file, voce di changelog e riferimento
+        versione_corrente = changelog['voci'][-1]['versione']
         calcolato = livello_di([modifica])
         effettivo = calcolato if livello == 'auto' else max(livello, calcolato, key=ORDINE_LIVELLI.get)
         versione_nuova = avanza_versione(versione_corrente, effettivo)
@@ -863,6 +869,65 @@ class ArchivioLibrerie:
         except ErroreApi:
             risposta['avviso'] = "La copia di riferimento in _versioni/ non è stata aggiornata: una futura modifica esterna potrebbe risultare incompleta nel changelog"
         return {**risposta, 'versione': versione_nuova, 'voce': voce}
+
+    # --- Eliminazione e rinomina di un blocco (spec 0010) ---
+
+    def _prepara_operazione(self, corpo):
+        # Controlli comuni a elimina e rinomina; restituisce ciò che serve a _applica
+        percorso = corpo.get('percorso')
+        f = self.risolvi(percorso)
+        if not f.scrivibile:
+            raise ErroreApi(403, 'percorso_non_scrivibile',
+                            "L'app scrive solo librerie dentro shared/ (escluse le cartelle _versioni).")
+        livello = corpo.get('livello')
+        if livello != 'auto' and livello not in ORDINE_LIVELLI:
+            raise ErroreApi(400, 'livello_non_valido', 'Il livello deve essere auto, patch, minor o major.')
+        nota = corpo.get('nota') or ''
+        if not isinstance(nota, str) or len(nota) > LUNGHEZZA_MAX_NOTA:
+            raise ErroreApi(400, 'richiesta_non_valida', f'Il motivo della modifica supera i {LUNGHEZZA_MAX_NOTA} caratteri.')
+        id_blocco = corpo.get('idBlocco')
+        if not isinstance(id_blocco, str) or not id_blocco:
+            raise ErroreApi(400, 'richiesta_non_valida', "Manca l'ID del blocco.")
+        dati, oggetto, formato = self.leggi_libreria(f, percorso)
+        if formato > FORMATO_LIBRERIA:
+            raise ErroreApi(403, 'percorso_non_scrivibile', MSG_FORMATO_FUTURO)
+        if formato == 0:
+            raise ErroreApi(409, 'formato_vecchio', 'Salva prima una modifica di un blocco: converte la libreria al formato nuovo.')
+        contenuto = contenuto_di(oggetto)
+        changelog = self.leggi_changelog(f)
+        impronta_attuale = impronta_di(dati)
+        if corpo.get('improntaAttesa') != impronta_attuale and corpo.get('forza') is not True:
+            raise ErroreApi(409, 'conflitto', "Il file della libreria è cambiato sul disco dopo che l'app l'ha letto.",
+                            impronta=impronta_attuale)
+        if id_blocco not in contenuto:
+            raise ErroreApi(404, 'non_trovato', f'Il blocco "{id_blocco}" non è nella libreria su disco.')
+        return f, dati, oggetto, contenuto, changelog, id_blocco, livello, nota.strip()
+
+    def elimina(self, corpo):
+        f, dati, oggetto, contenuto, changelog, id_blocco, livello, nota = self._prepara_operazione(corpo)
+        changelog, voci_aggiunte = self.allinea(f, oggetto, dati, contenuto, changelog)
+        library_nuova = {k: v for k, v in contenuto.items() if k != id_blocco}
+        modifica = confronta_blocco(id_blocco, contenuto[id_blocco], None)
+        return self._applica(f, dati, changelog, voci_aggiunte, library_nuova, modifica, livello, nota)
+
+    def rinomina_blocco(self, corpo):
+        nuovo_id = corpo.get('nuovoId')
+        if (not isinstance(nuovo_id, str) or not FORMATO_ID_BLOCCO.match(nuovo_id)
+                or len(nuovo_id) > LUNGHEZZA_MAX_ID_BLOCCO):
+            raise ErroreApi(400, 'id_non_valido', "L'ID può contenere solo lettere, cifre, underscore, trattino e punto "
+                                                  f"(al massimo {LUNGHEZZA_MAX_ID_BLOCCO} caratteri).")
+        f, dati, oggetto, contenuto, changelog, id_blocco, livello, nota = self._prepara_operazione(corpo)
+        if nuovo_id == id_blocco:
+            raise ErroreApi(400, 'id_uguale', "Il nuovo ID è uguale a quello di adesso.")
+        if any(k.lower() == nuovo_id.lower() for k in contenuto if k != id_blocco):
+            raise ErroreApi(409, 'esiste', f'Un blocco con ID "{nuovo_id}" esiste già nella libreria.')
+        changelog, voci_aggiunte = self.allinea(f, oggetto, dati, contenuto, changelog)
+        blocco = {**contenuto[id_blocco], 'id': nuovo_id}
+        # Stesso posto nell'ordine del file
+        library_nuova = {(nuovo_id if k == id_blocco else k): (blocco if k == id_blocco else v) for k, v in contenuto.items()}
+        modifica = {'blocco': nuovo_id, 'idPrecedente': id_blocco, 'titolo': titolo_di(blocco, nuovo_id),
+                    'tipo': 'rinominato', 'campiBlocco': ['id'], 'requisiti': []}
+        return self._applica(f, dati, changelog, voci_aggiunte, library_nuova, modifica, livello, nota)
 
     def leggi_voci(self, percorso):
         f = self.risolvi(percorso)
@@ -1258,6 +1323,14 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 if metodo != 'POST':
                     raise non_consentito
                 return 200, self.librerie.salva(corpo)
+            if segmenti[1] == 'elimina':
+                if metodo != 'POST':
+                    raise non_consentito
+                return 200, self.librerie.elimina(corpo)
+            if segmenti[1] == 'rinomina':
+                if metodo != 'POST':
+                    raise non_consentito
+                return 200, self.librerie.rinomina_blocco(corpo)
             if segmenti[1] == 'changelog':
                 if metodo != 'GET':
                     raise non_consentito
