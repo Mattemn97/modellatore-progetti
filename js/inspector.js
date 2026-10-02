@@ -12,6 +12,7 @@ import {
 } from './libreria.js';
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
+import { iconaAiuto } from './aiuto.js';
 
 const propsContent = document.getElementById('propsContent');
 
@@ -102,43 +103,47 @@ function renderEditorForm(data) {
     const html = `
         <div style="display:flex; flex-direction:column; gap:8px;">
             <div class="prop-item">
-                <strong>Titolo Blocco</strong>
+                <strong>Titolo Blocco${iconaAiuto('ispettore.titolo')}</strong>
                 <input type="text" id="edtBlockTitolo" value="${escapeHtml(data.titolo)}" placeholder="es. Centralina Motore" style="width:100%; padding:5px; box-sizing:border-box;">
             </div>
 
             <div class="prop-item">
                 <strong style="display:flex; justify-content:space-between;">
-                    ${data.isNew ? 'ID Blocco Generato' : 'ID Blocco di Libreria'}
+                    <span>${data.isNew ? 'ID Blocco Generato' : 'ID Blocco di Libreria'}${iconaAiuto('ispettore.id')}</span>
                     ${!data.isNew ? `<span style="font-weight:normal; font-size:11px; display:flex; gap:8px;">
-                        <a href="#" id="lnkRinominaBlocco">✏️ Rinomina ID</a>
-                        <a href="#" id="lnkStoria" title="Voci del changelog che toccano questo blocco">📜 Storia</a>
+                        <a href="#" id="lnkRinominaBlocco" data-aiuto="ispettore.rinomina">✏️ Rinomina ID</a>
+                        <a href="#" id="lnkStoria" data-aiuto="ispettore.storia">📜 Storia</a>
                     </span>` : ''}
                 </strong>
                 <input type="text" id="edtBlockId" value="${data.isNew ? '' : escapeHtml(data.blockId)}" ${data.isNew ? 'readonly' : 'disabled'} placeholder="Generato dal titolo..." style="width:100%; padding:5px; box-sizing:border-box; background:#f0f4f8;">
             </div>
 
             <div class="prop-item">
-                <strong>Descrizione</strong>
+                <strong>Descrizione${iconaAiuto('ispettore.descrizione')}</strong>
                 <textarea id="edtBlockDescrizione" rows="2" placeholder="Cosa fa questo blocco..." style="width:100%; box-sizing:border-box; padding:5px; font-family:inherit; resize:vertical;">${escapeHtml(data.descrizione)}</textarea>
             </div>
 
             <div style="display:flex; gap:6px;">
                 <div class="prop-item" style="flex:1;">
-                    <strong>Categoria</strong>
+                    <strong>Categoria${iconaAiuto('ispettore.categoria')}</strong>
                     <input type="text" id="edtBlockCategoria" value="${escapeHtml(data.categoria)}" placeholder="es. Elettrica" style="width:100%; padding:5px; box-sizing:border-box;">
                 </div>
                 <div class="prop-item" style="flex:1;">
-                    <strong>Sottocategoria</strong>
+                    <strong>Sottocategoria${iconaAiuto('ispettore.sottocategoria')}</strong>
                     <input type="text" id="edtBlockSottocategoria" value="${escapeHtml(data.sottocategoria)}" placeholder="es. Controllo" style="width:100%; padding:5px; box-sizing:border-box;">
                 </div>
             </div>
 
             <hr style="border:0; border-top:1px solid #ddd; margin:6px 0;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="margin:0;">Requisiti Blocco</h4>
-                <button id="btnAddReqRow" style="background:#0078d4; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer; font-size:11px;">+ Requisito</button>
+                <h4 style="margin:0;">Requisiti Blocco${iconaAiuto('ispettore.requisiti')}</h4>
+                <button id="btnAddReqRow" data-aiuto="ispettore.aggiungiRequisito" style="background:#0078d4; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer; font-size:11px;">+ Requisito</button>
             </div>
             <div style="font-size:10px; color:#777;">Con una tipologia il requisito è di interfaccia (porta sul bordo). Senza tipologia è di capacità (pin quadrato interno).</div>
+            <!-- Una sola riga di etichette con le (i) per i campi delle schede requisito (spec 0012) -->
+            <div class="etichette-requisiti">
+                <span>ID${iconaAiuto('ispettore.req.id')}</span><span>Titolo${iconaAiuto('ispettore.req.titolo')}</span><span>Tipologia${iconaAiuto('ispettore.req.tipologia')}</span><span>Metodo di verifica${iconaAiuto('ispettore.req.metodo')}</span><span>Documento${iconaAiuto('ispettore.req.documento')}</span><span>Testo da esportare${iconaAiuto('ispettore.req.testo')}</span>
+            </div>
 
             <div id="reqsListContainer" style="display:flex; flex-direction:column; gap:8px; margin-top:6px;"></div>
 
@@ -147,8 +152,8 @@ function renderEditorForm(data) {
             <div style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; gap:6px;">
                     <div class="prop-item" style="flex:0 0 90px;">
-                        <strong>Livello</strong>
-                        <select id="edtLivello" title="Livello della versione: uno più basso di quello calcolato viene ignorato" style="width:100%; padding:4px; box-sizing:border-box;">
+                        <strong>Livello${iconaAiuto('ispettore.livello')}</strong>
+                        <select id="edtLivello" aria-label="Livello della versione" style="width:100%; padding:4px; box-sizing:border-box;">
                             <option value="auto" selected>Automatico</option>
                             <option value="patch">Patch</option>
                             <option value="minor">Minor</option>
@@ -156,24 +161,24 @@ function renderEditorForm(data) {
                         </select>
                     </div>
                     <div class="prop-item" style="flex:1; min-width:0;">
-                        <strong>Motivo della modifica</strong>
+                        <strong>Motivo della modifica${iconaAiuto('ispettore.motivo')}</strong>
                         <input type="text" id="edtNotaModifica" maxlength="2000" placeholder="Facoltativo, finisce nel changelog" style="width:100%; padding:5px; box-sizing:border-box;">
                     </div>
                 </div>
-                <button id="btnSaveBlockToLib" style="background:#2ecc71; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
+                <button id="btnSaveBlockToLib" data-aiuto="ispettore.salva" style="background:#2ecc71; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
                     ${data.isNew ? '💾 Salva in Libreria' : '🔄 Aggiorna Blocco di Libreria'}
                 </button>
 
                 ${!data.isNew ? `
-                    <button id="btnCreateCopy" style="background:#f39c12; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
+                    <button id="btnCreateCopy" data-aiuto="ispettore.copia" style="background:#f39c12; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         📋 Salva come Nuovo Blocco Simile
                     </button>
-                    <button id="btnEliminaBloccoLib" style="background:#c0392b; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
+                    <button id="btnEliminaBloccoLib" data-aiuto="ispettore.eliminaLibreria" style="background:#c0392b; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         🗑 Elimina dalla libreria
                     </button>
                 ` : ''}
                 ${data.nodeId ? `
-                    <button id="btnDeleteNode" style="background:#e74c3c; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
+                    <button id="btnDeleteNode" data-aiuto="ispettore.eliminaGrafico" style="background:#e74c3c; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         🗑️ Elimina Blocco dal Grafico
                     </button>
                 ` : ''}
@@ -510,8 +515,8 @@ function validaRequisiti(requisiti, blockId) {
 
 /* --- DETTAGLIO DI UN REQUISITO CLIENTE (SOLA LETTURA) --- */
 
-function rigaDettaglio(etichetta, valore, stile = '') {
-    return `<div class="prop-item"><strong>${etichetta}</strong><div style="white-space:pre-wrap;${stile}">${escapeHtml(valore ?? '—')}</div></div>`;
+function rigaDettaglio(etichetta, valore, stile = '', chiaveAiuto = '') {
+    return `<div class="prop-item"><strong>${etichetta}${chiaveAiuto ? iconaAiuto(chiaveAiuto) : ''}</strong><div style="white-space:pre-wrap;${stile}">${escapeHtml(valore ?? '—')}</div></div>`;
 }
 
 // Aperto dalla scheda Cliente o dal clic sul blocco tondo; se il requisito è sul canvas e sei alla radice, lo centra
@@ -537,21 +542,21 @@ export function mostraDettaglioCliente(id) {
     propsContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:4px;">
             <h4 style="margin:0 0 6px;">Requisito cliente</h4>
-            ${rigaDettaglio('ID del cliente', req.idCliente, 'font-family:monospace;')}
-            ${rigaDettaglio('Id nel modello', req.id, 'font-family:monospace;')}
+            ${rigaDettaglio('ID del cliente', req.idCliente, 'font-family:monospace;', 'cliente.dett.idCliente')}
+            ${rigaDettaglio('Id nel modello', req.id, 'font-family:monospace;', 'cliente.dett.idModello')}
             ${rigaDettaglio('Titolo', req.titolo)}
             ${rigaDettaglio('Testo', req.testo)}
             ${rigaDettaglio('Note', req.note)}
-            ${rigaDettaglio('Sezione', req.sezione)}
-            ${rigaDettaglio('Classe', getClasseRequisito(req))}
-            ${rigaDettaglio('Stato', `${req.stato === 'ritirato' ? 'Ritirato' : 'Attivo'}${req.modificato ? ', modificato' : ''}${posizione ? ', sul canvas' : ''}`)}
-            ${rigaDettaglio('Fili', String(fili))}
+            ${rigaDettaglio('Sezione', req.sezione, '', 'cliente.dett.sezione')}
+            ${rigaDettaglio('Classe', getClasseRequisito(req), '', 'cliente.dett.classe')}
+            ${rigaDettaglio('Stato', `${req.stato === 'ritirato' ? 'Ritirato' : 'Attivo'}${req.modificato ? ', modificato' : ''}${posizione ? ', sul canvas' : ''}`, '', 'cliente.dett.stato')}
+            ${rigaDettaglio('Fili', String(fili), '', 'cliente.dett.fili')}
             ${prima}
             <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
-                <button id="btnGerarchiaCliente" class="pulsante-progetto" title="Mostra antenati e discendenti nella scheda Gerarchia">🌳 Mostra gerarchia</button>
-                ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto">✔ Segna come visto</button>` : ''}
-                <button id="btnTogliCliente" class="pulsante-progetto" ${posizione && fili === 0 ? '' : 'disabled'}
-                    title="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : 'Toglie il blocco tondo, non il requisito') : 'Non è sul canvas'}">Togli dal canvas</button>
+                <button id="btnGerarchiaCliente" class="pulsante-progetto" data-aiuto="cliente.dett.gerarchia">🌳 Mostra gerarchia</button>
+                ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto" data-aiuto="cliente.dett.visto">✔ Segna come visto</button>` : ''}
+                <button id="btnTogliCliente" class="pulsante-progetto" data-aiuto="cliente.dett.togli" ${posizione && fili === 0 ? '' : 'disabled'}
+                    data-titolo-nativo="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : '') : 'Non è sul canvas'}">Togli dal canvas</button>
             </div>
         </div>`;
 
@@ -610,7 +615,7 @@ function htmlTesti(e) {
     const corpo = voci.length
         ? `<ul class="testi-collegamento">${voci.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`
         : '<div>Nessun testo</div>';
-    return `<div class="prop-item"><strong>Testi da esportare</strong>${corpo}</div>`;
+    return `<div class="prop-item"><strong>Testi da esportare${iconaAiuto('coll.testi')}</strong>${corpo}</div>`;
 }
 
 function htmlLato(titolo, e) {
@@ -621,8 +626,8 @@ function htmlLato(titolo, e) {
         ${rigaDettaglio('ID', e.cliente ? e.req.idCliente : e.req.id, 'font-family:monospace;')}
         ${rigaDettaglio('Titolo', titoloRequisito(e.req))}
         ${rigaDettaglio('Blocco', bloccoEstremo(e))}
-        ${rigaDettaglio('Classe', getClasseRequisito(e.req))}
-        ${e.cliente ? '' : rigaDettaglio('Metodo di verifica', e.req.metodoVerifica || 'non definito')}
+        ${rigaDettaglio('Classe', getClasseRequisito(e.req), '', 'coll.classe')}
+        ${e.cliente ? '' : rigaDettaglio('Metodo di verifica', e.req.metodoVerifica || 'non definito', '', 'coll.metodo')}
         ${htmlTesti(e)}`;
 }
 
@@ -638,10 +643,10 @@ export function mostraDettaglioCollegamento(edge) {
     propsContent.innerHTML = `
         <div data-filo="${escapeHtml(edge.id)}" style="display:flex; flex-direction:column; gap:4px;">
             <h4 style="margin:0 0 6px;">Collegamento</h4>
-            ${rigaDettaglio('Relazione', derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi')}
+            ${rigaDettaglio('Relazione', derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi', '', 'coll.relazione')}
             ${motivo ? `<div class="prop-item avviso-collegamento">⚠️ ${escapeHtml(motivo)}</div>` : ''}
             ${lati.map(([titolo, e]) => htmlLato(titolo, e)).join('')}
-            <button id="btnEliminaCollegamento" class="pulsante-progetto" style="margin-top:8px;">🗑 Elimina collegamento</button>
+            <button id="btnEliminaCollegamento" class="pulsante-progetto" data-aiuto="coll.elimina" style="margin-top:8px;">🗑 Elimina collegamento</button>
         </div>`;
 
     document.getElementById('btnEliminaCollegamento')?.addEventListener('click', () => {

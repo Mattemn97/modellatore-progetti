@@ -24,6 +24,9 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 | `matrice.js` | Traceability matrix (spec 0006): pure `calcolaMatrice()` grouped by requirement id (also returns `voci`, every entry in group order), `filtraMatrice()`, `#matriceModal`, Markdown export; exports `cellaMd()` / `tabellaMd()` |
 | `filtri.js` | Canvas filters (spec 0008): view only state (classe, documento, categoria, sottocategoria, attenua or nascondi), pure rules `requisitoIncluso()` / `bloccoPassa()` / `bloccoIncluso()` / `classePassa()`, the `#pannelloFiltri` panel; `riallineaFiltri()` runs from `initLibrary()` |
 | `documenti.js` | MIL-STD-498 documents (spec 0007): DID chapter trees as data (`DID`), pure `generaDocumento()` over the matrix, `#documentiModal` with selector, summary, preview and `.md` download |
+| `aiuto.js` | Contextual help (spec 0012): one shared `#suggerimento` tooltip driven by delegated `mouseover`/`focusin` on any `[data-aiuto]`, `iconaAiuto(chiave)` for the (i) icon in templates, the ❓ Aiuto menu (tour, show or hide the icons), `[data-tour-avvia]` buttons, first launch tour |
+| `tour.js` | Guided tour (spec 0012): overlay, spotlight and bubble, keyboard in capture phase, opens panels or tabs for a step and restores them, `tourAttivo()` read by `modaleAperta()` |
+| `aiuto-testi.js` | All help texts as data: `SUGGERIMENTI` (key → titolo, testo) and `TOUR` (step lists with CSS selector areas) |
 
 ## Data model
 
@@ -52,6 +55,7 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - What the canvas dims or hides is decided once per `render()` by `calcolaInclusi()` (`renderer.js`) from the rules in `filtri.js`; a Gerarchia chain overrides it (chain elements always drawn, dimming by `fuori-catena`). Use the `.fuori-filtro` class, never inline opacity.
 - Escape every user text interpolated into `innerHTML` with `escapeHtml()`.
 - User feedback uses `alert()` and `confirm()`, in Italian.
+- Every new field gets an (i): `iconaAiuto('area.campo')` in its label and a voce in `SUGGERIMENTI` (`js/aiuto-testi.js`); a button gets `data-aiuto="area.azione"` and no `title`. A state reason (why a button is disabled) goes in `data-titolo-nativo`, shown as an extra line of the tooltip (spec 0012).
 
 ## Gotchas
 
@@ -62,7 +66,8 @@ All app logic. Modules share one mutable global state from `state.js`; any chang
 - `render()` also fills in missing fields on the model (`edge.waypoints`, `node.pinPositions`) and runs on every mousemove while dragging.
 - Modules import each other in a cycle (`app` ↔ `renderer` ↔ `inspector` ↔ `builder` ↔ `storage`). Top level code may only look up DOM elements; never call an imported function at import time.
 - Canvas coordinates: `puntoCanvas(e)` gives the unsnapped point (zoom and pan removed), `getCanvasCoords(e)` snaps it; a dropped block is centred under the cursor (spec 0011).
-- Modal windows (`#reportModal`, `#matriceModal`, `#documentiModal`, import cliente) must be listed in `modaleAperta()` (`progetto.js`), so Esc and Ctrl+Z / Ctrl+Y do not act behind them.
+- Modal windows (`#reportModal`, `#matriceModal`, `#documentiModal`, import cliente) must be listed in `modaleAperta()` (`progetto.js`), so Esc and Ctrl+Z / Ctrl+Y do not act behind them. The guided tour counts as one (`tourAttivo()`).
+- Tour steps in `TOUR` point at CSS selectors (`#btnDRC`, `#schedaLibreria`, …): renaming or moving one of those elements needs the step updated too, or the step falls back to a centred bubble without spotlight.
 - Gerarchia, Coerenza, Matrice and Documenti share one rule set for parents, children and "senza padre": the visit in `model.js` (`visitaDerivazioni`), then `calcolaGerarchia()`, then `calcolaMatrice()`. Build new views on top of these, never with a separate walk.
 - The Cliente and Coerenza tabs redraw only when `render()` marks them (once per frame, only if visible). A change that skips `render()` but alters what they show (e.g. the project rename, which calls only `renderUI()`) must call `segnaSchedaCoerenzaDaAggiornare()` itself. `#reportModal` is shared by the Apri window (`progetto.js`) and the Changelog window (`libreria.js`).
 - The banner under the header has one owner, `progetto.js`; `libreria.js` feeds it through `impostaStatoLibreriaBanner({ conflitto, avviso })`. Priority: project conflict, library conflict, project save error, notices.

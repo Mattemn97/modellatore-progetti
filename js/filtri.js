@@ -7,6 +7,7 @@ import { appState, appSettings } from './state.js';
 import { render } from './renderer.js';
 import { CAPACITA, getTipologie, getClasseRequisito, isRequisitoCliente } from './model.js';
 import { escapeHtml } from './utils.js';
+import { iconaAiuto } from './aiuto.js';
 
 const DOC_CLIENTE = 'Cliente';
 const GRUPPI = [
@@ -118,15 +119,16 @@ function disegnaPannello() {
                 <input type="checkbox" data-gruppo="${g.id}" value="${escapeHtml(v)}"${stato[g.id].has(v) ? ' checked' : ''}>
                 <span>${escapeHtml(v === '' ? g.vuota : v)}</span>
             </label>`).join('');
-        return `<fieldset class="gruppo-filtro"><legend>${g.titolo}</legend><div class="lista-filtro">${voci || '<span class="empty-props">Nessuna voce</span>'}</div></fieldset>`;
+        return `<fieldset class="gruppo-filtro"><legend>${g.titolo}${iconaAiuto(`filtri.${g.id}`)}</legend><div class="lista-filtro">${voci || '<span class="empty-props">Nessuna voce</span>'}</div></fieldset>`;
     }).join('');
     pannello.innerHTML = `
         <div class="griglia-filtri">${colonne}</div>
         <div class="piede-filtri">
-            <span>Elementi esclusi:</span>
+            <span>Elementi esclusi${iconaAiuto('filtri.modo')}:</span>
             <label><input type="radio" name="modoFiltri" value="attenua"${stato.modo === 'attenua' ? ' checked' : ''}> Attenua</label>
             <label><input type="radio" name="modoFiltri" value="nascondi"${stato.modo === 'nascondi' ? ' checked' : ''}> Nascondi</label>
-            <button type="button" id="btnAzzeraFiltri" class="pulsante-progetto">Azzera filtri</button>
+            <button type="button" id="btnAzzeraFiltri" class="pulsante-progetto" data-aiuto="filtri.azzera">Azzera filtri</button>
+            <button type="button" class="pulsante-tour-finestra" data-tour-avvia="filtri" data-aiuto="finestra.tour" aria-label="Guida dei filtri">❓ Guida</button>
             <span id="riepilogoFiltri" class="riepilogo-filtri"></span>
         </div>`;
     document.getElementById('riepilogoFiltri').textContent = testoRiepilogo();

@@ -11,6 +11,7 @@ import { chiamaApi, svuota, progettoAperto, progettoInConflitto } from './proget
 import { mostraDettaglioCliente } from './inspector.js';
 import { verificaCompatibilita, getTipologie, getColoreRequisito, titoloRequisito } from './model.js';
 import { escapeHtml } from './utils.js';
+import { iconaAiuto } from './aiuto.js';
 import { aggiornaSchedaCoerenza } from './coerenza.js';
 import { aggiornaSchedaGerarchia } from './gerarchia.js';
 
@@ -450,21 +451,22 @@ function disegnaFinestra() {
             : `<option value="" ${scelta === null ? 'selected' : ''}>(nessuna)</option>`;
         const voci = colonne.map(c =>
             `<option value="${c.indice}" ${c.indice === scelta ? 'selected' : ''}>${escapeHtml(`${c.lettera}: ${c.nome || '(senza nome)'}`)}</option>`).join('');
-        return `<label class="campo-import"><span>${etichetta}${obbligatorio ? ' *' : ''}</span>
+        return `<label class="campo-import"><span>${etichetta}${obbligatorio ? ' *' : ''}${iconaAiuto(`import.colonna.${chiave}`)}</span>
             <select data-campo="${chiave}" ${oltreLaFine ? 'disabled' : ''}>${vuota}${voci}</select></label>`;
     };
 
     contenutoModale.innerHTML = `
         <div class="import-file">File: <strong>${escapeHtml(imp.nomeFile)}</strong> (${imp.formato === 'csv' ? 'CSV' : 'Excel'})</div>
         <div class="import-riga">
-            <label class="campo-import"><span>Foglio</span>
+            <label class="campo-import"><span>Foglio${iconaAiuto('import.foglio')}</span>
                 <select id="impFoglio" ${imp.fogli.length < 2 ? 'disabled' : ''}>${opzioniFogli}</select></label>
-            <label class="campo-import"><span>Riga di intestazione</span>
+            <label class="campo-import"><span>Riga di intestazione${iconaAiuto('import.riga')}</span>
                 <input type="number" id="impRiga" min="1" step="1" value="${imp.riga}" style="width:80px;"></label>
         </div>
         ${oltreLaFine ? `<p class="elenco-avviso">Il foglio ha solo ${foglio.righe.length} righe</p>` : ''}
         <div class="import-campi">${CAMPI.map(menuCampo).join('')}</div>
         <div class="import-modalita">
+            <span class="campo-import"><span>Modalità${iconaAiuto('import.modalita')}</span></span>
             <label><input type="radio" name="impModalita" value="sostituisci" ${imp.modalita === 'sostituisci' ? 'checked' : ''}> Sostituisci l'insieme <small>(chi manca nel file diventa ritirato)</small></label>
             <label><input type="radio" name="impModalita" value="aggiungi" ${imp.modalita === 'aggiungi' ? 'checked' : ''}> Aggiungi e aggiorna <small>(nessuno viene ritirato)</small></label>
         </div>
@@ -638,7 +640,7 @@ export function aggiornaPulsantiCliente() {
     if (!progettoAperto()) motivo = 'Apri un progetto per importare i requisiti cliente';
     else if (progettoInConflitto()) motivo = 'Risolvi prima il conflitto del progetto (banner in alto)';
     pulsante.disabled = !!motivo;
-    pulsante.title = motivo || 'Importa i requisiti cliente da un file .xlsx o .csv';
+    pulsante.dataset.titoloNativo = motivo;
 }
 
 function passaFiltriScheda(req, fili, query) {

@@ -16,11 +16,19 @@
 
         <!-- Stato del salvataggio automatico, annulla/ripeti e menu Progetto (js/progetto.js) -->
         <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-            <span id="badgeSalvataggio" class="badge-salvataggio stato-salvato" hidden>Salvato</span>
-            <button id="btnAnnulla" class="pulsante-progetto" title="Annulla (Ctrl+Z)" disabled>&#8630; Annulla</button>
-            <button id="btnRipeti" class="pulsante-progetto" title="Ripeti (Ctrl+Y)" disabled>&#8631; Ripeti</button>
+            <span id="badgeSalvataggio" class="badge-salvataggio stato-salvato" data-aiuto="header.salvataggio" hidden>Salvato</span>
+            <button id="btnAnnulla" class="pulsante-progetto" data-aiuto="header.annulla" disabled>&#8630; Annulla</button>
+            <button id="btnRipeti" class="pulsante-progetto" data-aiuto="header.ripeti" disabled>&#8631; Ripeti</button>
+            <!-- Menu Aiuto: tour guidato e icone (i) (js/aiuto.js, spec 0012) -->
             <div class="menu-progetto">
-                <button id="btnMenuProgetto" class="pulsante-progetto pulsante-menu">Progetto &#9662;</button>
+                <button id="btnMenuAiuto" class="pulsante-progetto" data-aiuto="header.aiuto">❓ Aiuto &#9662;</button>
+                <div id="menuAiuto" class="menu-progetto-voci menu-aiuto-voci" hidden>
+                    <button data-aiuto-azione="tour">🎓 Tour guidato</button>
+                    <button data-aiuto-azione="icone" role="menuitemcheckbox" aria-checked="true"><span class="spunta-aiuto">✓</span>Mostra le (i)</button>
+                </div>
+            </div>
+            <div class="menu-progetto">
+                <button id="btnMenuProgetto" class="pulsante-progetto pulsante-menu" data-aiuto="header.progetto">Progetto &#9662;</button>
                 <div id="menuProgetto" class="menu-progetto-voci" hidden>
                     <button data-azione="nuovo">Nuovo…</button>
                     <button data-azione="apri">Apri…</button>
@@ -51,21 +59,21 @@
             <div id="schedaLibreria" class="contenuto-scheda">
             <!-- Versione, sola lettura e changelog della libreria su disco (js/libreria.js) -->
             <div class="testata-libreria">
-                <h3>Libreria Blocchi <span id="versioneLibreria" class="versione-libreria"></span></h3>
-                <button id="btnChangelog" class="pulsante-changelog" disabled>📜 Changelog</button>
+                <h3>Libreria Blocchi <span id="versioneLibreria" class="versione-libreria"></span><span class="icona-aiuto" data-aiuto="libreria.titolo" tabindex="0" role="button" aria-label="Informazioni">i</span></h3>
+                <button id="btnChangelog" class="pulsante-changelog" data-aiuto="libreria.changelog" disabled>📜 Changelog</button>
             </div>
-            <div id="etichettaSolaLettura" class="etichetta-sola-lettura" hidden>Sola lettura</div>
+            <div id="etichettaSolaLettura" class="etichetta-sola-lettura" data-aiuto="libreria.solaLettura" hidden>Sola lettura</div>
 
             <!-- Configurazione e ricarica da Path/URL -->
             <div style="margin-bottom: 10px; background: #f0f4f8; padding: 8px; border-radius: 4px; border: 1px solid #d0d7de;">
-                <label style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px;">Percorso / URL Libreria:</label>
+                <label style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px;">Percorso / URL Libreria:<span class="icona-aiuto" data-aiuto="libreria.percorso" tabindex="0" role="button" aria-label="Informazioni">i</span></label>
                 <div style="display: flex; gap: 4px;">
                     <input type="text" id="libPathInput" placeholder="es. shared/libreria.json" style="flex: 1; padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;">
-                    <button id="btnLoadFromPath" style="background: #0078d4; color: white; border: none; border-radius: 3px; padding: 0 8px; cursor: pointer; font-size: 11px;" title="Ricarica da Path">🔄</button>
+                    <button id="btnLoadFromPath" style="background: #0078d4; color: white; border: none; border-radius: 3px; padding: 0 8px; cursor: pointer; font-size: 11px;" data-aiuto="libreria.ricarica" aria-label="Ricarica da Path">🔄</button>
                 </div>
             </div>
 
-            <input type="text" id="libSearchInput" placeholder="🔍 Cerca nella libreria..." style="width: 100%; padding: 6px; margin-bottom: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+            <div class="campo-con-aiuto" style="margin-bottom: 8px;"><input type="text" id="libSearchInput" placeholder="🔍 Cerca nella libreria..." style="width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"><span class="icona-aiuto" data-aiuto="libreria.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
             <div id="libraryContent" style="flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 4px;"></div>
             </div>
 
@@ -73,20 +81,20 @@
             <div id="schedaCliente" class="contenuto-scheda" hidden>
                 <div id="clienteNessunProgetto" class="empty-props">Apri un progetto</div>
                 <div id="clienteStrumenti" class="strumenti-cliente" hidden>
-                    <button id="btnImportaCliente" class="pulsante-progetto pulsante-menu">Importa…</button>
-                    <button id="btnVistiCliente" class="pulsante-progetto" title="Spegne il segno Modificato su tutti i requisiti cliente" hidden>Segna tutti come visti</button>
+                    <button id="btnImportaCliente" class="pulsante-progetto pulsante-menu" data-aiuto="cliente.importa">Importa…</button>
+                    <button id="btnVistiCliente" class="pulsante-progetto" data-aiuto="cliente.visti" hidden>Segna tutti come visti</button>
                 </div>
                 <p id="clienteVuoto" class="spiegazione-cliente" hidden>Importa da Excel (.xlsx) o CSV le frasi del cliente: diventano requisiti che trascini sulla radice come blocchi tondi, da cui tiri i fili verso i blocchi di sistema.</p>
                 <div id="clienteFiltri" class="filtri-cliente" hidden>
-                    <input type="text" id="clienteRicerca" placeholder="🔍 Cerca per ID, titolo o testo...">
-                    <div style="display: flex; gap: 4px;">
-                        <select id="clienteStato" title="Stato">
+                    <div class="campo-con-aiuto"><input type="text" id="clienteRicerca" placeholder="🔍 Cerca per ID, titolo o testo..."><span class="icona-aiuto" data-aiuto="cliente.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="clienteStato" aria-label="Stato">
                             <option value="tutti">Tutti</option>
                             <option value="nonCollegati">Non collegati</option>
                             <option value="modificati">Modificati</option>
                             <option value="ritirati">Ritirati</option>
-                        </select>
-                        <select id="clienteSezione" title="Sezione"></select>
+                        </select><span class="icona-aiuto" data-aiuto="cliente.stato" tabindex="0" role="button" aria-label="Informazioni">i</span>
+                        <select id="clienteSezione" aria-label="Sezione"></select><span class="icona-aiuto" data-aiuto="cliente.sezione" tabindex="0" role="button" aria-label="Informazioni">i</span>
                     </div>
                     <div id="clienteConteggio" class="conteggio-cliente"></div>
                 </div>
@@ -97,7 +105,7 @@
 
             <!-- Requisiti scoperti e difetti del modello (js/coerenza.js); solo #coerenzaGruppi si ridisegna -->
             <div id="schedaCoerenza" class="contenuto-scheda" hidden>
-                <input type="text" id="coerenzaRicerca" class="ricerca-coerenza" placeholder="🔍 Cerca per id, ID del cliente o titolo...">
+                <div class="campo-con-aiuto"><input type="text" id="coerenzaRicerca" class="ricerca-coerenza" placeholder="🔍 Cerca per id, ID del cliente o titolo..."><span class="icona-aiuto" data-aiuto="coerenza.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
                 <div id="coerenzaAvviso" class="avviso-coerenza" hidden></div>
                 <div id="coerenzaGruppi"></div>
             </div>
@@ -111,21 +119,21 @@
         <!-- COLONNA CENTRALE (3/5): Canvas -->
         <div class="canvas-container" id="canvasContainer">
             <div class="canvas-toolbar">
-                <button id="toggleLeftBtn">☰ Libreria</button>
+                <button id="toggleLeftBtn" data-aiuto="barra.libreria">☰ Libreria</button>
                 
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
                     <!-- Filtri del canvas (js/filtri.js, spec 0008): il pannello si apre sotto la barra -->
-                    <button id="btnFiltri" class="pulsante-filtri" aria-pressed="false" title="Filtra blocchi e fili per classe, documento, categoria e sottocategoria">🔎 Filtri</button>
+                    <button id="btnFiltri" class="pulsante-filtri" aria-pressed="false" data-aiuto="barra.filtri">🔎 Filtri</button>
                     <div id="pannelloFiltri" class="pannello-filtri" hidden></div>
 
-                    <button id="btnReqMatrix" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
-                    <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" title="Genera un documento MIL-STD-498 in Markdown">📄 Documenti</button>
-                    <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false">⚠️ Verifica Coerenza</button>
-                    <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" title="Scegli un requisito e vedi i suoi antenati e discendenti">🌳 Gerarchia</button>
-                    <button id="btnResetView" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
+                    <button id="btnReqMatrix" data-aiuto="barra.matrice" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
+                    <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" data-aiuto="barra.documenti">📄 Documenti</button>
+                    <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false" data-aiuto="barra.coerenza">⚠️ Verifica Coerenza</button>
+                    <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" data-aiuto="barra.gerarchia">🌳 Gerarchia</button>
+                    <button id="btnResetView" data-aiuto="barra.resetVista" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 
-                <button id="toggleRightBtn">☰ Proprietà</button>
+                <button id="toggleRightBtn" data-aiuto="barra.proprieta">☰ Proprietà</button>
             </div>
 
             <svg id="workspaceSvg">
@@ -153,7 +161,7 @@
         <div class="side-panel right-panel" id="propertiesPanel">
             <div id="propsHeader" style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Ispettore & Gestione</h3>
-                <button id="btnNewBlockFromScratch" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">+ Nuovo Blocco</button>
+                <button id="btnNewBlockFromScratch" data-aiuto="ispettore.nuovoBlocco" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">+ Nuovo Blocco</button>
             </div>
             <div id="propsContent" style="margin-top:10px;">
                 <div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>
@@ -167,20 +175,20 @@
     <div class="modal-body modal-matrice">
         <div class="modal-header">
             <h3>Matrice di tracciabilità</h3>
-            <button id="btnChiudiMatrice" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Chiudi">✕</button>
+            <div class="pulsanti-finestra"><button class="pulsante-tour-finestra" data-tour-avvia="matrice" data-aiuto="finestra.tour" aria-label="Guida di questa finestra">❓ Guida</button><button id="btnChiudiMatrice" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Chiudi">✕</button></div>
         </div>
         <div id="matriceFiltri" class="filtri-matrice">
-            <label class="campo-import"><span>Documento</span><select id="matriceDocumento"></select></label>
-            <label class="campo-import"><span>Lato</span>
+            <label class="campo-import"><span>Documento<span class="icona-aiuto" data-aiuto="matrice.documento" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="matriceDocumento"></select></label>
+            <label class="campo-import"><span>Lato<span class="icona-aiuto" data-aiuto="matrice.lato" tabindex="0" role="button" aria-label="Informazioni">i</span></span>
                 <select id="matriceLato">
                     <option value="entrambi">Uno dei due</option>
                     <option value="padre">Padre</option>
                     <option value="figlio">Figlio</option>
                 </select>
             </label>
-            <label class="campo-import"><span>Classe</span><select id="matriceClasse"></select></label>
-            <label class="campo-import campo-ricerca-matrice"><span>Ricerca</span><input type="text" id="matriceRicerca" placeholder="🔍 ID o titolo di padre o figlio..."></label>
-            <button id="btnEsportaMatrice" class="pulsante-progetto" disabled>⬇ Esporta .md</button>
+            <label class="campo-import"><span>Classe<span class="icona-aiuto" data-aiuto="matrice.classe" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="matriceClasse"></select></label>
+            <label class="campo-import campo-ricerca-matrice"><span>Ricerca<span class="icona-aiuto" data-aiuto="matrice.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></span><input type="text" id="matriceRicerca" placeholder="🔍 ID o titolo di padre o figlio..."></label>
+            <button id="btnEsportaMatrice" class="pulsante-progetto" data-aiuto="matrice.esporta" disabled>⬇ Esporta .md</button>
         </div>
         <div id="matriceConteggi" class="import-conteggi"></div>
         <div id="matriceContenuto" class="contenuto-matrice"></div>
@@ -192,11 +200,11 @@
     <div class="modal-body modal-matrice">
         <div class="modal-header">
             <h3>Documenti MIL-STD-498</h3>
-            <button id="btnChiudiDocumenti" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Chiudi">✕</button>
+            <div class="pulsanti-finestra"><button class="pulsante-tour-finestra" data-tour-avvia="documenti" data-aiuto="finestra.tour" aria-label="Guida di questa finestra">❓ Guida</button><button id="btnChiudiDocumenti" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Chiudi">✕</button></div>
         </div>
         <div id="documentiBarra" class="filtri-matrice">
-            <label class="campo-import"><span>Documento</span><select id="documentiScelta"></select></label>
-            <button id="btnEsportaDocumento" class="pulsante-progetto" disabled>⬇ Esporta .md</button>
+            <label class="campo-import"><span>Documento<span class="icona-aiuto" data-aiuto="documenti.documento" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="documentiScelta"></select></label>
+            <button id="btnEsportaDocumento" class="pulsante-progetto" data-aiuto="documenti.esporta" disabled>⬇ Esporta .md</button>
         </div>
         <div id="documentiRiepilogo" class="import-conteggi"></div>
         <div id="documentiMessaggio" class="empty-props" hidden></div>
@@ -220,7 +228,7 @@
     <div class="modal-body modal-import">
         <div class="modal-header">
             <h3>Importa requisiti cliente</h3>
-            <button id="btnChiudiImport" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
+            <div class="pulsanti-finestra"><button class="pulsante-tour-finestra" data-tour-avvia="importCliente" data-aiuto="finestra.tour" aria-label="Guida di questa finestra">❓ Guida</button><button id="btnChiudiImport" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button></div>
         </div>
         <div id="importClienteContenuto"></div>
     </div>

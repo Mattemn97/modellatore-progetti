@@ -13,6 +13,7 @@ import {
 } from './cliente.js';
 import { segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 import { azzeraSceltaGerarchia } from './gerarchia.js';
+import { tourAttivo } from './tour.js';
 
 // 2 da quando il progetto può avere la chiave cliente (spec 0003): si leggono 1 e 2, si scrive sempre 2
 const FORMAT_VERSION = 2;
@@ -676,13 +677,13 @@ function scarica() {
 
 /* --- FINESTRA APRI --- */
 
-// Anche il gestore di Esc della Gerarchia la usa
+// Anche il gestore di Esc della Gerarchia la usa; il tour guidato conta come finestra aperta (spec 0012)
 export function modaleAperta() {
     const aperta = id => {
         const modal = document.getElementById(id);
         return !!modal && modal.style.display !== 'none';
     };
-    return aperta('reportModal') || aperta('matriceModal') || aperta('documentiModal') || importClienteAperto();
+    return tourAttivo() || aperta('reportModal') || aperta('matriceModal') || aperta('documentiModal') || importClienteAperto();
 }
 
 function chiudiModale() {
@@ -742,7 +743,7 @@ function aggiornaInterfaccia() {
         badge.hidden = !progetto.slug;
         badge.textContent = ETICHETTE_STATO[stato];
         badge.className = `badge-salvataggio stato-${motivoErrore && stato !== 'salvataggio' ? 'errore' : stato}`;
-        badge.title = motivoErrore;
+        badge.dataset.titoloNativo = motivoErrore || '';
     }
 
     const bloccato = stato === 'conflitto';

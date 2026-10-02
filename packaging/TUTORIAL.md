@@ -38,6 +38,7 @@ L'app non si installa: è una cartella che estrai e usi. Non servono diritti di 
 2. Se compare la finestra blu **"Windows ha protetto il PC"** (SmartScreen), è perché il programma non è firmato digitalmente. Clicca **Ulteriori informazioni** e poi **Esegui comunque**. Succede solo la prima volta.
 3. Si apre una **finestra nera**: è il server. Dopo circa un secondo si apre il browser su `http://localhost:8080` con l'app.
 4. Trovi già aperto un progetto vuoto chiamato **"Nuovo progetto"**.
+5. Parte da solo un **tour guidato**: lo schermo si scurisce tranne l'area spiegata e un fumetto ti racconta a cosa serve. Vai avanti con **Avanti** (o la freccia →), torna indietro con **Indietro** (←), esci quando vuoi con **Salta il tour** o **Esc**. Non riparte più da solo.
 
 **Regole d'oro:**
 
@@ -62,6 +63,12 @@ Per muoverti sul canvas:
 * **rotella del mouse**: zoom;
 * **trascina lo sfondo vuoto**: sposta la vista;
 * **`🔍 Reset Vista`**: torna alla vista iniziale.
+
+**Aiuto dentro l'app:**
+
+* Accanto a quasi ogni campo c'è una piccola **(i)** blu: passaci sopra con il mouse (o arrivaci con Tab) e ti dice cosa rappresenta quel campo. Anche i pulsanti spiegano cosa fanno se ti fermi sopra.
+* Il menu **`❓ Aiuto`** in alto a destra rilancia il **Tour guidato** e con **Mostra le (i)** nasconde o rimette le icone.
+* Matrice, Documenti, Import cliente e Filtri hanno un pulsante **`❓ Guida`** con un breve tour di quella finestra.
 
 ---
 
