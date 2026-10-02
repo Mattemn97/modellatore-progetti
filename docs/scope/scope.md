@@ -24,7 +24,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 8 | Filtri avanzati | Slice 4 | done |
 | 9 | Ispettore dei collegamenti | Slice 4 | done |
 | 10 | Gestione completa della libreria | Slice 4 | done |
-| 11 | Rifiniture dell'editor | Slice 4 | planned |
+| 11 | Rifiniture dell'editor | Slice 4 | in-progress |
 
 ## Già presente
 
@@ -169,10 +169,15 @@ spec [0010](../specs/0010-gestione-completa-libreria/index.md) · code in `start
   - [x] Ispettore: elimina con avviso delle istanze, rinomina con aggiornamento dei nodi (AC-1, AC-2, AC-3, AC-4, AC-5)
 - [x] Verify it: `/check verify gestione completa della libreria`
 
-### 11. Rifiniture dell'editor
+### 11. Rifiniture dell'editor · in-progress
 Piccoli difetti trovati nel codice: il rilascio di un blocco ignora zoom e pan, e lo spostamento delle porte con Shift non si scopre da soli.
 **Done when:** un blocco rilasciato cade sotto il cursore a qualsiasi zoom, e lo spostamento delle porte è indicato nell'interfaccia.
+spec [0011](../specs/0011-rifiniture-editor/index.md)
+- [x] Design it (spec): `/architect rifiniture dell'editor`
 - [ ] Build it: `/develop rifiniture dell'editor`
+  - [ ] Rilascio centrato sotto il cursore (AC-1)
+  - [ ] Riga di aiuto e cursore con Shift sulle porte (AC-2, AC-3)
+- [ ] Verify it: `/check verify rifiniture dell'editor`
 
 ## Deferred
 Fuori da questo giro, tenuti qui perché il piano resti onesto.
