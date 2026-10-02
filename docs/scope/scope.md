@@ -25,6 +25,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 9 | Ispettore dei collegamenti | Slice 4 | done |
 | 10 | Gestione completa della libreria | Slice 4 | done |
 | 11 | Rifiniture dell'editor | Slice 4 | done |
+| 12 | Tutorial e aiuto contestuale | Slice 5 | in-progress |
 
 ## Già presente
 
@@ -178,6 +179,20 @@ spec [0011](../specs/0011-rifiniture-editor/index.md) · code in `js/app.js`, `j
   - [x] Rilascio centrato sotto il cursore (AC-1)
   - [x] Riga di aiuto e cursore con Shift sulle porte (AC-2, AC-3)
 - [x] Verify it: `/check verify rifiniture dell'editor`
+
+## Slice 5: Aiuto in app
+
+### 12. Tutorial e aiuto contestuale · in-progress
+Un tour guidato a passi, con overlay e popup, che ti spiega ogni area dell'interfaccia; e una (i) accanto ai campi che, al passaggio del mouse, ti dice cosa rappresenta quel campo.
+**Done when:** al primo avvio (o dal pulsante di aiuto) parte un tour che evidenzia una area alla volta con un popup Avanti, Indietro, Salta; ogni campo dell'ispettore e delle finestre principali ha una (i) con un suggerimento chiaro al passaggio del mouse.
+spec [0012](../specs/0012-tutorial-aiuto-contestuale/index.md)
+- [x] Design it (spec): `/architect tutorial e aiuto contestuale`
+- [ ] Build it: `/develop tutorial e aiuto contestuale`
+  - [ ] Filo minimo: menu ❓, una (i) con il suggerimento, tour corto con riflettore e tastiera (AC-1, AC-3, AC-4, AC-9, AC-11, AC-12, AC-13)
+  - [ ] Tour principale completo: 17 passi, pannelli e schede ripristinati, primo avvio (AC-2, AC-5, AC-6, AC-7)
+  - [ ] Inventario completo delle (i) e dei suggerimenti sui pulsanti (AC-9, AC-10, AC-11, AC-13)
+  - [ ] Mini tour delle finestre e tutorial esterno (AC-8, AC-14)
+- [ ] Verify it: `/check verify tutorial e aiuto contestuale`
 
 ## Deferred
 Fuori da questo giro, tenuti qui perché il piano resti onesto.
