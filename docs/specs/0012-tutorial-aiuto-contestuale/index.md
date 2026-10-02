@@ -1,7 +1,7 @@
 # 0012. Tutorial guidato e aiuto contestuale con le icone (i)
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

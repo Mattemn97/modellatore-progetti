@@ -6,6 +6,7 @@ import { impostaLibreria } from './builder.js';
 import { openLibraryBlock } from './inspector.js';
 import { chiamaApi, progettoInConflitto, impostaStatoLibreriaBanner } from './progetto.js';
 import { escapeHtml } from './utils.js';
+import { iconaAiuto } from './aiuto.js';
 
 const MSG_FUORI_SHARED = "La libreria è fuori dalla cartella shared/: l'app può solo leggerla.";
 const MSG_WEB = "Libreria caricata da un indirizzo web: l'app può solo leggerla.";
@@ -348,7 +349,7 @@ export async function mostraChangelog(filtroIniziale = '') {
     document.getElementById('btnCloseModal').style.display = '';
     const contenuto = document.getElementById('modalContent');
     contenuto.innerHTML = `
-        <input type="text" id="filtroChangelog" placeholder="Filtra per blocco (id o titolo) o id requisito..." class="filtro-changelog">
+        <div class="campo-con-aiuto"><input type="text" id="filtroChangelog" placeholder="Filtra per blocco (id o titolo) o id requisito..." class="filtro-changelog">${iconaAiuto('changelog.filtro')}</div>
         <div id="vociChangelog"></div>`;
 
     const filtro = document.getElementById('filtroChangelog');

@@ -12,6 +12,7 @@ import { initGerarchia } from './gerarchia.js';
 import { initMatrice } from './matrice.js';
 import { initDocumenti } from './documenti.js';
 import { initFiltri } from './filtri.js';
+import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { generaId } from './utils.js';
 
 const svg = document.getElementById('workspaceSvg');
@@ -92,6 +93,7 @@ async function initApp() {
     initGerarchia();
     initMatrice();
     initDocumenti();
+    initAiuto();
 
     // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
     // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti
@@ -166,6 +168,8 @@ async function initApp() {
 
     // Apre l'ultimo progetto (o lo crea) e ne carica la libreria; da qui parte il salvataggio automatico
     await avviaProgetti();
+    // Il tour parte da solo la prima volta (spec 0012, AC-2)
+    avviaTourPrimoAvvio();
 }
 
 initApp();
