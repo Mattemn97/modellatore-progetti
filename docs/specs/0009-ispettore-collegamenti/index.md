@@ -1,7 +1,7 @@
 # 0009. Ispettore dei collegamenti: selezione di un filo e dettaglio dei due requisiti
 
 **Date**: 2026-10-02
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

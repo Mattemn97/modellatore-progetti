@@ -1,9 +1,12 @@
 /* --- ISPETTORE: MODIFICA DI BLOCCHI DI LIBRERIA, REQUISITI E TESTI DA ESPORTARE --- */
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
-import { render, centraVista, evidenziaCliente } from './renderer.js';
+import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo } from './renderer.js';
 import { escapeHtml, slugifyId } from './utils.js';
-import { getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE } from './model.js';
+import {
+    getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
+    isDerivazione, verificaCompatibilita, titoloRequisito
+} from './model.js';
 import { salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog } from './libreria.js';
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
@@ -34,7 +37,13 @@ function copiaRequisiti(requisiti) {
     return JSON.parse(JSON.stringify(requisiti)).map(r => ({ ...r, _idOriginale: r.id }));
 }
 
+// Un altro contenuto nel pannello toglie la selezione del filo (spec 0009, AC-1)
+function lasciaFilo() {
+    if (togliSelezioneFilo()) render();
+}
+
 export function renderNewBlockForm() {
+    lasciaFilo();
     setActiveNodeId(null);
     renderEditorForm({
         isNew: true,
@@ -63,6 +72,7 @@ export function openLibraryBlock(blockId, nodeId = null) {
 }
 
 export function selectNode(node) {
+    lasciaFilo();
     setActiveNodeId(node.id);
     if (appState.library[node.type]) {
         openLibraryBlock(node.type, node.id);
@@ -417,6 +427,7 @@ function rigaDettaglio(etichetta, valore, stile = '') {
 export function mostraDettaglioCliente(id) {
     const req = trovaRequisitoCliente(id);
     if (!req) return;
+    lasciaFilo();
     setActiveNodeId(null);
     impostaSelezioneCliente(id);
 
@@ -487,4 +498,77 @@ export function deleteNodeFromGraph(nodeId) {
     setActiveNodeId(null);
     propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco...</div>`;
     render();
+}
+
+/* --- ISPETTORE DEI COLLEGAMENTI (spec 0009) --- */
+
+const PANNELLO_VUOTO = '<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>';
+
+function bloccoEstremo(e) {
+    if (e.cliente) return 'Cliente';
+    if (e.tondo) return `Blocco padre: ${e.parentNode.label || e.parentNode.id}`;
+    const etichetta = e.nodo.label || e.nodo.id;
+    const titolo = e.def.titolo || e.def.id;
+    return etichetta === titolo ? etichetta : `${etichetta} (${titolo})`;
+}
+
+function htmlTesti(e) {
+    const voci = e.cliente
+        ? (e.req.testo ? [e.req.testo] : [])
+        : (e.req.testiExport || []).filter(t => String(t.testo ?? '').trim()).map(t => `[${t.documento || '?'}] ${t.testo}`);
+    const corpo = voci.length
+        ? `<ul class="testi-collegamento">${voci.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`
+        : '<div>Nessun testo</div>';
+    return `<div class="prop-item"><strong>Testi da esportare</strong>${corpo}</div>`;
+}
+
+function htmlLato(titolo, e) {
+    if (e.mancante) {
+        return `<h5 class="lato-collegamento">${titolo}</h5><div class="prop-item">Requisito non trovato: ${escapeHtml(e.reqId)}</div>`;
+    }
+    return `<h5 class="lato-collegamento">${titolo}</h5>
+        ${rigaDettaglio('ID', e.cliente ? e.req.idCliente : e.req.id, 'font-family:monospace;')}
+        ${rigaDettaglio('Titolo', titoloRequisito(e.req))}
+        ${rigaDettaglio('Blocco', bloccoEstremo(e))}
+        ${rigaDettaglio('Classe', getClasseRequisito(e.req))}
+        ${e.cliente ? '' : rigaDettaglio('Metodo di verifica', e.req.metodoVerifica || 'non definito')}
+        ${htmlTesti(e)}`;
+}
+
+// Dettaglio del filo del livello di adesso; il contenitore porta data-filo per riconoscerlo dopo
+export function mostraDettaglioCollegamento(edge) {
+    impostaSelezioneCliente(null);
+    const a = descriviEstremo(edge.source, edge.sourceHandle, edge.sourceType);
+    const b = descriviEstremo(edge.target, edge.targetHandle, edge.targetType);
+    const derivazione = isDerivazione(edge);
+    const lati = !derivazione ? [['Da', a], ['A', b]] : edge.sourceType === 'parent' ? [['Padre', a], ['Figlio', b]] : [['Padre', b], ['Figlio', a]];
+    const motivo = !a.mancante && !b.mancante ? verificaCompatibilita(a, b) : null;
+
+    propsContent.innerHTML = `
+        <div data-filo="${escapeHtml(edge.id)}" style="display:flex; flex-direction:column; gap:4px;">
+            <h4 style="margin:0 0 6px;">Collegamento</h4>
+            ${rigaDettaglio('Relazione', derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi')}
+            ${motivo ? `<div class="prop-item avviso-collegamento">⚠️ ${escapeHtml(motivo)}</div>` : ''}
+            ${lati.map(([titolo, e]) => htmlLato(titolo, e)).join('')}
+            <button id="btnEliminaCollegamento" class="pulsante-progetto" style="margin-top:8px;">🗑 Elimina collegamento</button>
+        </div>`;
+
+    document.getElementById('btnEliminaCollegamento')?.addEventListener('click', () => {
+        if (!confirm('Vuoi eliminare questo collegamento?')) return;
+        eliminaFilo(getCurrentLevel().graph, edge.id);
+        propsContent.innerHTML = PANNELLO_VUOTO;
+    });
+}
+
+function filoNelPannello() {
+    return propsContent.querySelector('[data-filo]')?.getAttribute('data-filo') ?? null;
+}
+
+// Ridisegna il dettaglio solo se il pannello mostra ancora quel filo
+export function aggiornaDettaglioCollegamento(edge) {
+    if (filoNelPannello() === edge.id) mostraDettaglioCollegamento(edge);
+}
+
+export function chiudiDettaglioCollegamento(edgeId) {
+    if (filoNelPannello() === edgeId) propsContent.innerHTML = PANNELLO_VUOTO;
 }
