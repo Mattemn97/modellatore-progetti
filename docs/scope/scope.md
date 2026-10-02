@@ -27,7 +27,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 11 | Rifiniture dell'editor | Slice 4 | done |
 | 12 | Tutorial e aiuto contestuale | Slice 5 | done |
 | 13 | Protezione dei dati negli aggiornamenti | Slice 6 | done |
-| 14 | Console del server più leggibile | Slice 6 | planned |
+| 14 | Console del server più leggibile | Slice 6 | in-progress |
 | 15 | Controllo e aggiornamento automatico | Slice 6 | planned |
 
 ## Già presente
@@ -210,10 +210,16 @@ spec [0013](../specs/0013-protezione-dati-aggiornamenti/index.md) · code in `st
   - [x] Tutorial e prova di aggiornamento sopra un'installazione piena di dati (AC-4, AC-7)
 - [x] Verify it: `/check verify protezione dei dati negli aggiornamenti`
 
-### 14. Console del server più leggibile · planned · needs a decision
+### 14. Console del server più leggibile · in-progress
 La finestra nera all'avvio diventa chiara a colpo d'occhio: il link su cui lavorare ben evidenziato e cliccabile, le cartelle dei dati, la versione in uso ed eventuali avvisi (come un aggiornamento disponibile) a colori. Da decidere la libreria (rich o colorama) e come entra nell'exe.
 **Done when:** avviando `start.py` o `start.exe` vedi a colori versione, link dell'app e cartelle dei dati, il link si apre con un clic dove il terminale lo permette, e la console resta leggibile anche dove i colori non sono supportati.
-- [ ] Design it (spec): `/architect console del server più leggibile`
+spec [0014](../specs/0014-console-server-leggibile/index.md)
+- [x] Design it (spec): `/architect console del server più leggibile`
+- [ ] Build it: `/develop console del server più leggibile`
+  - [ ] Riquadro di avvio, versione, funzioni di stampa con riserva in testo semplice (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6)
+  - [ ] Log delle richieste filtrato (AC-7)
+  - [ ] `requirements.txt`, exe con `rich` e prova di avvio (AC-8)
+- [ ] Verify it: `/check verify console del server più leggibile`
 
 ### 15. Controllo e aggiornamento automatico · planned · needs a decision
 All'avvio il programma chiede alla repo GitHub se c'è una Release più recente; se c'è te lo dice nella console e con un banner nell'app e, se confermi, scarica la nuova versione, sostituisce i file dell'app e riparte, rispettando le regole della funzionalità 13.
