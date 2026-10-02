@@ -1,0 +1,70 @@
+# --- RILASCIO ---
+# Compila start.exe e crea lo zip e lo zip autoestraente (vedi packaging/crea-pacchetto.ps1).
+# - push di un tag v* (es. v1.0.0): pubblica una GitHub Release con i due file
+# - avvio manuale (Actions > Rilascio > Run workflow): solo artifact scaricabile dall'esecuzione
+name: Rilascio
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pacchetto:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installa PyInstaller
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: Versione
+        id: versione
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") { $v = $env:GITHUB_REF_NAME -replace '^v', '' }
+          else { $v = "dev-" + $env:GITHUB_SHA.Substring(0, 7) }
+          "valore=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Compila e impacchetta
+        shell: pwsh
+        run: ./packaging/crea-pacchetto.ps1 -Versione "${{ steps.versione.outputs.valore }}"
+
+      - name: Prova di avvio di start.exe
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "dist/pacchetto/ModellatoreMBSE/start.exe" -WorkingDirectory "dist/pacchetto/ModellatoreMBSE" -PassThru
+          try {
+            $ok = $false
+            for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
+              Start-Sleep -Seconds 1
+              try { $r = Invoke-WebRequest "http://127.0.0.1:8080/index.html" -UseBasicParsing; $ok = $r.StatusCode -eq 200 } catch {}
+            }
+            if (-not $ok) { throw "start.exe non risponde su http://127.0.0.1:8080" }
+            Write-Host "start.exe risponde correttamente"
+          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ModellatoreMBSE-${{ steps.versione.outputs.valore }}
+          path: |
+            dist/ModellatoreMBSE-*.zip
+            dist/ModellatoreMBSE-*-setup.exe
+
+      - name: Pubblica la Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" `
+            (Get-ChildItem dist/ModellatoreMBSE-*.zip).FullName `
+            (Get-ChildItem dist/ModellatoreMBSE-*-setup.exe).FullName `
+            --title "Modellatore MBSE $env:GITHUB_REF_NAME" --generate-notes
