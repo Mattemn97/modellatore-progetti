@@ -22,7 +22,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 6 | Matrice di tracciabilità | Slice 3 | done |
 | 7 | Export documenti MIL-STD-498 | Slice 3 | done |
 | 8 | Filtri avanzati | Slice 4 | done |
-| 9 | Ispettore dei collegamenti | Slice 4 | in-progress |
+| 9 | Ispettore dei collegamenti | Slice 4 | done |
 | 10 | Gestione completa della libreria | Slice 4 | planned |
 | 11 | Rifiniture dell'editor | Slice 4 | planned |
 
@@ -147,16 +147,16 @@ spec [0008](../specs/0008-filtri-avanzati/index.md) · code in `js/filtri.js`, `
   - [x] Persistenza tra livelli e riallineamento alla libreria (AC-9)
 - [x] Verify it: `/check verify filtri avanzati`
 
-### 9. Ispettore dei collegamenti · in-progress
+### 9. Ispettore dei collegamenti · done
 Clic su un filo: nel pannello a destra vedi i due requisiti collegati, la loro classe, il tipo di relazione (derivazione o collegamento tra blocchi) e puoi eliminarlo.
 **Done when:** selezionando un filo l'ispettore mostra id, titolo, classe e testi dei due requisiti e il tipo di relazione; il filo selezionato è evidenziato.
-spec [0009](../specs/0009-ispettore-collegamenti/index.md)
+spec [0009](../specs/0009-ispettore-collegamenti/index.md) · code in `js/renderer.js`, `js/inspector.js`
 - [x] Design it (spec): `/architect ispettore dei collegamenti`
-- [ ] Build it: `/develop ispettore dei collegamenti`
-  - [ ] Selezione ed evidenza del filo, deselezione (AC-1, AC-7)
-  - [ ] Dettaglio dei due requisiti, estremi mancanti e validità (AC-2, AC-3, AC-4)
-  - [ ] Eliminazione e risoluzione per id dopo Annulla e Ricarica (AC-5, AC-6)
-- [ ] Verify it: `/check verify ispettore dei collegamenti`
+- [x] Build it: `/develop ispettore dei collegamenti`
+  - [x] Selezione ed evidenza del filo, deselezione (AC-1, AC-7)
+  - [x] Dettaglio dei due requisiti, estremi mancanti e validità (AC-2, AC-3, AC-4)
+  - [x] Eliminazione e risoluzione per id dopo Annulla e Ricarica (AC-5, AC-6)
+- [x] Verify it: `/check verify ispettore dei collegamenti`
 
 ### 10. Gestione completa della libreria
 Completa la modifica della libreria: eliminare un blocco (avvisandoti se è usato nel progetto) e rinominarne l'id senza rompere le istanze.
