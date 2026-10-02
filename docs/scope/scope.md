@@ -202,12 +202,12 @@ spec [0012](../specs/0012-tutorial-aiuto-contestuale/index.md) · code in `js/ai
 ### 13. Protezione dei dati negli aggiornamenti · in-progress
 Una regola unica su cosa appartiene all'app e cosa alle persone: progetti, librerie, versioni, cestino e impostazioni personali non vengono mai sovrascritti né cancellati da un aggiornamento. Oggi lo zip contiene `settings.json`, quindi estrarlo sopra un'installazione sostituisce le impostazioni dell'utente.
 **Done when:** aggiornando un'installazione (estraendo lo zip a mano o con l'aggiornamento automatico) `progetti/`, `shared/` e le impostazioni modificate dall'utente restano identiche, e le chiavi nuove delle impostazioni arrivano comunque con il loro valore predefinito.
-spec [0013](../specs/0013-protezione-dati-aggiornamenti.md)
+spec [0013](../specs/0013-protezione-dati-aggiornamenti.md) · code in `start.py`, `packaging/crea-pacchetto.ps1`, `.github/workflows/rilascio.yml`, `packaging/TUTORIAL.md`
 - [x] Design it (spec): `/architect protezione dei dati negli aggiornamenti`
-- [ ] Build it: `/develop protezione dei dati negli aggiornamenti`
-  - [ ] `start.py`: `PERCORSI_UTENTE` e creazione di `settings.json` dai predefiniti solo se manca (AC-2, AC-3, AC-5, AC-6)
-  - [ ] Pacchetto e rilascio: `settings.predefinite.json`, controllo dei percorsi utente, prova di avvio (AC-1, AC-8)
-  - [ ] Tutorial e prova di aggiornamento sopra un'installazione piena di dati (AC-4, AC-7)
+- [x] Build it: `/develop protezione dei dati negli aggiornamenti`
+  - [x] `start.py`: `PERCORSI_UTENTE` e creazione di `settings.json` dai predefiniti solo se manca (AC-2, AC-3, AC-5, AC-6)
+  - [x] Pacchetto e rilascio: `settings.predefinite.json`, controllo dei percorsi utente, prova di avvio (AC-1, AC-8)
+  - [x] Tutorial e prova di aggiornamento sopra un'installazione piena di dati (AC-4, AC-7)
 - [ ] Verify it: `/check verify protezione dei dati negli aggiornamenti`
 
 ### 14. Console del server più leggibile · planned · needs a decision

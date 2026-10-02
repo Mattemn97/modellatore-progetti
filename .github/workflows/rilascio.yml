@@ -79,6 +79,13 @@ jobs:
             }
             if (-not $ok) { throw "start.exe non risponde su http://127.0.0.1:8080" }
             Write-Host "start.exe risponde correttamente"
+            # settings.json creato dai valori di fabbrica (spec 0013)
+            $cartella = "dist/pacchetto/ModellatoreMBSE"
+            if (-not (Test-Path "$cartella/settings.json")) { throw "start.exe non ha creato settings.json" }
+            if ((Get-FileHash "$cartella/settings.json").Hash -ne (Get-FileHash "$cartella/settings.predefinite.json").Hash) {
+              throw "settings.json non è uguale a settings.predefinite.json"
+            }
+            Write-Host "settings.json creato da settings.predefinite.json"
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - uses: actions/upload-artifact@v4
