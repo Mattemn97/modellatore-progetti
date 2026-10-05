@@ -129,10 +129,13 @@ spec [0023](../specs/0023-pannelli-staccati.md) · code in `src/renderer/pannell
 - [x] Verify it: stacca, filtro nella finestra staccata, riaggancia; chiusura dell'app e riapertura con la finestra staccata al suo posto provate a mano
 - [x] Test it: `tests/e2e/ui/pannelli.spec.ts`
 
-### 27. Tour, aiuto e tutorial sui pannelli
+### 27. Tour, aiuto e tutorial sui pannelli · done
 Il tour guidato, le (i) e il tutorial utente seguono la nuova interfaccia: un passo del tour apre o mette in primo piano il pannello che spiega, anche se l'hai chiuso o spostato.
 **Done when:** il tour principale e i mini tour funzionano con qualunque layout, ogni campo nuovo (Impostazioni, menu Finestra) ha la sua (i), e `packaging/TUTORIAL.md` con la guida descrivono l'installazione e i pannelli.
-- [ ] Build it: `/develop tour, aiuto e tutorial sui pannelli`
+code in `src/renderer/tour.ts`, `src/renderer/aiuto-testi.ts`, `packaging/TUTORIAL.md`
+- [x] Build it: `/develop tour, aiuto e tutorial sui pannelli` (i passi della barra aprono il Canvas; un'area in una finestra staccata dà il fumetto al centro con un avviso; (i) per Ripristina layout e per ⧉/⤓; tutorial sui pannelli)
+- [x] Verify it: tour con il Canvas nascosto dietro un'altra scheda in `tests/e2e/ui/pannelli.spec.ts`
+- Installazione, avvio e aggiornamenti nel tutorial descrivono ancora la 1.x: si riscrivono nelle voci 28 e 29, quando il setup esiste
 
 ## Slice 4: Distribuzione Windows
 
