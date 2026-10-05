@@ -54,6 +54,13 @@ function disegna(messaggio = '') {
             </div>
             <div class="nota-impostazioni">Griglia, colori, tipologie, metodi di verifica e documenti: si modificano nel file e valgono dal prossimo avvio.</div>
         </div>
+        <div class="campo-impostazioni">
+            <strong>Dati della versione 1${iconaAiuto('impostazioni.importaV1')}</strong>
+            <div class="pulsanti-impostazioni">
+                <button class="pulsante-progetto" data-imp="importaV1" data-aiuto="impostazioni.importaV1Pulsante">Importa dalla versione 1…</button>
+            </div>
+            <div class="nota-impostazioni">Copia progetti, librerie, changelog, versioni, cestino e settings.json di una vecchia installazione nelle cartelle qui sopra. La cartella vecchia non viene toccata.</div>
+        </div>
         ${messaggio ? `<div class="elenco-avviso" id="impMessaggio">${escapeHtml(messaggio)}</div>` : ''}
         <div class="pulsanti-impostazioni piede-impostazioni">
             <button class="pulsante-progetto pulsante-menu" data-imp="applica" data-aiuto="impostazioni.applica" ${cambiate ? '' : 'disabled'}>Applica</button>
@@ -93,6 +100,31 @@ async function applica() {
     // Con esito ok il programma ricarica l'editor sulle cartelle nuove
 }
 
+// Import dalla 1.x: anteprima, conferma, scelta sui file diversi, poi copia e ricarica (voce 22)
+async function importaV1() {
+    const scelta = await cartelle.scegli('Scegli la cartella della versione 1 (quella con start.exe)', '');
+    if (!scelta) return;
+    const analisi = await cartelle.analizzaV1(scelta);
+    if (analisi?.errore) return disegna(analisi.errore);
+    const totale = analisi.nuovi + analisi.diversi.length;
+    if (totale === 0) return disegna(`Niente da importare: i ${analisi.uguali} file della versione 1 sono già tutti qui, uguali.`);
+    const righe = [`Dalla cartella:\n${scelta}`, '', `${analisi.nuovi} file nuovi da copiare.`];
+    if (analisi.uguali) righe.push(`${analisi.uguali} file già presenti e uguali (saltati).`);
+    if (analisi.diversi.length) righe.push(`${analisi.diversi.length} file già presenti ma diversi: dopo ti chiedo cosa farne.`);
+    if (!confirm(`${righe.join('\n')}\n\nContinuare?`)) return;
+    let sovrascrivi = false;
+    if (analisi.diversi.length) {
+        const mostrati = analisi.diversi.slice(0, 15).map(f => `• ${f}`).join('\n');
+        const altri = analisi.diversi.length > 15 ? `\n… e altri ${analisi.diversi.length - 15}` : '';
+        sovrascrivi = confirm(`Questi file esistono già con un contenuto diverso:\n${mostrati}${altri}\n\nOK: sostituiscili con quelli della versione 1.\nAnnulla: lasciali come sono e copia solo i file nuovi.`);
+    }
+    // Prima si salva il progetto aperto: dopo la copia l'editor si ricarica
+    if (!await svuota()) return disegna('Il progetto non è salvato (errore o conflitto): risolvi prima il problema nel banner.');
+    const esito = await cartelle.importaV1(scelta, sovrascrivi);
+    if (esito?.errore) return disegna(esito.errore);
+    alert(`Import completato: ${esito.copiati} file copiati, ${esito.saltati} lasciati come erano.`);
+}
+
 async function azione(nome) {
     const librerie = bozza.librerie ?? predefinitaLibrerie(bozza.lavoro);
     if (nome === 'chiudi') return chiudi();
@@ -101,6 +133,7 @@ async function azione(nome) {
     if (nome === 'apriSettings') return apriPercorso(fileSettings);
     if (nome === 'predefinitaLibrerie') { bozza.librerie = null; return disegna(); }
     if (nome === 'applica') return applica();
+    if (nome === 'importaV1') return importaV1();
     if (nome === 'cambiaLavoro') {
         const scelta = await cartelle.scegli('Scegli la cartella di lavoro', bozza.lavoro);
         if (scelta) bozza.lavoro = scelta;
