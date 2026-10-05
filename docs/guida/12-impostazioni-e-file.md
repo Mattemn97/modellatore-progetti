@@ -120,4 +120,4 @@ Qualche protezione da conoscere:
 
 ## Dove trovare le decisioni
 
-Ogni funzionalità ha una specifica in `docs/specs/`, con i criteri di accettazione, le scelte fatte e le alternative scartate. Se ti chiedi "perché funziona così?", la risposta è lì. Il piano complessivo, con le funzionalità rimandate, è in `docs/scope/scope.md`.
+Ogni funzionalità ha una specifica in `docs/specs/`, con i criteri di accettazione, le scelte fatte e le alternative scartate. Se ti chiedi "perché funziona così?", la risposta è lì. Il piano complessivo, con le funzionalità rimandate, è in `docs/scope/index.md`.

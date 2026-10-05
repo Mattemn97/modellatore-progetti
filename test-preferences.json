@@ -1,5 +1,17 @@
 {
-  "tool": null,
+  "tool": "vitest",
+  "e2e": "playwright",
   "gate": "verify",
-  "packageManager": "none"
+  "packageManager": "npm",
+  "commands": {
+    "typecheck": "npm run typecheck",
+    "lint": "npm run lint",
+    "unit": "npm test",
+    "e2e": "npm run test:e2e",
+    "all": "npm run verifica"
+  },
+  "locations": {
+    "unit": "tests/unit/*.test.ts",
+    "e2e": "tests/e2e/*.spec.ts"
+  }
 }

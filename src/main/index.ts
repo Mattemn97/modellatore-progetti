@@ -13,6 +13,9 @@ const cartellaOut = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const radice = app.getAppPath();
 const sviluppo = process.argv.includes('--dev');
 
+// Test end to end: dati di Chromium (localStorage, istanza unica) in una cartella a parte
+if (process.env.MODELLATORE_DATI_UTENTE) app.setPath('userData', process.env.MODELLATORE_DATI_UTENTE);
+
 registraSchema();
 
 let finestra: BrowserWindow | null = null;
