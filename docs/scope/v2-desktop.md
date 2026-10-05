@@ -100,10 +100,17 @@ spec [0020](../specs/0020-editor-typescript/index.md) · code in `src/renderer/`
 
 ## Slice 3: Interfaccia a pannelli
 
-### 24. Sistema a pannelli agganciabili · needs a decision
+### 24. Sistema a pannelli agganciabili · in-progress
 L'interfaccia diventa un layout a pannelli come in un IDE: Libreria, Cliente, Coerenza, Gerarchia, Canvas e Ispettore sono pannelli che trascini, affianchi, impili a schede, ridimensioni, chiudi e riapri da un menu Finestra. Il layout si ricorda tra un avvio e l'altro e c'è Ripristina layout.
 **Done when:** ogni scheda di oggi è un pannello spostabile e ridimensionabile, il layout resta uguale dopo un riavvio, Ripristina layout riporta la disposizione predefinita, e tutti i comportamenti delle schede di oggi (aggiornamento di Coerenza e Cliente, scelta della Gerarchia, ispettore) restano uguali.
-- [ ] Design it (spec): `/architect sistema a pannelli agganciabili`
+spec [0021](../specs/0021-pannelli-agganciabili/index.md)
+- [x] Design it (spec): `/architect sistema a pannelli agganciabili`
+- [ ] Build it: `/develop sistema a pannelli agganciabili`
+  - [ ] dockview con i sei pannelli, disposizione predefinita, colonne fisse tolte (AC-1, AC-2, AC-6)
+  - [ ] Coerenza e Gerarchia legate ai pannelli, pulsanti ☰ e tour (AC-5, AC-6, AC-7)
+  - [ ] Menu Finestra, Ripristina layout, salvataggio e convalida del layout (AC-3, AC-4)
+- [ ] Verify it: `/check verify sistema a pannelli agganciabili`
+- [ ] Test it: `/test sistema a pannelli agganciabili`
 
 ### 25. Matrice, Documenti e Changelog come pannelli
 Le finestre modali di oggi (Matrice Requisiti, Documenti MIL-STD-498, Changelog e Apri progetto) diventano pannelli che puoi tenere aperti accanto al canvas mentre lavori, aggiornati quando il modello cambia. L'import cliente resta una procedura guidata in finestra.

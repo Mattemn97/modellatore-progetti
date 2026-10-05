@@ -42,7 +42,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 21 | Impostazioni e cartelle di lavoro | v2 | Slice 1 | done |
 | 22 | Import dei dati dalla versione 1 | v2 | Slice 1 | done |
 | 23 | Passaggio del codice a TypeScript | v2 | Slice 2 | done |
-| 24 | Sistema a pannelli agganciabili | v2 | Slice 3 | planned |
+| 24 | Sistema a pannelli agganciabili | v2 | Slice 3 | in-progress |
 | 25 | Matrice, Documenti e Changelog come pannelli | v2 | Slice 3 | planned |
 | 26 | Pannelli in finestre staccate | v2 | Slice 3 | planned |
 | 27 | Tour, aiuto e tutorial sui pannelli | v2 | Slice 3 | planned |
