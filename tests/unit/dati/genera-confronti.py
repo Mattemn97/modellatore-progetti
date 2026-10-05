@@ -2,7 +2,9 @@
 # Da rilanciare solo se cambiano le regole del confronto in start.py: python tests/unit/dati/genera-confronti.py
 import copy, json, os, random, sys
 QUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(QUI, '..', '..', '..'))
+# start.py non è più nel repository (voce 30): si prende quello dell'ultima 1.x, accanto a questo script
+#   git show v1.0.6:start.py > tests/unit/dati/start.py
+sys.path.insert(0, QUI)
 import start
 
 random.seed(498)

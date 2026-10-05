@@ -157,10 +157,13 @@ spec [0025](../specs/0025-aggiornamento-desktop.md) · code in `src/main/aggiorn
 - [x] Verify it: avviso, novità e impronta sbagliata contro un server finto; installazione e riavvio veri da provare alla prima Release 2.x dopo la 2.0.0
 - [x] Test it: `tests/unit/aggiornamento.test.ts`, `tests/e2e/ui/aggiornamento.spec.ts`
 
-### 30. Rilascio 2.0.0 e passaggio dalla 1.x · needs a decision
+### 30. Rilascio 2.0.0 e passaggio dalla 1.x · done
 Il workflow di rilascio su `main` costruisce, prova e pubblica il setup Windows; `start.py`, `start.spec`, `requirements.txt` e lo zip vengono ritirati. L'ultima 1.x, trovando la 2.0.0, non prova a installarla come uno zip ma ti porta al setup e ti ricorda l'import dei dati.
 **Done when:** il merge di `develop` in `main` pubblica la Release 2.0.0 con il setup e le note; una 1.x installata mostra l'avviso con il link al setup senza rompersi; nel repository non restano il server Python né il pacchetto zip; i segreti necessari (se servono) sono elencati nella documentazione.
-- [ ] Design it (spec): `/architect rilascio 2.0.0 e passaggio dalla 1.x`
+spec [0026](../specs/0026-rilascio-2-0-0.md) · code in `.github/workflows/rilascio.yml`, `packaging/note/2.0.0.md`, `package.json`
+- [x] Design it (spec): `/architect rilascio 2.0.0 e passaggio dalla 1.x` (versione da `package.json`, nessuna patch 1.x: la 1.0.6 già rimanda alla pagina della Release)
+- [x] Build it: `/develop rilascio 2.0.0 e passaggio dalla 1.x` (server Python e zip tolti, README, AGENTS.md e guida sulla versione desktop)
+- [x] Verify it: Release v2.0.0 pubblicata dal workflow su `main` con setup, `latest.yml`, tutorial ed esempio
 
 ## Deferred
 Fuori da questo giro, tenuti qui perché il piano resti onesto.

@@ -1,109 +1,98 @@
-# --- RILASCIO ---
-# Compila start.exe e crea lo zip (vedi packaging/crea-pacchetto.ps1).
-# - push su main (merge o commit diretto): pubblica una GitHub Release con versione automatica,
-#   la patch dell'ultimo tag v* più uno (v1.0.0 se non ce ne sono)
-# - push di un tag v* (es. v2.0.0): pubblica la Release con quella versione, serve per alzare minor o major
-# - avvio manuale (Actions > Rilascio > Run workflow): solo artifact scaricabile dall'esecuzione
-# La descrizione della Release è il messaggio del commit (vedi .github/scripts/note-rilascio.sh).
+# --- RILASCIO DELLA VERSIONE DESKTOP (spec 0026) ---
+# Su ogni push a main: verifica completa, setup Windows per utente, prova del programma impacchettato e
+# GitHub Release v<version di package.json> con setup, blockmap, latest.yml (per l'aggiornamento automatico),
+# tutorial ed esempio. Se il tag v<version> esiste già non pubblica niente: per un rilascio nuovo si alza
+# "version" in package.json. Le note sono packaging/note/<version>.md se c'è, altrimenti il messaggio del commit.
+# Avvio manuale (Actions > Rilascio > Run workflow): solo il setup come artifact.
+# Segreti: nessuno, basta il GITHUB_TOKEN dell'esecuzione (permesso contents: write).
 name: Rilascio
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# Un rilascio alla volta, così due push ravvicinati non calcolano la stessa versione
+# Un rilascio alla volta
 concurrency:
   group: rilascio
   cancel-in-progress: false
 
 jobs:
-  pacchetto:
+  setup:
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: 24
+          cache: npm
 
-      - name: Installa le dipendenze di build
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+      - name: Dipendenze
+        run: npm ci
+
+      - name: Binario di Electron
+        run: node node_modules/electron/install.js
 
       - name: Versione
         id: versione
         shell: bash
         run: |
-          pubblica=false
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            v="${GITHUB_REF_NAME#v}"; pubblica=true
-          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" = "main" ]; then
-            if [ -n "$(git tag --points-at HEAD -l 'v*')" ]; then
-              # Il commit ha già un tag v*: la Release la pubblica l'esecuzione partita dal tag
-              v="dev-${GITHUB_SHA:0:7}"
-            else
-              ultimo="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
-              if [ -z "$ultimo" ]; then v="1.0.0"
-              else
-                IFS=. read -r ma mi pa <<< "${ultimo#v}"
-                v="$ma.$mi.$((${pa%%[!0-9]*} + 1))"
-              fi
-              pubblica=true
-            fi
+          v="$(node -p "require('./package.json').version")"
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "La versione $v di package.json non è x.y.z: niente Release"; pubblica=false
+          elif [ -n "$(git tag -l "v$v")" ]; then
+            echo "Il tag v$v esiste già: alza version in package.json per pubblicare"; pubblica=false
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            pubblica=true
           else
-            v="dev-${GITHUB_SHA:0:7}"
+            pubblica=false
           fi
           echo "valore=$v" >> "$GITHUB_OUTPUT"
           echo "pubblica=$pubblica" >> "$GITHUB_OUTPUT"
           echo "Versione $v, pubblica Release: $pubblica"
 
-      - name: Compila e impacchetta
-        shell: pwsh
-        run: ./packaging/crea-pacchetto.ps1 -Versione "${{ steps.versione.outputs.valore }}"
+      - name: Verifica completa
+        run: npm run verifica
 
-      - name: Prova di avvio di start.exe
+      - name: Costruzione del setup
+        run: npm run dist
+
+      - name: Prova del programma impacchettato
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "dist/pacchetto/ModellatoreMBSE/start.exe" -WorkingDirectory "dist/pacchetto/ModellatoreMBSE" -PassThru -RedirectStandardOutput "dist/avvio.txt"
-          try {
-            $ok = $false
-            for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
-              Start-Sleep -Seconds 1
-              try { $r = Invoke-WebRequest "http://127.0.0.1:8080/index.html" -UseBasicParsing; $ok = $r.StatusCode -eq 200 } catch {}
-            }
-            if (-not $ok) { throw "start.exe non risponde su http://127.0.0.1:8080" }
-            Write-Host "start.exe risponde correttamente"
-            # settings.json creato dai valori di fabbrica (spec 0013)
-            $cartella = "dist/pacchetto/ModellatoreMBSE"
-            if (-not (Test-Path "$cartella/settings.json")) { throw "start.exe non ha creato settings.json" }
-            if ((Get-FileHash "$cartella/settings.json").Hash -ne (Get-FileHash "$cartella/settings.predefinite.json").Hash) {
-              throw "settings.json non è uguale a settings.predefinite.json"
-            }
-            Write-Host "settings.json creato da settings.predefinite.json"
-            # Riquadro della console scritto con rich, non con la riserva in testo semplice (spec 0014)
-            $avvio = Get-Content "dist/avvio.txt" -Raw -Encoding utf8
-            Write-Host $avvio
-            if (-not $avvio.Contains("http://localhost:8080")) { throw "L'uscita di start.exe non contiene il link dell'app" }
-            if (-not $avvio.Contains([string][char]0x2502)) { throw "L'uscita di start.exe non ha il riquadro di rich" }
-          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          $env:MODELLATORE_ESEGUIBILE_INSTALLATO = (Resolve-Path "release/win-unpacked/Modellatore MBSE.exe").Path
+          npx playwright test tests/e2e/installato.spec.ts
+
+      - name: Tutorial ed esempio
+        shell: bash
+        run: |
+          v="${{ steps.versione.outputs.valore }}"
+          sed "s/{VERSIONE}/$v/g" packaging/TUTORIAL.md > release/TUTORIAL.md
+          cp packaging/esempi/requisiti_cliente_esempio.csv release/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ModellatoreMBSE-${{ steps.versione.outputs.valore }}
-          path: dist/ModellatoreMBSE-*.zip
+          name: Modellatore-MBSE-${{ steps.versione.outputs.valore }}
+          path: |
+            release/Modellatore-MBSE-Setup-*.exe
+            release/latest.yml
+            release/TUTORIAL.md
+          retention-days: 14
 
       - name: Note di rilascio
         if: steps.versione.outputs.pubblica == 'true'
         shell: bash
-        run: bash .github/scripts/note-rilascio.sh "$GITHUB_SHA" > dist/note-rilascio.md
+        run: |
+          note="packaging/note/${{ steps.versione.outputs.valore }}.md"
+          if [ -f "$note" ]; then cp "$note" release/note-rilascio.md
+          else bash .github/scripts/note-rilascio.sh "$GITHUB_SHA" > release/note-rilascio.md; fi
 
       - name: Pubblica la Release
         if: steps.versione.outputs.pubblica == 'true'
@@ -112,8 +101,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ steps.versione.outputs.valore }}
         run: |
-          # Su main il tag non esiste ancora: gh lo crea sul commit indicato da --target
-          gh release create "$env:TAG" `
-            (Get-ChildItem dist/ModellatoreMBSE-*.zip).FullName `
-            --target "$env:GITHUB_SHA" `
-            --title "Modellatore MBSE $env:TAG" --notes-file dist/note-rilascio.md
+          $file = @(
+            (Get-ChildItem release/Modellatore-MBSE-Setup-*.exe).FullName
+            (Get-ChildItem release/Modellatore-MBSE-Setup-*.exe.blockmap).FullName
+            "release/latest.yml", "release/TUTORIAL.md", "release/requisiti_cliente_esempio.csv"
+          )
+          # Il tag non esiste ancora: gh lo crea sul commit indicato da --target; --latest per l'aggiornamento automatico
+          gh release create "$env:TAG" @file --target "$env:GITHUB_SHA" --latest `
+            --title "Modellatore MBSE $env:TAG" --notes-file release/note-rilascio.md

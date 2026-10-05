@@ -1,9 +1,11 @@
-# Generati da PyInstaller e dall'ambiente Python
+# Avanzi locali della 1.x (PyInstaller, zip), ambiente Python (solo per rigenerare gli oracoli dei test)
+# e start.py della 1.x preso dal tag
 build/
 dist/
 .venv/
 __pycache__/
 *.pyc
+tests/unit/dati/start.py
 
 # Progetti dell'utente salvati dall'app (dati, non codice)
 progetti/

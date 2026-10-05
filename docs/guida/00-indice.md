@@ -23,7 +23,7 @@ Questa guida descrive tutto quello che l'app sa fare oggi. È scritta per chi la
 
 Ecco come puoi usare l'app dall'inizio alla fine. Ogni passo rimanda al capitolo che lo spiega; salta pure quelli che non ti servono.
 
-1. **Avvia l'app** con `start.exe` o `python start.py`. Al primo avvio trovi un progetto vuoto già aperto, "Nuovo progetto". ([Installazione](02-installazione-e-avvio.md))
+1. **Avvia il programma** dal menu Start (lo installi con il setup). Al primo avvio trovi un progetto vuoto già aperto, "Nuovo progetto". ([Installazione](02-installazione-e-avvio.md))
 2. **Dai un nome al progetto** dal menu `Progetto ▾` › `Rinomina…`. ([Progetti](05-progetti.md))
 3. **Prepara la libreria**: crea i blocchi del tuo sistema (per esempio "Centralina", "Pompa", "Sensore") con `+ Nuovo Blocco`, e per ognuno i requisiti con tipologia, metodo di verifica e testi da esportare. ([Libreria](04-libreria.md))
 4. **Importa i requisiti del cliente** dalla scheda Cliente, scegliendo un file Excel o CSV e indicando quali colonne sono ID e testo. ([Requisiti cliente](06-requisiti-cliente.md))

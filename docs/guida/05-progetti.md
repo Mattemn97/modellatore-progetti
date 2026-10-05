@@ -26,9 +26,9 @@ Se provi a chiudere la scheda del browser mentre il badge non dice `Salvato`, il
 
 ### Quando il salvataggio fallisce
 
-Se il server è fermo, il disco dà errore o un altro programma tiene bloccato il file, il badge diventa rosso e sotto l'header compare un banner rosso con il motivo e il pulsante `Riprova`. L'app continua a riprovare da sola; al primo tentativo riuscito il banner sparisce e il file contiene l'ultimo stato.
+Se la cartella di lavoro non è raggiungibile, il disco dà errore o un altro programma tiene bloccato il file, il badge diventa rosso e sotto l'header compare un banner rosso con il motivo e il pulsante `Riprova`. L'app continua a riprovare da sola; al primo tentativo riuscito il banner sparisce e il file contiene l'ultimo stato.
 
-Il caso più comune è aver chiuso la finestra nera del server: riavvia `start.exe` e il salvataggio riparte.
+Il caso più comune è una cartella di lavoro su un disco esterno o di rete che non è più collegato: ricollegalo e il salvataggio riparte, oppure scegli un'altra cartella da ⚙ Impostazioni.
 
 ## Annulla e Ripeti
 
