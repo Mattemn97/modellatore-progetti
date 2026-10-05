@@ -92,6 +92,8 @@ export async function apriApp(opzioni: OpzioniCopia & { env?: Record<string, str
         app,
         pagina,
         chiudi: async () => {
+            // Una modifica ancora in volo farebbe chiedere "Chiudi comunque": nei test si chiude e basta
+            await app.evaluate(({ dialog }) => { dialog.showMessageBoxSync = () => 0; }).catch(() => {});
             await app.close().catch(() => {});
             // Solo la cartella creata da preparaCopia (mkdtemp), mai altro
             const base = path.dirname(copia.cartella);
@@ -115,4 +117,32 @@ export async function chiudiTour(pagina: Page): Promise<void> {
 
 export function leggiJson<T = Oggetto>(file: string): T {
     return JSON.parse(fs.readFileSync(file, 'utf-8')) as T;
+}
+
+// Accetta alert e confirm (OK) e ne raccoglie i testi, nell'ordine
+export function registraDialoghi(pagina: Page, risposta: (messaggio: string) => boolean = () => true): string[] {
+    const messaggi: string[] = [];
+    pagina.on('dialog', (d) => {
+        messaggi.push(d.message());
+        // Durante la chiusura il dialogo può sparire con la pagina
+        void (risposta(d.message()) ? d.accept() : d.dismiss()).catch(() => {});
+    });
+    return messaggi;
+}
+
+// Risponde alla finestra di richiesta di un testo aperta da `azione` (chiediTesto, al posto di prompt)
+export async function rispondiRichiesta(app: ElectronApplication, azione: () => Promise<unknown>, testo: string | null): Promise<string> {
+    const finestra = app.waitForEvent('window');
+    const fatto = azione();
+    const richiesta = await finestra;
+    await expect(richiesta.locator('#testo')).toBeVisible();
+    const domanda = (await richiesta.locator('label').textContent()) ?? '';
+    if (testo === null) {
+        await richiesta.locator('#annulla').click().catch(() => {});
+    } else {
+        await richiesta.locator('#testo').fill(testo);
+        await richiesta.locator('#ok').click().catch(() => {});
+    }
+    await fatto;
+    return domanda;
 }
