@@ -3,7 +3,9 @@ import { app, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { leggiImpostazioniApi } from './api/impostazioni.js';
+import { autoUpdater } from 'electron-updater';
+import { leggiImpostazioniApi, leggiImpostazioniAggiornamento } from './api/impostazioni.js';
+import { ServizioAggiornamento } from './aggiornamento.js';
 import { ArchivioLibrerie } from './api/librerie.js';
 import { ArchivioProgetti } from './api/progetti.js';
 import { creaRouter } from './api/router.js';
@@ -31,6 +33,7 @@ let finestra: BrowserWindow | null = null;
 let cartelle: Cartelle | null = null;
 let motivo: string | null = null;
 let router: ReturnType<typeof creaRouter> | null = null;
+let aggiornamento: ServizioAggiornamento | null = null;
 
 function mostraFinestra(): void {
     if (!finestra) return;
@@ -48,6 +51,43 @@ function cartelleIniziali(): Cartelle | null {
     return configurazione ? cartelleDi(configurazione) : null;
 }
 
+// Aggiornamento automatico (spec 0025): solo nel programma installato, o verso un server finto con
+// MODELLATORE_URL_RELEASE (test); aggiornamenti.controllo = false in settings.json lo spegne
+function creaAggiornamento(c: Cartelle | null): ServizioAggiornamento {
+    const versione = app.getVersion();
+    const urlFinto = process.env.MODELLATORE_URL_RELEASE;
+    if (!urlFinto && !app.isPackaged) {
+        return new ServizioAggiornamento({ versione, aggiornatore: null, motivoSpento: 'Il controllo degli aggiornamenti gira solo nel programma installato.' });
+    }
+    const impostazioni = leggiImpostazioniAggiornamento(c?.lavoro ?? null);
+    if (!impostazioni.controllo) {
+        return new ServizioAggiornamento({ versione, aggiornatore: null, motivoSpento: 'Controllo spento in settings.json (aggiornamenti.controllo).' });
+    }
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.logger = null;
+    if (urlFinto) {
+        // Fuori dal programma installato manca app-update.yml (dice dove tenere la cache dei download): ne scriviamo uno
+        const configurazione = path.join(app.getPath('temp'), 'modellatore-app-update.yml');
+        fs.writeFileSync(configurazione, `provider: generic
+url: ${urlFinto}
+updaterCacheDirName: modellatore-mbse-updater
+`, 'utf-8');
+        autoUpdater.forceDevUpdateConfig = true;
+        autoUpdater.updateConfigPath = configurazione;
+        autoUpdater.setFeedURL({ provider: 'generic', url: urlFinto });
+    } else {
+        const [owner = '', repo = ''] = impostazioni.repository.split('/');
+        autoUpdater.setFeedURL({ provider: 'github', owner, repo });
+    }
+    const servizio = new ServizioAggiornamento({
+        versione, aggiornatore: autoUpdater,
+        paginaRelease: (v) => `https://github.com/${impostazioni.repository}/releases/tag/v${v}`
+    });
+    servizio.controlla();
+    return servizio;
+}
+
 // API sulle cartelle date (progetti, librerie, impostazioni lette all'avvio)
 function attivaApi(c: Cartelle): void {
     const impostazioni = leggiImpostazioniApi(c.lavoro);
@@ -55,7 +95,8 @@ function attivaApi(c: Cartelle): void {
     progetti.prepara();
     const librerie = new ArchivioLibrerie(c.lavoro, c.librerie, impostazioni.versioniLibreria);
     librerie.prepara();
-    router = creaRouter({ progetti, librerie, versione: app.getVersion(), maxFileClienteMb: impostazioni.maxFileClienteMb });
+    aggiornamento ??= creaAggiornamento(c);
+    router = creaRouter({ progetti, librerie, versione: app.getVersion(), maxFileClienteMb: impostazioni.maxFileClienteMb, aggiornamento });
     cartelle = c;
     motivo = null;
 }

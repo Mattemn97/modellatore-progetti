@@ -1,4 +1,4 @@
-/* --- AGGIORNAMENTO AUTOMATICO: BANNER, INSTALLAZIONE E RIAVVIO (spec 0015) --- */
+/* --- AGGIORNAMENTO AUTOMATICO: BANNER, INSTALLAZIONE E RIAVVIO (spec 0015, versione desktop spec 0025) --- */
 
 import { svuota } from './progetto.js';
 import { chiamaApi } from './api.js';
@@ -23,7 +23,7 @@ const DURATA_CONTROLLO_MS = 30000;
 const INTERVALLO_INSTALLAZIONE_MS = 1000;
 const ATTESA_RIAVVIO_MS = 60000;
 const ETICHETTE_FASE: Record<FaseInstallazione, string> = { download: 'Scaricamento…', verifica: 'Verifica…', installazione: 'Installazione…', riavvio: 'Riavvio…' };
-const MSG_RIAVVIO_MUTO = 'Il riavvio non risponde: chiudi la finestra nera e avvia di nuovo start.exe.';
+const MSG_RIAVVIO_MUTO = 'Il riavvio non risponde: chiudi il programma e riaprilo dal menu Start.';
 
 let ultimoStato: StatoAggiornamento | null = null;      // ultima risposta di GET /api/aggiornamento
 let noteAperte = false;

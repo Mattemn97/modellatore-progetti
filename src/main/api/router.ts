@@ -15,6 +15,8 @@ export interface ServiziApi {
     librerie: ArchivioLibrerie;
     versione: string;
     maxFileClienteMb: number;
+    // Aggiornamento automatico della versione desktop (spec 0025)
+    aggiornamento: { leggi(): Oggetto; installa(versione: unknown): void };
 }
 
 function rispostaJson(stato: number, dati: unknown): Response {
@@ -56,13 +58,6 @@ function leggiCorpo(dati: ArrayBuffer | null, perCliente: boolean, maxFileClient
     }
     if (!eOggetto(corpo)) throw new ErroreApi(400, 'richiesta_non_valida', 'Il corpo della richiesta deve essere un oggetto JSON.');
     return corpo;
-}
-
-function statoAggiornamento(versione: string): Oggetto {
-    return {
-        stato: 'disattivato', attuale: versione, nuova: null, note: '', pagina: null, installabile: false,
-        motivo: "L'aggiornamento automatico della versione desktop arriva con la voce 29."
-    };
 }
 
 function instradaLibreria(librerie: ArchivioLibrerie, metodo: string, segmenti: string[], corpo: Oggetto, url: URL): Esito | null {
@@ -138,11 +133,12 @@ export function creaRouter(servizi: ServiziApi): (richiesta: Request, url: URL) 
             if (segmenti[0] === 'aggiornamento') {
                 if (segmenti.length === 1) {
                     if (metodo !== 'GET') throw nonConsentito();
-                    return rispostaJson(200, statoAggiornamento(servizi.versione));
+                    return rispostaJson(200, servizi.aggiornamento.leggi());
                 }
                 if (segmenti.length === 2 && segmenti[1] === 'installa') {
                     if (metodo !== 'POST') throw nonConsentito();
-                    throw new ErroreApi(409, 'non_disponibile', 'Nessun aggiornamento da installare.');
+                    servizi.aggiornamento.installa(leggiCorpo(dati, false, servizi.maxFileClienteMb).versione);
+                    return rispostaJson(202, { stato: 'download' });
                 }
                 throw nonTrovatoApi();
             }
