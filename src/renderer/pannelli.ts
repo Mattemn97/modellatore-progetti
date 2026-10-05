@@ -6,19 +6,25 @@ import {
     type DockviewApi, type IContentRenderer, type IDockviewPanel, type AddPanelPositionOptions
 } from 'dockview-core';
 
-export const PANNELLI = ['libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore'] as const;
+export const PANNELLI = ['libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore', 'matrice', 'documenti', 'changelog'] as const;
 export type IdPannello = typeof PANNELLI[number];
 
 const TITOLI: Record<IdPannello, string> = {
     libreria: 'Libreria', cliente: 'Cliente', coerenza: 'Coerenza',
-    gerarchia: 'Gerarchia', canvas: 'Canvas', ispettore: 'Ispettore'
+    gerarchia: 'Gerarchia', canvas: 'Canvas', ispettore: 'Ispettore',
+    matrice: 'Matrice', documenti: 'Documenti', changelog: 'Changelog'
 };
 
 // Contenitore di ogni pannello in index.html
 const NODI: Record<IdPannello, string> = {
     libreria: 'schedaLibreria', cliente: 'schedaCliente', coerenza: 'schedaCoerenza',
-    gerarchia: 'schedaGerarchia', canvas: 'canvasContainer', ispettore: 'propertiesPanel'
+    gerarchia: 'schedaGerarchia', canvas: 'canvasContainer', ispettore: 'propertiesPanel',
+    matrice: 'pannelloMatrice', documenti: 'pannelloDocumenti', changelog: 'pannelloChangelog'
 };
+
+// Le finestre di oggi diventate pannelli (spec 0022): stanno insieme in un gruppo sotto il Canvas
+const SOTTO_IL_CANVAS: IdPannello[] = ['matrice', 'documenti', 'changelog'];
+const QUOTA_SOTTO = 0.4;
 
 // Pannelli che seguono una modalità spenta all'avvio: non si riaprono dal layout salvato (AC-5)
 const LEGATI_A_MODALITA: IdPannello[] = ['coerenza', 'gerarchia'];
@@ -102,8 +108,19 @@ function creaContenuto(id: IdPannello): IContentRenderer {
     element.dataset.pannello = id;
     const entra = () => {
         const n = nodo(id);
-        if (n && n.parentElement !== element) element.appendChild(n);
-        allaVistaDi.get(id)?.();
+        if (!n) return;
+        if (n.parentElement !== element) element.appendChild(n);
+        // dockview chiama init prima di attaccare il pannello: il richiamo aspetta che il nodo sia nella pagina
+        const avvisa = () => {
+            if (!n.isConnected || n.parentElement !== element) return;
+            try {
+                allaVistaDi.get(id)?.();
+            } catch (e) {
+                console.error(`Pannello ${id}: aggiornamento non riuscito`, e);
+            }
+        };
+        if (n.isConnected) avvisa();
+        else requestAnimationFrame(avvisa);
     };
     const esce = () => {
         const n = nodo(id);
@@ -125,9 +142,15 @@ function vincoli(id: IdPannello): { minimumWidth: number } {
 
 /* --- APERTURA E CHIUSURA --- */
 
-// Riapertura: nel gruppo della Libreria se c'è, altrimenti a sinistra del Canvas (AC-3)
+// Riapertura: nel gruppo della Libreria se c'è, altrimenti a sinistra del Canvas (AC-3);
+// Matrice, Documenti e Changelog insieme, sotto il Canvas (spec 0022, AC-1)
 function posizioneDi(id: IdPannello): AddPanelPositionOptions | undefined {
     if (!api) return undefined;
+    if (SOTTO_IL_CANVAS.includes(id)) {
+        const vicino = SOTTO_IL_CANVAS.find((altro) => altro !== id && api?.getPanel(altro));
+        if (vicino) return { referencePanel: vicino, direction: 'within' };
+        return api.getPanel('canvas') ? { referencePanel: 'canvas', direction: 'below' } : undefined;
+    }
     if (id !== 'libreria' && api.getPanel('libreria')) return { referencePanel: 'libreria', direction: 'within' };
     if (id === 'ispettore') return { referencePanel: 'canvas', direction: 'right' };
     if (api.getPanel('canvas')) return { referencePanel: 'canvas', direction: 'left' };
@@ -136,9 +159,11 @@ function posizioneDi(id: IdPannello): AddPanelPositionOptions | undefined {
 
 function aggiungi(id: IdPannello, posizione: AddPanelPositionOptions | undefined, inattivo = false): IDockviewPanel | null {
     if (!api) return null;
+    const sotto = SOTTO_IL_CANVAS.includes(id) && posizione && 'direction' in posizione && posizione.direction === 'below';
     return api.addPanel({
         id, component: id, title: TITOLI[id], inactive: inattivo, ...vincoli(id),
-        ...(posizione ? { position: posizione } : {})
+        ...(posizione ? { position: posizione } : {}),
+        ...(sotto ? { initialHeight: Math.round(api.height * QUOTA_SOTTO) } : {})
     });
 }
 

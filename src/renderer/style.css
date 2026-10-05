@@ -27,7 +27,7 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahom
 }
 .area-pannelli .dv-tab[data-tab-panel-id="canvas"] .dv-default-tab-action { display: none; }
 .contenuto-pannello { height: 100%; overflow: auto; background: white; box-sizing: border-box; }
-.contenuto-pannello[data-pannello="canvas"] { overflow: hidden; }
+.contenuto-pannello[data-pannello="canvas"], .contenuto-pannello[data-pannello="matrice"], .contenuto-pannello[data-pannello="documenti"], .contenuto-pannello[data-pannello="changelog"] { overflow: hidden; }
 .contenuto-scheda, .contenuto-ispettore { padding: 15px; box-sizing: border-box; }
 
 
@@ -277,13 +277,18 @@ span.segno-ramo { cursor: default; }
 .vuoto-gerarchia { font-size: 12px; font-style: italic; color: #888; padding: 2px 6px; }
 
 /* Matrice di tracciabilità: finestra, filtri, tabella raggruppata per padre (spec 0006) */
-.modal-matrice { width: 95%; max-width: 1400px; max-height: 90vh; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+/* Matrice, Documenti e Changelog come pannelli (spec 0022) */
+.contenuto-finestra { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 8px 15px 10px; box-sizing: border-box; }
+.contenuto-finestra .filtri-matrice { margin-top: 0; }
+.riga-guida { display: flex; justify-content: flex-end; }
+.titolo-changelog { font-weight: bold; font-size: 13px; color: #333; }
+#vociChangelog { flex: 1; min-height: 0; overflow-y: auto; }
 .filtri-matrice { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 8px; }
 .filtri-matrice[hidden], .import-conteggi[hidden] { display: none; }
 .filtri-matrice .campo-import select, .filtri-matrice .campo-import input { min-width: 120px; }
 .campo-ricerca-matrice { flex: 1; min-width: 200px; }
 .campo-ricerca-matrice input { width: 100%; box-sizing: border-box; }
-.anteprima-documento { flex: 1; min-height: 0; max-height: 60vh; overflow: auto; margin: 0; padding: 8px; background: #f7f9fb; border: 1px solid #ddd; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.anteprima-documento { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 8px; background: #f7f9fb; border: 1px solid #ddd; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 .anteprima-documento[hidden], #documentiMessaggio[hidden] { display: none; }
 .contenuto-matrice { flex: 1; min-height: 0; overflow: auto; font-size: 12px; }
 .tabella-matrice { width: 100%; border-collapse: collapse; font-size: 12px; }

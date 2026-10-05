@@ -12,6 +12,7 @@ import { infoLibreria } from './libreria.js';
 import { scaricaFileTesto } from './storage.js';
 import { CAPACITA, getTipologie } from './model.js';
 import { escapeHtml, slugifyId, dataOggi } from './utils.js';
+import { mostraPannello, pannelloAperto, pannelloVisibile, allaVista, allaChiusura } from './pannelli.js';
 import type { Blocco, Libreria, RequisitoLibreria, TestoExport } from './tipi.js';
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: i documenti si generano quando la carichi';
@@ -453,7 +454,9 @@ let ultimiDati: DatiDocumenti | null = null;
 let documentoScelto: string | null = null;
 let ultimoTesto: string | null = null;
 
-const modale = document.getElementById('documentiModal');
+let daAggiornare = false;
+let timerModello: ReturnType<typeof setTimeout> | null = null;
+const RITARDO_MODELLO = 250;
 
 function campo<T extends HTMLElement>(id: string): T {
     return document.getElementById(id) as T;
@@ -502,12 +505,14 @@ function aggiorna(): void {
     campo<HTMLButtonElement>('btnEsportaDocumento').disabled = false;
 }
 
-// Calcola indice e matrice una volta; cambiare documento rigenera solo il testo dalla stessa fotografia (AC-1)
-export function apriDocumenti(): void {
-    if (!modale) return;
+// Calcola indice e matrice una volta; cambiare documento rigenera solo il testo dalla stessa fotografia (AC-1).
+// Rifatto anche dopo una modifica al modello, con lo stesso documento e lo stesso scorrimento (spec 0022)
+function ricalcola(): void {
+    daAggiornare = false;
+    const anteprima = campo('anteprimaDocumento');
+    const scorrimento = anteprima.scrollTop;
     ultimiDati = null;
     ultimoTesto = null;
-    modale.style.display = 'flex';
     const indice = calcolaGerarchia(pathStack[0]!.graph, appState.library, appState.cliente);
     const matrice = calcolaMatrice(indice, appState.library, appState.cliente, pathStack[0]!.label);
     if (matrice.libreriaAssente) {
@@ -526,13 +531,30 @@ export function apriDocumenti(): void {
     selettore.value = documentoScelto ?? '';
     campo('documentiBarra').hidden = false;
     aggiorna();
+    anteprima.scrollTop = scorrimento;
 }
 
-export function chiudiDocumenti(): void {
-    if (!modale) return;
-    modale.style.display = 'none';
+// Il calcolo lo fa allaVista, quando il pannello compare
+export function apriDocumenti(): void {
+    if (!pannelloAperto('documenti')) daAggiornare = true;
+    mostraPannello('documenti');
+}
+
+// Chiamata da render(): ricalcola una volta dopo una raffica di modifiche, solo se il pannello si vede (AC-2)
+export function segnaDocumentiDaAggiornare(): void {
+    daAggiornare = true;
+    if (!pannelloAperto('documenti')) return;
+    if (timerModello !== null) clearTimeout(timerModello);
+    timerModello = setTimeout(() => {
+        timerModello = null;
+        if (daAggiornare && pannelloVisibile('documenti')) ricalcola();
+    }, RITARDO_MODELLO);
+}
+
+function allaChiusuraDocumenti(): void {
     ultimiDati = null;
     ultimoTesto = null;
+    daAggiornare = false;
     campo('anteprimaDocumento').textContent = '';
 }
 
@@ -549,7 +571,8 @@ function esporta(): void {
 
 export function initDocumenti(): void {
     document.getElementById('btnDocumenti')?.addEventListener('click', apriDocumenti);
-    document.getElementById('btnChiudiDocumenti')?.addEventListener('click', chiudiDocumenti);
+    allaVista('documenti', () => { if (daAggiornare || !ultimiDati) ricalcola(); });
+    allaChiusura('documenti', allaChiusuraDocumenti);
     document.getElementById('btnEsportaDocumento')?.addEventListener('click', esporta);
     document.getElementById('documentiScelta')?.addEventListener('change', (e) => {
         if (!ultimiDati) return;

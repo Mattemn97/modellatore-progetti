@@ -11,6 +11,7 @@ import { infoLibreria } from './libreria.js';
 import { scaricaFileTesto } from './storage.js';
 import { CAPACITA, getTipologie, getClasseRequisito, isRequisitoCliente, titoloRequisito } from './model.js';
 import { escapeHtml, slugifyId, dataOggi } from './utils.js';
+import { mostraPannello, pannelloAperto, pannelloVisibile, allaVista, allaChiusura } from './pannelli.js';
 import type { Blocco, Cliente, Libreria, RequisitoLibreria } from './tipi.js';
 
 export interface VoceMatrice {
@@ -98,7 +99,9 @@ const filtri: FiltriMatrice = { documento: '', lato: 'entrambi', classe: '', ric
 let gruppiMostrati = 0;
 let timerRicerca: ReturnType<typeof setTimeout> | null = null;
 
-const modale = document.getElementById('matriceModal');
+let daAggiornare = false;
+let timerModello: ReturnType<typeof setTimeout> | null = null;
+const RITARDO_MODELLO = 250;
 
 function campo<T extends HTMLElement>(id: string): T {
     return document.getElementById(id) as T;
@@ -551,32 +554,53 @@ function applicaRicercaInSospeso(): void {
     filtriCambiati();
 }
 
-/* --- FINESTRA (AC-1) --- */
+/* --- PANNELLO (AC-1; spec 0022) --- */
 
-// Calcola dal modello di adesso, mai dall'indice della Gerarchia (che esiste solo a modalità accesa)
-export function apriMatrice(): void {
-    if (!modale) return;
+// Calcola dal modello di adesso, mai dall'indice della Gerarchia (che esiste solo a modalità accesa).
+// Filtri e scorrimento restano: serve anche per l'aggiornamento dopo una modifica al modello
+function ricalcola(): void {
+    daAggiornare = false;
+    applicaRicercaInSospeso();
     const indice = calcolaGerarchia(pathStack[0]!.graph, appState.library, appState.cliente);
     const matrice = calcolaMatrice(indice, appState.library, appState.cliente, pathStack[0]!.label);
     ultimaMatrice = matrice;
-    gruppiMostrati = appSettings.matrice.gruppiVisibili;
+    const contenuto = campo('matriceContenuto');
+    const scorrimento = contenuto.scrollTop;
     popolaFiltri(matrice);
-    modale.style.display = 'flex';
     aggiorna();
-    campo('matriceContenuto').scrollTop = 0;
+    contenuto.scrollTop = scorrimento;
 }
 
-export function chiudiMatrice(): void {
-    if (!modale) return;
+// Il calcolo lo fa allaVista, quando il pannello compare
+export function apriMatrice(): void {
+    if (!pannelloAperto('matrice')) {
+        gruppiMostrati = appSettings.matrice.gruppiVisibili;
+        daAggiornare = true;
+    }
+    mostraPannello('matrice');
+}
+
+// Chiamata da render(): ricalcola una volta dopo una raffica di modifiche, solo se il pannello si vede (AC-2)
+export function segnaMatriceDaAggiornare(): void {
+    daAggiornare = true;
+    if (!pannelloAperto('matrice')) return;
+    if (timerModello !== null) clearTimeout(timerModello);
+    timerModello = setTimeout(() => {
+        timerModello = null;
+        if (daAggiornare && pannelloVisibile('matrice')) ricalcola();
+    }, RITARDO_MODELLO);
+}
+
+// Alla chiusura il risultato si butta; i filtri restano finché la pagina è aperta (AC-12)
+function allaChiusuraMatrice(): void {
     if (timerRicerca !== null) {
         clearTimeout(timerRicerca);
         timerRicerca = null;
         filtri.ricerca = campo<HTMLInputElement>('matriceRicerca').value;
     }
-    modale.style.display = 'none';
-    // Il risultato si rifà alla prossima apertura
     ultimaMatrice = null;
     ultimoFiltrato = null;
+    daAggiornare = false;
     campo('matriceContenuto').innerHTML = '';
 }
 
@@ -586,7 +610,9 @@ const LATI = new Set<string>(['entrambi', 'padre', 'figlio']);
 
 export function initMatrice(): void {
     document.getElementById('btnReqMatrix')?.addEventListener('click', apriMatrice);
-    document.getElementById('btnChiudiMatrice')?.addEventListener('click', chiudiMatrice);
+    // Aperta dal menu Finestra o da un layout salvato: si calcola quando si vede
+    allaVista('matrice', () => { if (daAggiornare || !ultimaMatrice) ricalcola(); });
+    allaChiusura('matrice', allaChiusuraMatrice);
 
     document.getElementById('matriceDocumento')?.addEventListener('change', (e) => {
         filtri.documento = (e.target as HTMLSelectElement).value;
@@ -623,8 +649,7 @@ export function initMatrice(): void {
         }
         const cella = bersaglio.closest<HTMLElement>('[data-chiave]');
         if (!cella) return;
-        const chiave = cella.dataset.chiave ?? '';
-        chiudiMatrice();
-        apriGerarchiaSu(chiave);
+        // La Matrice resta aperta accanto alla Gerarchia (spec 0022, AC-4)
+        apriGerarchiaSu(cella.dataset.chiave ?? '');
     });
 }

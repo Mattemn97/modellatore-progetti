@@ -112,10 +112,13 @@ spec [0021](../specs/0021-pannelli-agganciabili/index.md) · code in `src/render
 - [x] Verify it: suite end to end verde; trascinamento di una scheda in un altro gruppo provato a mano e ritrovato dopo la ricarica
 - [x] Test it: `tests/unit/pannelli.test.ts`, `tests/e2e/ui/pannelli.spec.ts`
 
-### 25. Matrice, Documenti e Changelog come pannelli
+### 25. Matrice, Documenti e Changelog come pannelli · done
 Le finestre modali di oggi (Matrice Requisiti, Documenti MIL-STD-498, Changelog e Apri progetto) diventano pannelli che puoi tenere aperti accanto al canvas mentre lavori, aggiornati quando il modello cambia. L'import cliente resta una procedura guidata in finestra.
 **Done when:** apri Matrice, Documenti e Changelog come pannelli agganciabili, si aggiornano dopo una modifica al modello, i loro filtri ed export `.md` funzionano come oggi, ed Esc, Ctrl+Z e Ctrl+Y si comportano bene con il pannello attivo.
-- [ ] Build it: `/develop matrice, documenti e changelog come pannelli`
+spec [0022](../specs/0022-finestre-come-pannelli.md) · code in `src/renderer/matrice.ts`, `src/renderer/documenti.ts`, `src/renderer/libreria.ts`, `src/renderer/pannelli.ts`
+- [x] Build it: `/develop matrice, documenti e changelog come pannelli` (Apri progetto resta finestra: scelta da fare una volta, blocca senza progetto aperto)
+- [x] Verify it: suite end to end verde; Matrice e Changelog aperti insieme sotto il canvas controllati a schermo
+- [x] Test it: `tests/e2e/ui/tracciabilita.spec.ts` (Matrice aggiornata dopo una modifica e con Ctrl+Z), `tests/e2e/ui/libreria.spec.ts`
 
 ### 26. Pannelli in finestre staccate · needs a decision
 Puoi staccare un pannello in una finestra separata di Windows (per esempio la Matrice sul secondo monitor) e riagganciarlo; le finestre staccate restano sincronizzate con il progetto aperto.

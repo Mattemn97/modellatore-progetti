@@ -5,7 +5,7 @@ import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, 
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
-import { mostraChangelog } from './libreria.js';
+import { mostraChangelog, initChangelog } from './libreria.js';
 import { initSchedaCliente, posizionaRequisitoCliente, impostaSelezioneCliente } from './cliente.js';
 import { initCoerenza } from './coerenza.js';
 import { initGerarchia } from './gerarchia.js';
@@ -99,6 +99,7 @@ export async function initApp(): Promise<void> {
     initGerarchia();
     initMatrice();
     initDocumenti();
+    initChangelog();
     initAiuto();
     initImpostazioni();
 

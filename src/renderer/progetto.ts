@@ -694,13 +694,14 @@ function scarica(): void {
 
 /* --- FINESTRA APRI --- */
 
-// Anche il gestore di Esc della Gerarchia la usa; il tour guidato conta come finestra aperta (spec 0012)
+// Anche il gestore di Esc della Gerarchia la usa; il tour guidato conta come finestra aperta (spec 0012).
+// Matrice, Documenti e Changelog sono pannelli, non finestre: non bloccano le scorciatoie (spec 0022)
 export function modaleAperta(): boolean {
     const aperta = (id: string) => {
         const modal = document.getElementById(id);
         return !!modal && modal.style.display !== 'none';
     };
-    return tourAttivo() || aperta('reportModal') || aperta('matriceModal') || aperta('documentiModal') || aperta('impostazioniModal') || importClienteAperto();
+    return tourAttivo() || aperta('reportModal') || aperta('impostazioniModal') || importClienteAperto();
 }
 
 function chiudiModale(): void {
