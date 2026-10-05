@@ -1,7 +1,7 @@
 # 0016. Stack desktop: Electron con TypeScript e protocollo interno al posto del server
 
 **Date**: 2026-10-05
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

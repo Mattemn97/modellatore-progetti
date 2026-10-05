@@ -8,19 +8,22 @@ Livello predefinito di questo epic: **Beta** (dopo `/develop`, `/check verify` p
 
 ## Foundations
 
-### 16. Stack desktop e struttura TypeScript · in-progress
+### 16. Stack desktop e struttura TypeScript · done
 Sceglie il guscio desktop, la compilazione TypeScript e la struttura delle cartelle, e fa partire il codice di oggi così com'è dentro una finestra desktop: il primo filo che attraversa tutto.
 **Done when:** la scelta è in una spec, `develop` esiste, e lanciando l'app in sviluppo si apre una finestra Windows con l'editor attuale che disegna canvas e libreria; il controllo dei tipi gira (anche se il codice è ancora JavaScript).
 spec [0016](../specs/0016-stack-desktop-typescript/index.md) · code in `src/main/`, `src/preload/`, `scripts/build.mjs`, `package.json`, `start.py`
 - [x] Decide the stack (spec): `/architect stack desktop e struttura TypeScript`
 - [x] Scaffold from the decision: `/develop stack desktop e struttura TypeScript`
 - [x] Verify it: `/check verify stack desktop e struttura TypeScript`
-- [ ] Test it: `/test stack desktop e struttura TypeScript`
+- [x] Test it: `/test stack desktop e struttura TypeScript` (`tests/e2e/guscio.spec.ts`, `tests/unit/percorsi.test.ts`)
 
-### 17. Standard, strumenti e CI su develop
+### 17. Standard, strumenti e CI su develop · done
 Aggiorna `AGENTS.md` alle nuove regole (TypeScript, niente server, comandi nuovi), installa controllo dei tipi, lint, test unitari ed end to end, e una GitHub Action che li fa girare a ogni push e pull request verso `develop`.
 **Done when:** `AGENTS.md` descrive lo stack reale, i comandi di typecheck, lint e test girano puliti in locale, e la CI su `develop` è verde.
-- [ ] Capture conventions + tooling choices: `/audit`
+code in `AGENTS.md`, `package.json`, `eslint.config.mjs`, `vitest.config.ts`, `playwright.config.ts`, `tests/`, `.github/workflows/ci.yml`
+- [x] Capture conventions + tooling choices: `/audit`
+- [x] Install the tooling: typecheck, lint, Vitest, Playwright su Electron, CI su `develop`
+- [x] Check it runs clean: `npm run verifica` in locale e CI verde
 
 ### 18. Rete di sicurezza end to end · needs a decision
 Prima di toccare il codice, una suite di test end to end fissa il comportamento di oggi nei percorsi principali (blocchi, fili, gerarchia di livelli, libreria e changelog, import cliente, coerenza, gerarchia, matrice, documenti, filtri, Annulla e Ripeti), così ogni passo successivo dimostra di non aver rotto niente.

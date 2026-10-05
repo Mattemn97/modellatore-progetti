@@ -1,0 +1,57 @@
+# CI della v2: tipi, lint, test unitari ed end to end sull'app desktop, a ogni push e pull request verso develop
+name: CI
+
+on:
+  push:
+    branches: [develop, 'feat/**']
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifica:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Il ponte verso start.py serve finché le voci 19 e 20 non lo sostituiscono
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Dipendenze
+        run: npm ci
+
+      - name: Controllo dei tipi
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test unitari
+        run: npm test
+
+      - name: Test end to end
+        run: npm run test:e2e
+
+      - name: Rapporto Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapporto-playwright
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
