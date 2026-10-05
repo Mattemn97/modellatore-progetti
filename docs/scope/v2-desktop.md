@@ -11,10 +11,10 @@ Livello predefinito di questo epic: **Beta** (dopo `/develop`, `/check verify` p
 ### 16. Stack desktop e struttura TypeScript · in-progress
 Sceglie il guscio desktop, la compilazione TypeScript e la struttura delle cartelle, e fa partire il codice di oggi così com'è dentro una finestra desktop: il primo filo che attraversa tutto.
 **Done when:** la scelta è in una spec, `develop` esiste, e lanciando l'app in sviluppo si apre una finestra Windows con l'editor attuale che disegna canvas e libreria; il controllo dei tipi gira (anche se il codice è ancora JavaScript).
-spec [0016](../specs/0016-stack-desktop-typescript/index.md)
+spec [0016](../specs/0016-stack-desktop-typescript/index.md) · code in `src/main/`, `src/preload/`, `scripts/build.mjs`, `package.json`, `start.py`
 - [x] Decide the stack (spec): `/architect stack desktop e struttura TypeScript`
-- [ ] Scaffold from the decision: `/develop stack desktop e struttura TypeScript`
-- [ ] Verify it: `/check verify stack desktop e struttura TypeScript`
+- [x] Scaffold from the decision: `/develop stack desktop e struttura TypeScript`
+- [x] Verify it: `/check verify stack desktop e struttura TypeScript`
 - [ ] Test it: `/test stack desktop e struttura TypeScript`
 
 ### 17. Standard, strumenti e CI su develop

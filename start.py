@@ -1938,6 +1938,16 @@ def open_browser(port):
     webbrowser.open(f"http://localhost:{port}")
 
 def main():
+    global PORT
+    # App desktop v2 (spec 0016): start.py serve solo le API, su una porta scelta dal processo principale
+    solo_api = '--solo-api' in sys.argv
+    porta = argomento('--porta')
+    if porta is not None:
+        try:
+            PORT = int(porta)
+        except ValueError:
+            stampa_errore(f"Porta non valida: {porta}")
+            sys.exit(2)
     base_dir = get_base_dir()
     os.chdir(base_dir)
 
@@ -1974,11 +1984,13 @@ def main():
         aggiornamento.imposta(stato='errore', motivo=aggiornamento.errore_iniziale)
         stampa_avviso(aggiornamento.errore_iniziale)
     # Dopo un aggiornamento la pagina già aperta si ricarica da sola: niente scheda nuova
-    if not (dopo_aggiornamento or dopo_ripristino):
+    if not (dopo_aggiornamento or dopo_ripristino or solo_api):
         threading.Thread(target=open_browser, args=(PORT,), daemon=True).start()
 
     controllo, repository = leggi_impostazioni_aggiornamenti(base_dir)
-    if not controllo:
+    if solo_api:
+        aggiornamento.imposta(motivo="App desktop in sviluppo: nessun controllo degli aggiornamenti.")
+    elif not controllo:
         aggiornamento.imposta(motivo="Controllo degli aggiornamenti spento in settings.json (aggiornamenti.controllo).")
     elif not isinstance(repository, str) or not FORMATO_REPOSITORY.match(repository):
         aggiornamento.imposta(motivo="aggiornamenti.repository in settings.json non è nella forma proprietario/nome.")
