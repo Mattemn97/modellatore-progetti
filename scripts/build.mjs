@@ -30,7 +30,11 @@ const interfaccia = {
 fs.rmSync('out/renderer', { recursive: true, force: true });
 await Promise.all([
     // Processo principale in ESM (Electron lo carica da package.json "main")
-    build({ ...nodo, entryPoints: ['src/main/index.ts'], outfile: 'out/main/index.mjs', format: 'esm' }),
+    // electron-updater è CommonJS e chiede require('electron'): nel bundle ESM serve un require vero (spec 0025)
+    build({
+        ...nodo, entryPoints: ['src/main/index.ts'], outfile: 'out/main/index.mjs', format: 'esm',
+        banner: { js: "import { createRequire as __creaRequire } from 'node:module'; const require = __creaRequire(import.meta.url);" }
+    }),
     // Il preload in sandbox deve essere CommonJS
     build({ ...nodo, entryPoints: ['src/preload/index.ts'], outfile: 'out/preload/index.cjs', format: 'cjs' }),
     build(interfaccia)

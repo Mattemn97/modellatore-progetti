@@ -25,6 +25,20 @@ function sezione(dati: Record<string, unknown> | null, nome: string): Record<str
     return valore !== null && typeof valore === 'object' && !Array.isArray(valore) ? valore as Record<string, unknown> : {};
 }
 
+export interface ImpostazioniAggiornamento {
+    controllo: boolean;
+    repository: string;
+}
+
+export const REPOSITORY_PREDEFINITO = 'Mattemn97/modellatore-progetti';
+
+// aggiornamenti.controllo (false lo spegne) e aggiornamenti.repository ("proprietario/nome"), dal file dato (spec 0025)
+export function leggiImpostazioniAggiornamento(cartellaDati: string | null): ImpostazioniAggiornamento {
+    const s = sezione(cartellaDati ? leggi(cartellaDati) : null, 'aggiornamenti');
+    const repository = typeof s.repository === 'string' && /^[\w.-]+\/[\w.-]+$/.test(s.repository) ? s.repository : REPOSITORY_PREDEFINITO;
+    return { controllo: s.controllo !== false, repository };
+}
+
 // <sezione>.versioni: intero, minimo 1; cliente.maxFileMB: numero positivo; altrimenti il predefinito
 export function leggiImpostazioniApi(cartellaDati: string): ImpostazioniApi {
     const dati = leggi(cartellaDati);

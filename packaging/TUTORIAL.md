@@ -236,7 +236,16 @@ I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni 
 
 **Backup:** copia la cartella di lavoro (di solito `Documenti\Modellatore MBSE`, la vedi in **`⚙ Impostazioni`**) in un posto sicuro. Contiene progetti, librerie e impostazioni.
 
-**Aggiornare a una nuova versione:** scarica il nuovo setup e avvialo: installa sopra quella vecchia. Il tuo lavoro non viene toccato, perché non sta nella cartella del programma.
+**Aggiornamento automatico:** all'avvio il programma controlla su GitHub se c'è una versione più recente. Se c'è, mostra un banner azzurro in cima:
+
+- **Novità** mostra cosa cambia nella nuova versione.
+- **Aggiorna e riavvia** salva il progetto, scarica il nuovo setup, ne controlla l'impronta (un file rovinato non viene mai installato), lo installa e riapre il programma. Il tuo lavoro non viene toccato, perché non sta nella cartella del programma.
+- Se il download non riesce, il banner te lo dice e resti sulla versione di prima: puoi riprovare.
+- **Più tardi** nasconde l'avviso fino al prossimo avvio.
+
+Senza rete il programma parte come sempre, senza avvisi. Per spegnere il controllo apri `settings.json` (da **`⚙ Impostazioni`**) e metti `"controllo": false` nella sezione `"aggiornamenti"`, poi riavvia.
+
+**Aggiornare a mano:** scarica il nuovo setup e avvialo: installa sopra la versione vecchia, senza toccare i tuoi dati.
 
 ---
 

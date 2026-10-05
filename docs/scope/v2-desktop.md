@@ -148,10 +148,14 @@ spec [0024](../specs/0024-installabile-windows.md) · code in `package.json` (`b
 - [x] Verify it: setup costruito in locale, programma impacchettato avviato con Playwright; installazione, avvio e disinstallazione silenziose nel job `setup` della CI
 - [x] Test it: `tests/e2e/installato.spec.ts`
 
-### 29. Aggiornamento automatico della versione desktop · needs a decision
+### 29. Aggiornamento automatico della versione desktop · done
 Il controllo della funzionalità 15 portato nell'app desktop: all'avvio guarda l'ultima Release di GitHub, ti mostra le novità, e con un clic scarica il nuovo setup, ne verifica l'impronta, si aggiorna e riparte, sempre senza toccare i dati.
 **Done when:** con una Release più recente vedi l'avviso con le novità; confermando l'app si aggiorna e riparte con dati e layout intatti; senza rete o con un download interrotto l'app resta sulla versione di prima e te lo dice; si prova contro un finto server di Release come oggi.
-- [ ] Design it (spec): `/architect aggiornamento automatico della versione desktop`
+spec [0025](../specs/0025-aggiornamento-desktop.md) · code in `src/main/aggiornamento.ts`, `src/main/index.ts`, `src/main/api/router.ts`
+- [x] Design it (spec): `/architect aggiornamento automatico della versione desktop` (electron-updater dietro il contratto `/api/aggiornamento` della 1.x)
+- [x] Build it: `/develop aggiornamento automatico della versione desktop`
+- [x] Verify it: avviso, novità e impronta sbagliata contro un server finto; installazione e riavvio veri da provare alla prima Release 2.x dopo la 2.0.0
+- [x] Test it: `tests/unit/aggiornamento.test.ts`, `tests/e2e/ui/aggiornamento.spec.ts`
 
 ### 30. Rilascio 2.0.0 e passaggio dalla 1.x · needs a decision
 Il workflow di rilascio su `main` costruisce, prova e pubblica il setup Windows; `start.py`, `start.spec`, `requirements.txt` e lo zip vengono ritirati. L'ultima 1.x, trovando la 2.0.0, non prova a installarla come uno zip ma ti porta al setup e ti ricorda l'import dei dati.
