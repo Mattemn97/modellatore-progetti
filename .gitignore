@@ -12,3 +12,8 @@ progetti/
 Thumbs.db
 .DS_Store
 .vscode/
+
+# App desktop (npm, esbuild, electron-builder)
+node_modules/
+out/
+release/
