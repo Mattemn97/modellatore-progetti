@@ -34,7 +34,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 13 | Protezione dei dati negli aggiornamenti | v1 | Slice 6 | done |
 | 14 | Console del server più leggibile | v1 | Slice 6 | done |
 | 15 | Controllo e aggiornamento automatico | v1 | Slice 6 | done |
-| 16 | Stack desktop e struttura TypeScript | v2 | Foundation | planned |
+| 16 | Stack desktop e struttura TypeScript | v2 | Foundation | in-progress |
 | 17 | Standard, strumenti e CI su develop | v2 | Foundation | planned |
 | 18 | Rete di sicurezza end to end | v2 | Foundation | planned |
 | 19 | Progetti su disco senza server | v2 | Slice 1 | planned |
