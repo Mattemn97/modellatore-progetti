@@ -12,7 +12,11 @@ export default tseslint.config(
     {
         files: ['src/renderer/**/*.ts'],
         languageOptions: { globals: { ...globals.browser } },
-        rules: { 'no-restricted-imports': ['error', { patterns: ['node:*'] }] }
+        rules: {
+            'no-restricted-imports': ['error', { patterns: ['node:*'] }],
+            '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
+            eqeqeq: ['error', 'always']
+        }
     },
     {
         files: ['**/*.ts', '**/*.mjs'],
