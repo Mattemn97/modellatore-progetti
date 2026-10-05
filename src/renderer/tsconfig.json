@@ -12,9 +12,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true,
-    "allowJs": true,
-    "checkJs": false
+    "noEmit": true
   },
-  "include": ["**/*.ts", "**/*.js"]
+  "include": ["**/*.ts"]
 }

@@ -1,7 +1,7 @@
 # 0020. Editor in TypeScript
 
 **Date**: 2026-10-05
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 

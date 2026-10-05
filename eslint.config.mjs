@@ -6,7 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
     // src/renderer/*.js resta fuori finché non diventa TypeScript (spec 0020)
-    { ignores: ['out/**', 'release/**', 'node_modules/**', 'src/renderer/**/*.js', 'build/**', 'dist/**', 'test-results/**', 'playwright-report/**'] },
+    { ignores: ['out/**', 'release/**', 'node_modules/**', 'build/**', 'dist/**', 'test-results/**', 'playwright-report/**'] },
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {

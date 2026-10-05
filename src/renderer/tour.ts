@@ -1,5 +1,5 @@
 /* --- TOUR GUIDATO: RIFLETTORE, FUMETTO, TASTIERA E RIPRISTINO DELLA VISTA (spec 0012) --- */
-import { TOUR } from './aiuto-testi.js';
+import { TOUR, type PassoTour } from './aiuto-testi.js';
 import { mostraScheda } from './cliente.js';
 
 const CHIAVE_TOUR_VISTO = 'modellatore.tourVisto';
@@ -9,18 +9,43 @@ const BORDO_FINESTRA = 8;
 // Durata della transizione dei pannelli laterali (style.css), più un poco
 const ATTESA_PANNELLI = 350;
 
-// Stato di sola vista: { nome, passi, indice, ripristino } oppure null
-let tour = null;
-let elementi = null;
-let timerRiposiziona = null;
+interface StatoVista {
+    sinistro: boolean;
+    destro: boolean;
+    scheda: string;
+}
 
-export function tourAttivo() {
+// Stato di sola vista, null senza tour
+interface StatoTour {
+    nome: string;
+    passi: PassoTour[];
+    indice: number;
+    ripristino: StatoVista | null;
+    fuocoPrima: Element | null;
+}
+
+interface ElementiTour {
+    overlay: HTMLDivElement;
+    riflettore: HTMLElement;
+    fumetto: HTMLElement;
+    conteggio: HTMLElement;
+    titolo: HTMLElement;
+    testo: HTMLElement;
+    indietro: HTMLButtonElement;
+    avanti: HTMLButtonElement;
+}
+
+let tour: StatoTour | null = null;
+let elementi: ElementiTour | null = null;
+let timerRiposiziona: ReturnType<typeof setTimeout> | undefined;
+
+export function tourAttivo(): boolean {
     return tour !== null;
 }
 
 /* --- ELEMENTI DEL TOUR --- */
 
-function creaElementi() {
+function creaElementi(): ElementiTour {
     if (elementi) return elementi;
     const overlay = document.createElement('div');
     overlay.id = 'tourOverlay';
@@ -42,27 +67,28 @@ function creaElementi() {
     document.body.appendChild(overlay);
 
     // Nessun clic o pressione arriva all'app sotto (chiuderebbe i Filtri, deselezionerebbe, ecc.)
-    ['mousedown', 'click', 'dblclick', 'contextmenu', 'wheel'].forEach(tipo =>
+    ['mousedown', 'click', 'dblclick', 'contextmenu', 'wheel'].forEach((tipo) =>
         overlay.addEventListener(tipo, (e) => {
             e.stopPropagation();
-            if (tipo !== 'click' && !e.target.closest('button')) e.preventDefault();
+            if (tipo !== 'click' && !(e.target as Element).closest('button')) e.preventDefault();
         }));
     overlay.addEventListener('click', (e) => {
-        const azione = e.target.closest('[data-tour]')?.dataset.tour;
+        const azione = (e.target as Element).closest<HTMLElement>('[data-tour]')?.dataset.tour;
         if (azione === 'avanti') avanti();
         else if (azione === 'indietro') indietro();
         else if (azione === 'salta' || azione === 'chiudi') chiudiTour();
     });
 
+    const trova = <T extends Element>(selettore: string): T => overlay.querySelector<T>(selettore)!;
     elementi = {
         overlay,
-        riflettore: overlay.querySelector('#tourRiflettore'),
-        fumetto: overlay.querySelector('#tourFumetto'),
-        conteggio: overlay.querySelector('.tour-conteggio'),
-        titolo: overlay.querySelector('.tour-titolo'),
-        testo: overlay.querySelector('.tour-testo'),
-        indietro: overlay.querySelector('[data-tour="indietro"]'),
-        avanti: overlay.querySelector('[data-tour="avanti"]')
+        riflettore: trova<HTMLElement>('#tourRiflettore'),
+        fumetto: trova<HTMLElement>('#tourFumetto'),
+        conteggio: trova<HTMLElement>('.tour-conteggio'),
+        titolo: trova<HTMLElement>('.tour-titolo'),
+        testo: trova<HTMLElement>('.tour-testo'),
+        indietro: trova<HTMLButtonElement>('[data-tour="indietro"]'),
+        avanti: trova<HTMLButtonElement>('[data-tour="avanti"]')
     };
     return elementi;
 }
@@ -70,7 +96,7 @@ function creaElementi() {
 /* --- AREE E PREPARAZIONE --- */
 
 // Un'area c'è se esiste e ha una dimensione sullo schermo
-function trovaArea(selettore) {
+function trovaArea(selettore: string | null | undefined): Element | null {
     if (!selettore) return null;
     const el = document.querySelector(selettore);
     if (!el) return null;
@@ -78,11 +104,11 @@ function trovaArea(selettore) {
     return r.width > 0 && r.height > 0 ? el : null;
 }
 
-function schedaAttiva() {
-    return document.querySelector('.scheda-pannello.attiva')?.dataset.scheda || 'libreria';
+function schedaAttiva(): string {
+    return document.querySelector<HTMLElement>('.scheda-pannello.attiva')?.dataset.scheda || 'libreria';
 }
 
-function statoVista() {
+function statoVista(): StatoVista {
     return {
         sinistro: document.getElementById('libraryPanel')?.classList.contains('collapsed') ?? false,
         destro: document.getElementById('propertiesPanel')?.classList.contains('collapsed') ?? false,
@@ -91,9 +117,9 @@ function statoVista() {
 }
 
 // Restituisce true se ha cambiato qualcosa (i pannelli hanno una transizione)
-function prepara(nome) {
+function prepara(nome: string | undefined): boolean {
     if (!nome) return false;
-    const apri = (id) => {
+    const apri = (id: string): boolean => {
         const pannello = document.getElementById(id);
         if (!pannello?.classList.contains('collapsed')) return false;
         pannello.classList.remove('collapsed');
@@ -111,7 +137,7 @@ function prepara(nome) {
     return false;
 }
 
-function ripristina(stato) {
+function ripristina(stato: StatoVista | null): void {
     if (!stato) return;
     document.getElementById('libraryPanel')?.classList.toggle('collapsed', stato.sinistro);
     document.getElementById('propertiesPanel')?.classList.toggle('collapsed', stato.destro);
@@ -120,12 +146,13 @@ function ripristina(stato) {
 
 /* --- POSIZIONE DI RIFLETTORE E FUMETTO --- */
 
-const limita = (v, min, max) => Math.max(min, Math.min(v, max));
+const limita = (v: number, min: number, max: number): number => Math.max(min, Math.min(v, max));
 
-function posiziona() {
-    if (!tour) return;
+function posiziona(): void {
+    if (!tour || !elementi) return;
     const { overlay, riflettore, fumetto } = elementi;
     const passo = tour.passi[tour.indice];
+    if (!passo) return;
     const area = trovaArea(passo.area);
     const W = window.innerWidth;
     const H = window.innerHeight;
@@ -158,14 +185,16 @@ function posiziona() {
         { spazio: H - ey, serve: h, x: centroX, y: ey + DISTANZA_FUMETTO },
         { spazio: sy, serve: h, x: centroX, y: sy - DISTANZA_FUMETTO - h }
     ];
-    const scelto = lati.find(l => l.spazio >= l.serve + DISTANZA_FUMETTO + BORDO_FINESTRA)
+    const scelto = lati.find((l) => l.spazio >= l.serve + DISTANZA_FUMETTO + BORDO_FINESTRA)
         || lati.reduce((a, b) => (b.spazio - b.serve > a.spazio - a.serve ? b : a));
     fumetto.style.left = `${limita(scelto.x, BORDO_FINESTRA, Math.max(BORDO_FINESTRA, W - w - BORDO_FINESTRA))}px`;
     fumetto.style.top = `${limita(scelto.y, BORDO_FINESTRA, Math.max(BORDO_FINESTRA, H - h - BORDO_FINESTRA))}px`;
 }
 
-function mostraPasso() {
+function mostraPasso(): void {
+    if (!tour || !elementi) return;
     const passo = tour.passi[tour.indice];
+    if (!passo) return;
     const cambiato = prepara(passo.prepara);
     const { conteggio, titolo, testo, indietro, avanti } = elementi;
     conteggio.textContent = `Passo ${tour.indice + 1} di ${tour.passi.length}`;
@@ -184,7 +213,7 @@ function mostraPasso() {
 
 /* --- NAVIGAZIONE --- */
 
-function avanti() {
+function avanti(): void {
     if (!tour) return;
     if (tour.indice >= tour.passi.length - 1) {
         chiudiTour();
@@ -194,14 +223,14 @@ function avanti() {
     mostraPasso();
 }
 
-function indietro() {
+function indietro(): void {
     if (!tour || tour.indice === 0) return;
     tour.indice--;
     mostraPasso();
 }
 
 // Fase di cattura su window: i tasti del tour non arrivano agli altri gestori (Esc della Gerarchia, Ctrl+Z, Shift)
-function suTasto(e) {
+function suTasto(e: KeyboardEvent): void {
     if (!tour) return;
     e.stopPropagation();
     if (e.key === 'ArrowRight' || e.key === 'Enter') {
@@ -215,8 +244,8 @@ function suTasto(e) {
         chiudiTour();
     } else if (e.key === 'Tab') {
         // Il fuoco gira tra i pulsanti del fumetto
-        const pulsanti = [...elementi.fumetto.querySelectorAll('button:not(:disabled)')];
-        const i = pulsanti.indexOf(document.activeElement);
+        const pulsanti = [...(elementi?.fumetto.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+        const i = pulsanti.indexOf(document.activeElement as HTMLButtonElement);
         const prossimo = e.shiftKey ? (i <= 0 ? pulsanti.length - 1 : i - 1) : (i + 1) % pulsanti.length;
         e.preventDefault();
         pulsanti[prossimo]?.focus();
@@ -225,47 +254,47 @@ function suTasto(e) {
     }
 }
 
-function suRidimensiona() {
+function suRidimensiona(): void {
     posiziona();
 }
 
-export function avviaTour(nome) {
+export function avviaTour(nome: string): void {
     const lista = TOUR[nome];
     if (!lista) {
         console.warn(`Tour sconosciuto: "${nome}"`);
         return;
     }
     if (tour) chiudiTour();
-    creaElementi();
+    const el = creaElementi();
 
     // Nei mini tour i passi senza area in questo momento vengono saltati (il primo, senza area, resta sempre)
-    const passi = nome === 'principale' ? lista : lista.filter(p => !p.area || trovaArea(p.area));
+    const passi = nome === 'principale' ? lista : lista.filter((p) => !p.area || trovaArea(p.area));
     tour = { nome, passi, indice: 0, ripristino: nome === 'principale' ? statoVista() : null, fuocoPrima: document.activeElement };
 
-    elementi.overlay.hidden = false;
+    el.overlay.hidden = false;
     window.addEventListener('keydown', suTasto, true);
     window.addEventListener('resize', suRidimensiona);
     document.addEventListener('scroll', suRidimensiona, true);
     mostraPasso();
 }
 
-export function chiudiTour() {
+export function chiudiTour(): void {
     if (!tour) return;
     const chiuso = tour;
     tour = null;
     clearTimeout(timerRiposiziona);
-    elementi.overlay.hidden = true;
+    if (elementi) elementi.overlay.hidden = true;
     window.removeEventListener('keydown', suTasto, true);
     window.removeEventListener('resize', suRidimensiona);
     document.removeEventListener('scroll', suRidimensiona, true);
     ripristina(chiuso.ripristino);
     if (chiuso.nome === 'principale') segnaTourVisto();
-    if (chiuso.fuocoPrima?.isConnected) chiuso.fuocoPrima.focus?.({ preventScroll: true });
+    if (chiuso.fuocoPrima?.isConnected) (chiuso.fuocoPrima as HTMLElement).focus?.({ preventScroll: true });
 }
 
 /* --- PRIMO AVVIO --- */
 
-export function tourGiaVisto() {
+export function tourGiaVisto(): boolean {
     try {
         return localStorage.getItem(CHIAVE_TOUR_VISTO) === '1';
     } catch {
@@ -273,7 +302,7 @@ export function tourGiaVisto() {
     }
 }
 
-function segnaTourVisto() {
+function segnaTourVisto(): void {
     try {
         localStorage.setItem(CHIAVE_TOUR_VISTO, '1');
     } catch {
