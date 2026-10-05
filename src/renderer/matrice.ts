@@ -5,12 +5,74 @@
 // della Coerenza, istanza per istanza. Risultato, filtri e limite vivono solo in questo modulo, mai in appState.
 
 import { appState, appSettings, pathStack } from './state.js';
-import { calcolaGerarchia, apriGerarchiaSu } from './gerarchia.js';
+import { calcolaGerarchia, apriGerarchiaSu, type IndiceGerarchia, type Occorrenza } from './gerarchia.js';
 import { infoProgetto } from './progetto.js';
 import { infoLibreria } from './libreria.js';
 import { scaricaFileTesto } from './storage.js';
-import { CAPACITA, getTipologie, getClasseRequisito, titoloRequisito } from './model.js';
+import { CAPACITA, getTipologie, getClasseRequisito, isRequisitoCliente, titoloRequisito } from './model.js';
 import { escapeHtml, slugifyId, dataOggi } from './utils.js';
+import type { Blocco, Cliente, Libreria, RequisitoLibreria } from './tipi.js';
+
+export interface VoceMatrice {
+    id: string;
+    idMostrato: string;
+    titolo: string;
+    cliente: boolean;
+    ritirato: boolean;
+    blocco: string;
+    percorsi: string[];
+    classe: string;
+    metodo: string;
+    documenti: string[];
+    testoRicerca: string;
+    ordineCliente: number;
+    // Chiavi delle occorrenze, dalla meno profonda
+    occorrenze: string[];
+    livello: number;
+    istanzeConContenuto: number;
+    istanzeConFigli: number;
+    istanzeSenzaFigli: number;
+    chiaveSenzaFigli: string | null;
+    istanzeSenzaPadre: number;
+    chiaveSenzaPadre: string | null;
+    notaSenzaPadre: string;
+}
+
+export interface RigaFiglio {
+    figlio: VoceMatrice;
+    istanze: number;
+    chiaveFiglio: string;
+}
+
+export interface GruppoMatrice {
+    padre: VoceMatrice;
+    figli: RigaFiglio[];
+    stato: 'coperto' | 'parziale' | 'senzaFigli';
+    nota: string;
+}
+
+export interface Matrice {
+    libreriaAssente: boolean;
+    gruppi: GruppoMatrice[];
+    senzaPadre: VoceMatrice[];
+    documentiExtra: string[];
+    voci: VoceMatrice[];
+}
+
+export interface FiltriMatrice {
+    // '' = Tutti
+    documento: string;
+    lato: 'entrambi' | 'padre' | 'figlio';
+    // '' = Tutte
+    classe: string;
+    ricerca: string;
+}
+
+export interface MatriceFiltrata {
+    gruppi: Array<{ gruppo: GruppoMatrice; righe: RigaFiglio[] }>;
+    senzaPadre: VoceMatrice[];
+    conteggi: { padri: number; derivazioni: number; senzaFigli: number; senzaPadre: number };
+}
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: la matrice si calcola quando la carichi';
 const MSG_VUOTA = 'Nessuna derivazione nel modello';
@@ -24,30 +86,34 @@ const INTESTAZIONI = [
     'ID figlio', 'Titolo figlio', 'Blocco figlio', 'Metodo figlio', 'Documenti figlio', 'Istanze', 'Note'
 ];
 const INTESTAZIONI_SENZA_PADRE = ['ID', 'Titolo', 'Blocco', 'Classe', 'Metodo', 'Documenti', 'Note'];
-const NOMI_LATO = { entrambi: 'uno dei due', padre: 'padre', figlio: 'figlio' };
+const NOMI_LATO: Record<FiltriMatrice['lato'], string> = { entrambi: 'uno dei due', padre: 'padre', figlio: 'figlio' };
 
 // Uno solo, riusato: con migliaia di gruppi localeCompare ripetuto costa troppo
 const collator = new Intl.Collator('it', { numeric: true });
 
-let ultimaMatrice = null;
-let ultimoFiltrato = null;
-// documento '' = Tutti, classe '' = Tutte; restano tra un'apertura e l'altra finché la pagina è aperta (AC-12)
-const filtri = { documento: '', lato: 'entrambi', classe: '', ricerca: '' };
+let ultimaMatrice: Matrice | null = null;
+let ultimoFiltrato: MatriceFiltrata | null = null;
+// Restano tra un'apertura e l'altra finché la pagina è aperta (AC-12)
+const filtri: FiltriMatrice = { documento: '', lato: 'entrambi', classe: '', ricerca: '' };
 let gruppiMostrati = 0;
-let timerRicerca = null;
+let timerRicerca: ReturnType<typeof setTimeout> | null = null;
 
 const modale = document.getElementById('matriceModal');
 
+function campo<T extends HTMLElement>(id: string): T {
+    return document.getElementById(id) as T;
+}
+
 /* --- CALCOLO (AC-2 … AC-7) --- */
 
-function plurale(n, uno, molti) {
+function plurale(n: number, uno: string, molti: string): string {
     return `${n} ${n === 1 ? uno : molti}`;
 }
 
 // Documenti distinti dei testi da esportare, nell'ordine di settings; quelli fuori elenco in fondo, in ordine alfabetico (AC-4)
-function documentiDi(req) {
+function documentiDi(req: RequisitoLibreria): string[] {
     const ordine = appSettings.documenti || [];
-    const documenti = [...new Set((req.testiExport || []).map(t => String(t.documento ?? '').trim()).filter(Boolean))];
+    const documenti = [...new Set((req.testiExport || []).map((t) => String(t.documento ?? '').trim()).filter(Boolean))];
     return documenti.sort((a, b) => {
         const ia = ordine.indexOf(a);
         const ib = ordine.indexOf(b);
@@ -58,9 +124,10 @@ function documentiDi(req) {
     });
 }
 
-function nuovaVoce(occ, bloccoDi, ordineCliente) {
+function nuovaVoce(occ: Occorrenza, bloccoDi: Map<string, Blocco>, ordineCliente: Map<string, number>): VoceMatrice {
     const req = occ.req;
-    const idMostrato = String((occ.cliente ? req.idCliente : req.id) ?? '');
+    const cliente = isRequisitoCliente(req);
+    const idMostrato = String((cliente ? req.idCliente : req.id) ?? '');
     const titolo = titoloRequisito(req);
     const blocco = bloccoDi.get(occ.reqId);
     return {
@@ -68,12 +135,12 @@ function nuovaVoce(occ, bloccoDi, ordineCliente) {
         idMostrato,
         titolo,
         cliente: occ.cliente,
-        ritirato: occ.cliente && req.stato === 'ritirato',
+        ritirato: occ.cliente && cliente && req.stato === 'ritirato',
         blocco: occ.cliente ? 'Cliente' : blocco?.titolo || blocco?.id || '',
         percorsi: [],
         classe: getClasseRequisito(req),
-        metodo: occ.cliente ? '' : req.metodoVerifica || '',
-        documenti: occ.cliente ? [DOC_CLIENTE] : documentiDi(req),
+        metodo: cliente ? '' : req.metodoVerifica || '',
+        documenti: cliente ? [DOC_CLIENTE] : documentiDi(req),
         testoRicerca: `${idMostrato}\n${titolo}`.toLowerCase(),
         ordineCliente: occ.cliente ? ordineCliente.get(occ.reqId) ?? 0 : 0,
         occorrenze: [],
@@ -89,44 +156,44 @@ function nuovaVoce(occ, bloccoDi, ordineCliente) {
 }
 
 // Prima i requisiti cliente nell'ordine della lista, poi per livello e id in ordine naturale (AC-7)
-function confronta(a, b) {
+function confronta(a: VoceMatrice, b: VoceMatrice): number {
     if (a.cliente !== b.cliente) return a.cliente ? -1 : 1;
     if (a.cliente) return a.ordineCliente - b.ordineCliente;
     return a.livello - b.livello || collator.compare(a.idMostrato, b.idMostrato);
 }
 
 // Funzione pura: non cambia mai il modello. nomeRadice serve solo ai suggerimenti dei percorsi
-export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
+export function calcolaMatrice(indice: IndiceGerarchia, libreria: Libreria, cliente: Cliente | null, nomeRadice = ''): Matrice {
     if (indice.libreriaAssente) return { libreriaAssente: true, gruppi: [], senzaPadre: [], documentiExtra: [], voci: [] };
 
     // Gli id dei requisiti sono unici in tutta la libreria; per difesa, con un doppione vince il primo blocco
-    const bloccoDi = new Map();
-    Object.values(libreria).forEach(def => (def.requisiti || []).forEach(req => {
+    const bloccoDi = new Map<string, Blocco>();
+    Object.values(libreria).forEach((def) => (def.requisiti || []).forEach((req) => {
         if (!bloccoDi.has(req.id)) bloccoDi.set(req.id, def);
     }));
     const ordineCliente = new Map((cliente?.requisiti || []).map((r, i) => [r.id, i]));
     const occorrenze = indice.occorrenze;
-    const eRitirato = occ => !!occ && occ.cliente && occ.req.stato === 'ritirato';
+    const eRitirato = (occ: Occorrenza | undefined) => !!occ && occ.cliente && isRequisitoCliente(occ.req) && occ.req.stato === 'ritirato';
 
     // Una voce per id, con le sue occorrenze nell'ordine della visita
-    const voci = new Map();
-    const occorrenzeDi = new Map();
-    occorrenze.forEach(occ => {
+    const voci = new Map<string, VoceMatrice>();
+    const occorrenzeDi = new Map<string, Occorrenza[]>();
+    occorrenze.forEach((occ) => {
         if (!voci.has(occ.reqId)) {
             voci.set(occ.reqId, nuovaVoce(occ, bloccoDi, ordineCliente));
             occorrenzeDi.set(occ.reqId, []);
         }
-        occorrenzeDi.get(occ.reqId).push(occ);
+        occorrenzeDi.get(occ.reqId)?.push(occ);
     });
 
     // Stati per istanza con le regole della Coerenza (AC-5, AC-6)
-    voci.forEach(voce => {
+    voci.forEach((voce) => {
         // sort è stabile: a parità di livello resta l'ordine della visita
-        const lista = occorrenzeDi.get(voce.id).sort((a, b) => a.percorso.length - b.percorso.length);
-        voce.occorrenze = lista.map(o => o.chiave);
-        voce.livello = lista[0].percorso.length;
-        voce.percorsi = voce.cliente ? [] : lista.map(o => [nomeRadice, ...o.etichette].join(' › '));
-        lista.forEach(o => {
+        const lista = (occorrenzeDi.get(voce.id) ?? []).sort((a, b) => a.percorso.length - b.percorso.length);
+        voce.occorrenze = lista.map((o) => o.chiave);
+        voce.livello = lista[0]?.percorso.length ?? 0;
+        voce.percorsi = voce.cliente ? [] : lista.map((o) => [nomeRadice, ...o.etichette].join(' › '));
+        lista.forEach((o) => {
             const haFigli = o.figli.size > 0;
             // Può avere figli: un cliente attivo, un blocco con almeno un blocco con definizione dentro
             const puoAvereFigli = haFigli || (o.cliente ? !eRitirato(o) : indice.percorsiConContenuto.has(o.percorso.join('/')));
@@ -137,7 +204,7 @@ export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
                 voce.chiaveSenzaFigli ??= o.chiave;
             }
             // Un ritirato non fa da padre
-            if (!o.cliente && ![...o.padri].some(k => !eRitirato(occorrenze.get(k)))) {
+            if (!o.cliente && ![...o.padri].some((k) => !eRitirato(occorrenze.get(k)))) {
                 voce.istanzeSenzaPadre++;
                 voce.chiaveSenzaPadre ??= o.chiave;
             }
@@ -151,27 +218,36 @@ export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
     });
 
     // Coppie di id dai fili validi di derivazione; Istanze = chiavi figlio distinte, il primo filo dà la chiave del clic (AC-3)
-    const coppie = new Map();
-    indice.filiPerLivello.forEach(fili => fili.forEach(({ padre, figlio }) => {
+    const coppie = new Map<string, Map<string, { chiavi: Set<string>; chiaveFiglio: string }>>();
+    indice.filiPerLivello.forEach((fili) => fili.forEach(({ padre, figlio }) => {
         const p = occorrenze.get(padre);
         const f = occorrenze.get(figlio);
         if (!p || !f) return;
-        if (!coppie.has(p.reqId)) coppie.set(p.reqId, new Map());
-        const perFiglio = coppie.get(p.reqId);
-        if (!perFiglio.has(f.reqId)) perFiglio.set(f.reqId, { chiavi: new Set(), chiaveFiglio: figlio });
-        perFiglio.get(f.reqId).chiavi.add(figlio);
+        let perFiglio = coppie.get(p.reqId);
+        if (!perFiglio) {
+            perFiglio = new Map();
+            coppie.set(p.reqId, perFiglio);
+        }
+        let coppia = perFiglio.get(f.reqId);
+        if (!coppia) {
+            coppia = { chiavi: new Set(), chiaveFiglio: figlio };
+            perFiglio.set(f.reqId, coppia);
+        }
+        coppia.chiavi.add(figlio);
     }));
 
-    const gruppi = [];
-    voci.forEach(voce => {
+    const gruppi: GruppoMatrice[] = [];
+    voci.forEach((voce) => {
         const perFiglio = coppie.get(voce.id);
         if (!perFiglio && voce.istanzeSenzaFigli === 0) return;
-        const figli = perFiglio
-            ? [...perFiglio].map(([id, c]) => ({ figlio: voci.get(id), istanze: c.chiavi.size, chiaveFiglio: c.chiaveFiglio }))
-                .sort((a, b) => confronta(a.figlio, b.figlio))
+        const figli: RigaFiglio[] = perFiglio
+            ? [...perFiglio].flatMap(([id, c]) => {
+                const v = voci.get(id);
+                return v ? [{ figlio: v, istanze: c.chiavi.size, chiaveFiglio: c.chiaveFiglio }] : [];
+            }).sort((a, b) => confronta(a.figlio, b.figlio))
             : [];
-        const stato = voce.istanzeSenzaFigli === 0 ? 'coperto' : voce.istanzeConFigli > 0 ? 'parziale' : 'senzaFigli';
-        const note = [];
+        const stato: GruppoMatrice['stato'] = voce.istanzeSenzaFigli === 0 ? 'coperto' : voce.istanzeConFigli > 0 ? 'parziale' : 'senzaFigli';
+        const note: string[] = [];
         if (voce.ritirato) note.push('Ritirato');
         if (stato === 'senzaFigli') note.push('Senza figli');
         if (stato === 'parziale') {
@@ -181,13 +257,13 @@ export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
     });
     gruppi.sort((a, b) => confronta(a.padre, b.padre));
 
-    const senzaPadre = [...voci.values()].filter(v => !v.cliente && v.istanzeSenzaPadre > 0).sort(confronta);
+    const senzaPadre = [...voci.values()].filter((v) => !v.cliente && v.istanzeSenzaPadre > 0).sort(confronta);
 
     // Documenti del modello assenti da settings, per il filtro (AC-8)
     const noti = new Set([...(appSettings.documenti || []), DOC_CLIENTE]);
-    const extra = new Set();
-    const raccogli = v => v.documenti.forEach(d => { if (!noti.has(d)) extra.add(d); });
-    gruppi.forEach(g => { raccogli(g.padre); g.figli.forEach(r => raccogli(r.figlio)); });
+    const extra = new Set<string>();
+    const raccogli = (v: VoceMatrice) => v.documenti.forEach((d) => { if (!noti.has(d)) extra.add(d); });
+    gruppi.forEach((g) => { raccogli(g.padre); g.figli.forEach((r) => raccogli(r.figlio)); });
     senzaPadre.forEach(raccogli);
 
     return {
@@ -204,16 +280,16 @@ export function calcolaMatrice(indice, libreria, cliente, nomeRadice = '') {
 
 // Prima le righe di ogni gruppo e le voci Senza padre, poi i gruppi con almeno una riga.
 // Un gruppo senza figli ha solo il lato padre, una voce Senza padre solo il lato figlio
-export function filtraMatrice(matrice, f) {
+export function filtraMatrice(matrice: Matrice, f: FiltriMatrice): MatriceFiltrata {
     const documento = f.documento;
     const lato = f.lato;
     const testo = f.ricerca.trim().toLowerCase();
-    const haDocumento = v => v.documenti.includes(documento);
-    const haClasse = v => !f.classe || v.classe === f.classe;
-    const trovata = v => !testo || v.testoRicerca.includes(testo);
+    const haDocumento = (v: VoceMatrice) => v.documenti.includes(documento);
+    const haClasse = (v: VoceMatrice) => !f.classe || v.classe === f.classe;
+    const trovata = (v: VoceMatrice) => !testo || v.testoRicerca.includes(testo);
 
-    const gruppi = [];
-    matrice.gruppi.forEach(gruppo => {
+    const gruppi: MatriceFiltrata['gruppi'] = [];
+    matrice.gruppi.forEach((gruppo) => {
         const padre = gruppo.padre;
         if (gruppo.figli.length === 0) {
             const resta = (!documento || (lato !== 'figlio' && haDocumento(padre))) && haClasse(padre) && trovata(padre);
@@ -222,14 +298,14 @@ export function filtraMatrice(matrice, f) {
         }
         const padreTrovato = trovata(padre);
         const padreConDocumento = !!documento && lato !== 'figlio' && haDocumento(padre);
-        const righe = gruppo.figli.filter(r => {
+        const righe = gruppo.figli.filter((r) => {
             if (documento && !padreConDocumento && !(lato !== 'padre' && haDocumento(r.figlio))) return false;
             return haClasse(r.figlio) && (padreTrovato || trovata(r.figlio));
         });
         if (righe.length) gruppi.push({ gruppo, righe });
     });
 
-    const senzaPadre = matrice.senzaPadre.filter(v =>
+    const senzaPadre = matrice.senzaPadre.filter((v) =>
         (!documento || (lato !== 'padre' && haDocumento(v))) && haClasse(v) && trovata(v));
 
     return {
@@ -238,7 +314,7 @@ export function filtraMatrice(matrice, f) {
         conteggi: {
             padri: gruppi.length,
             derivazioni: gruppi.reduce((n, g) => n + g.righe.length, 0),
-            senzaFigli: gruppi.filter(g => g.gruppo.stato !== 'coperto').length,
+            senzaFigli: gruppi.filter((g) => g.gruppo.stato !== 'coperto').length,
             senzaPadre: senzaPadre.length
         }
     };
@@ -247,27 +323,34 @@ export function filtraMatrice(matrice, f) {
 /* --- EXPORT MARKDOWN (AC-11) --- */
 
 // cellaMd e tabellaMd servono anche all'export dei documenti (spec 0007)
-export function cellaMd(valore) {
+export function cellaMd(valore: unknown): string {
     return String(valore ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ').trim();
 }
 
-function rigaMd(celle) {
+function rigaMd(celle: unknown[]): string {
     return `| ${celle.map(cellaMd).join(' | ')} |`;
 }
 
-export function tabellaMd(intestazioni, righe) {
+export function tabellaMd(intestazioni: string[], righe: unknown[][]): string[] {
     return [rigaMd(intestazioni), `|${intestazioni.map(() => ' --- ').join('|')}|`, ...righe.map(rigaMd)];
 }
 
-function descriviFiltri(f) {
-    const parti = [];
+function descriviFiltri(f: FiltriMatrice): string {
+    const parti: string[] = [];
     if (f.documento) parti.push(`Documento ${f.documento} (lato ${NOMI_LATO[f.lato]})`);
     if (f.classe) parti.push(`Classe ${f.classe}`);
     if (f.ricerca.trim()) parti.push(`Ricerca "${f.ricerca.trim()}"`);
     return parti.length ? parti.join(' · ') : 'nessuno';
 }
 
-export function matriceInMarkdown(filtrata, { nome, data, libreria, filtri: f }) {
+export interface InfoExport {
+    nome: string;
+    data: string;
+    libreria: { nomeFile: string; versione: string | null };
+    filtri: FiltriMatrice;
+}
+
+export function matriceInMarkdown(filtrata: MatriceFiltrata, { nome, data, libreria, filtri: f }: InfoExport): string {
     const c = filtrata.conteggi;
     const testa = [
         `# Matrice di tracciabilità: ${nome}`,
@@ -276,7 +359,7 @@ export function matriceInMarkdown(filtrata, { nome, data, libreria, filtri: f })
         `Padri: ${c.padri} · Derivazioni: ${c.derivazioni} · Senza figli: ${c.senzaFigli} · Senza padre: ${c.senzaPadre}`
     ];
 
-    const derivazioni = [];
+    const derivazioni: unknown[][] = [];
     filtrata.gruppi.forEach(({ gruppo, righe }) => {
         const p = gruppo.padre;
         const celleP = [p.idMostrato, p.titolo, p.blocco, p.metodo, p.documenti.join(', ')];
@@ -286,12 +369,12 @@ export function matriceInMarkdown(filtrata, { nome, data, libreria, filtri: f })
             return;
         }
         righe.forEach((r, i) => {
-            const f = r.figlio;
-            derivazioni.push([...(i === 0 ? celleP : vuotiP), f.classe,
-                f.idMostrato, f.titolo, f.blocco, f.metodo, f.documenti.join(', '), r.istanze, i === 0 ? gruppo.nota : '']);
+            const fi = r.figlio;
+            derivazioni.push([...(i === 0 ? celleP : vuotiP), fi.classe,
+                fi.idMostrato, fi.titolo, fi.blocco, fi.metodo, fi.documenti.join(', '), r.istanze, i === 0 ? gruppo.nota : '']);
         });
     });
-    const senzaPadre = filtrata.senzaPadre.map(v =>
+    const senzaPadre = filtrata.senzaPadre.map((v) =>
         [v.idMostrato, v.titolo, v.blocco, v.classe, v.metodo, v.documenti.join(', '), v.notaSenzaPadre]);
 
     const blocchi = [
@@ -304,12 +387,12 @@ export function matriceInMarkdown(filtrata, { nome, data, libreria, filtri: f })
     return `${blocchi.join('\n\n')}\n`;
 }
 
-function esporta() {
+function esporta(): void {
     applicaRicercaInSospeso();
     if (!ultimaMatrice || ultimaMatrice.libreriaAssente || !ultimoFiltrato) return;
     if (!ultimoFiltrato.gruppi.length && !ultimoFiltrato.senzaPadre.length) return;
     const info = infoProgetto();
-    const nome = info.slug ? info.nome : pathStack[0].label;
+    const nome: string = info.slug ? info.nome : pathStack[0]!.label;
     const slug = info.slug || slugifyId(nome) || 'matrice';
     const nomeFile = filtri.documento
         ? `${slug}-matrice-${slugifyId(filtri.documento) || 'documento'}.md`
@@ -320,7 +403,7 @@ function esporta() {
 
 /* --- TABELLA A VIDEO (AC-2, AC-9) --- */
 
-function suggerimentoBlocco(v) {
+function suggerimentoBlocco(v: VoceMatrice): string {
     if (!v.percorsi.length) return '';
     const primi = v.percorsi.slice(0, MAX_PERCORSI);
     const altri = v.percorsi.length - primi.length;
@@ -328,20 +411,20 @@ function suggerimentoBlocco(v) {
 }
 
 // ID e titolo portano alla Gerarchia: la cella tiene solo la chiave dell'occorrenza (AC-10)
-function cellaVai(v, chiave, campo, rowspan) {
+function cellaVai(v: VoceMatrice, chiave: string | null | undefined, campo: 'id' | 'titolo', rowspan: string): string {
     const classi = ['vai-matrice', campo === 'id' ? 'cella-id' : '', v.ritirato ? 'ritirato-matrice' : ''].filter(Boolean).join(' ');
     const testo = campo === 'id' ? v.idMostrato : v.titolo;
     return `<td${rowspan} class="${classi}" data-chiave="${escapeHtml(chiave)}" title="Mostra nella Gerarchia">${escapeHtml(testo)}</td>`;
 }
 
-function celleRequisito(v, chiave, rowspan = '') {
+function celleRequisito(v: VoceMatrice, chiave: string | null | undefined, rowspan = ''): string {
     return `${cellaVai(v, chiave, 'id', rowspan)}${cellaVai(v, chiave, 'titolo', rowspan)}
         <td${rowspan} title="${escapeHtml(suggerimentoBlocco(v))}">${escapeHtml(v.blocco)}</td>
         <td${rowspan}>${escapeHtml(v.metodo)}</td>
         <td${rowspan}>${escapeHtml(v.documenti.join(', '))}</td>`;
 }
 
-function htmlGruppo({ gruppo, righe }) {
+function htmlGruppo({ gruppo, righe }: { gruppo: GruppoMatrice; righe: RigaFiglio[] }): string {
     const p = gruppo.padre;
     // Padre con nota Senza figli (anche parziale): la prima istanza senza figli; altrimenti la sua prima istanza
     const chiavePadre = gruppo.stato === 'coperto' ? p.occorrenze[0] : p.chiaveSenzaFigli;
@@ -357,23 +440,23 @@ function htmlGruppo({ gruppo, righe }) {
     return `<tbody>${tr.join('')}</tbody>`;
 }
 
-function htmlSenzaPadre(v) {
+function htmlSenzaPadre(v: VoceMatrice): string {
     return `<tr>${cellaVai(v, v.chiaveSenzaPadre, 'id', '')}${cellaVai(v, v.chiaveSenzaPadre, 'titolo', '')}
         <td title="${escapeHtml(suggerimentoBlocco(v))}">${escapeHtml(v.blocco)}</td>
         <td>${escapeHtml(v.classe)}</td><td>${escapeHtml(v.metodo)}</td><td>${escapeHtml(v.documenti.join(', '))}</td>
         <td class="cella-nota">${escapeHtml(v.notaSenzaPadre)}</td></tr>`;
 }
 
-function intestazioniHtml(nomi) {
-    return `<thead><tr>${nomi.map(n => `<th>${escapeHtml(n)}</th>`).join('')}</tr></thead>`;
+function intestazioniHtml(nomi: string[]): string {
+    return `<thead><tr>${nomi.map((n) => `<th>${escapeHtml(n)}</th>`).join('')}</tr></thead>`;
 }
 
 // Senza padre conta come un gruppo per ogni sua voce; i gruppi oltre il limite si aggiungono con Mostra altri
-function htmlTabella(filtrata) {
+function htmlTabella(filtrata: MatriceFiltrata): string {
     const gruppiVisti = filtrata.gruppi.slice(0, gruppiMostrati);
     const senzaPadreVisti = filtrata.senzaPadre.slice(0, Math.max(0, gruppiMostrati - gruppiVisti.length));
     const restanti = filtrata.gruppi.length + filtrata.senzaPadre.length - gruppiVisti.length - senzaPadreVisti.length;
-    const parti = [];
+    const parti: string[] = [];
     if (gruppiVisti.length) {
         parti.push(`<table class="tabella-matrice">${intestazioniHtml(INTESTAZIONI)}${gruppiVisti.map(htmlGruppo).join('')}</table>`);
     }
@@ -388,19 +471,20 @@ function htmlTabella(filtrata) {
     return parti.join('');
 }
 
-function htmlConteggi(c) {
-    const chip = (etichetta, n, attenzione) =>
+function htmlConteggi(c: MatriceFiltrata['conteggi']): string {
+    const chip = (etichetta: string, n: number, attenzione = false) =>
         `<span class="conteggio-import${attenzione && n > 0 ? ' conteggio-attenzione' : ''}">${etichetta}: ${n}</span>`;
     return chip('Padri', c.padri) + chip('Derivazioni', c.derivazioni)
         + chip('Senza figli', c.senzaFigli, true) + chip('Senza padre', c.senzaPadre, true);
 }
 
-function aggiorna() {
-    const barra = document.getElementById('matriceFiltri');
-    const conteggi = document.getElementById('matriceConteggi');
-    const contenuto = document.getElementById('matriceContenuto');
-    const pulsante = document.getElementById('btnEsportaMatrice');
+function aggiorna(): void {
+    const barra = campo('matriceFiltri');
+    const conteggi = campo('matriceConteggi');
+    const contenuto = campo('matriceContenuto');
+    const pulsante = campo<HTMLButtonElement>('btnEsportaMatrice');
     ultimoFiltrato = null;
+    if (!ultimaMatrice) return;
 
     const messaggio = ultimaMatrice.libreriaAssente ? MSG_SENZA_LIBRERIA
         : !ultimaMatrice.gruppi.length && !ultimaMatrice.senzaPadre.length ? MSG_VUOTA : null;
@@ -412,113 +496,118 @@ function aggiorna() {
         return;
     }
 
-    ultimoFiltrato = filtraMatrice(ultimaMatrice, filtri);
-    const vuoto = !ultimoFiltrato.gruppi.length && !ultimoFiltrato.senzaPadre.length;
+    const filtrato = filtraMatrice(ultimaMatrice, filtri);
+    ultimoFiltrato = filtrato;
+    const vuoto = !filtrato.gruppi.length && !filtrato.senzaPadre.length;
     barra.hidden = false;
     conteggi.hidden = false;
-    conteggi.innerHTML = htmlConteggi(ultimoFiltrato.conteggi);
+    conteggi.innerHTML = htmlConteggi(filtrato.conteggi);
     pulsante.disabled = vuoto;
-    contenuto.innerHTML = vuoto ? `<div class="empty-props">${MSG_NESSUNA_RIGA}</div>` : htmlTabella(ultimoFiltrato);
+    contenuto.innerHTML = vuoto ? `<div class="empty-props">${MSG_NESSUNA_RIGA}</div>` : htmlTabella(filtrato);
 }
 
 /* --- FILTRI A VIDEO (AC-8, AC-12) --- */
 
-function opzioni(voci) {
+function opzioni(voci: Array<[string, string]>): string {
     return voci.map(([valore, etichetta]) => `<option value="${escapeHtml(valore)}">${escapeHtml(etichetta)}</option>`).join('');
 }
 
 // Voci ricalcolate a ogni apertura; una scelta non più tra le voci torna a Tutti / Tutte
-function popolaFiltri() {
-    const documenti = [...new Set([...(appSettings.documenti || []), ...ultimaMatrice.documentiExtra, DOC_CLIENTE])];
+function popolaFiltri(matrice: Matrice): void {
+    const documenti = [...new Set([...(appSettings.documenti || []), ...matrice.documentiExtra, DOC_CLIENTE])];
     const classi = [CAPACITA, ...getTipologie()];
     if (!documenti.includes(filtri.documento)) filtri.documento = '';
     if (!classi.includes(filtri.classe)) filtri.classe = '';
 
-    const selDocumento = document.getElementById('matriceDocumento');
-    selDocumento.innerHTML = opzioni([['', 'Tutti'], ...documenti.map(d => [d, d])]);
+    const selDocumento = campo<HTMLSelectElement>('matriceDocumento');
+    selDocumento.innerHTML = opzioni([['', 'Tutti'], ...documenti.map((d): [string, string] => [d, d])]);
     selDocumento.value = filtri.documento;
-    const selClasse = document.getElementById('matriceClasse');
-    selClasse.innerHTML = opzioni([['', 'Tutte'], ...classi.map(c => [c, c])]);
+    const selClasse = campo<HTMLSelectElement>('matriceClasse');
+    selClasse.innerHTML = opzioni([['', 'Tutte'], ...classi.map((c): [string, string] => [c, c])]);
     selClasse.value = filtri.classe;
-    document.getElementById('matriceRicerca').value = filtri.ricerca;
+    campo<HTMLInputElement>('matriceRicerca').value = filtri.ricerca;
     aggiornaLato();
 }
 
 // Lato conta solo con un documento scelto: con Tutti è disattivato
-function aggiornaLato() {
-    const selLato = document.getElementById('matriceLato');
+function aggiornaLato(): void {
+    const selLato = campo<HTMLSelectElement>('matriceLato');
     selLato.value = filtri.lato;
     selLato.disabled = !filtri.documento;
 }
 
 // Cambiare un filtro riporta al primo blocco di gruppi (AC-9)
-function filtriCambiati() {
+function filtriCambiati(): void {
     gruppiMostrati = appSettings.matrice.gruppiVisibili;
     aggiorna();
-    document.getElementById('matriceContenuto').scrollTop = 0;
+    campo('matriceContenuto').scrollTop = 0;
 }
 
-function applicaRicercaInSospeso() {
+function applicaRicercaInSospeso(): void {
     if (timerRicerca === null) return;
     clearTimeout(timerRicerca);
     timerRicerca = null;
-    filtri.ricerca = document.getElementById('matriceRicerca').value;
+    filtri.ricerca = campo<HTMLInputElement>('matriceRicerca').value;
     filtriCambiati();
 }
 
 /* --- FINESTRA (AC-1) --- */
 
 // Calcola dal modello di adesso, mai dall'indice della Gerarchia (che esiste solo a modalità accesa)
-export function apriMatrice() {
+export function apriMatrice(): void {
     if (!modale) return;
-    const indice = calcolaGerarchia(pathStack[0].graph, appState.library, appState.cliente);
-    ultimaMatrice = calcolaMatrice(indice, appState.library, appState.cliente, pathStack[0].label);
+    const indice = calcolaGerarchia(pathStack[0]!.graph, appState.library, appState.cliente);
+    const matrice = calcolaMatrice(indice, appState.library, appState.cliente, pathStack[0]!.label);
+    ultimaMatrice = matrice;
     gruppiMostrati = appSettings.matrice.gruppiVisibili;
-    popolaFiltri();
+    popolaFiltri(matrice);
     modale.style.display = 'flex';
     aggiorna();
-    document.getElementById('matriceContenuto').scrollTop = 0;
+    campo('matriceContenuto').scrollTop = 0;
 }
 
-export function chiudiMatrice() {
+export function chiudiMatrice(): void {
     if (!modale) return;
     if (timerRicerca !== null) {
         clearTimeout(timerRicerca);
         timerRicerca = null;
-        filtri.ricerca = document.getElementById('matriceRicerca').value;
+        filtri.ricerca = campo<HTMLInputElement>('matriceRicerca').value;
     }
     modale.style.display = 'none';
     // Il risultato si rifà alla prossima apertura
     ultimaMatrice = null;
     ultimoFiltrato = null;
-    document.getElementById('matriceContenuto').innerHTML = '';
+    campo('matriceContenuto').innerHTML = '';
 }
 
 /* --- INIZIALIZZAZIONE --- */
 
-export function initMatrice() {
+const LATI = new Set<string>(['entrambi', 'padre', 'figlio']);
+
+export function initMatrice(): void {
     document.getElementById('btnReqMatrix')?.addEventListener('click', apriMatrice);
     document.getElementById('btnChiudiMatrice')?.addEventListener('click', chiudiMatrice);
 
     document.getElementById('matriceDocumento')?.addEventListener('change', (e) => {
-        filtri.documento = e.target.value;
+        filtri.documento = (e.target as HTMLSelectElement).value;
         aggiornaLato();
         filtriCambiati();
     });
     document.getElementById('matriceLato')?.addEventListener('change', (e) => {
-        filtri.lato = e.target.value;
+        const valore = (e.target as HTMLSelectElement).value;
+        filtri.lato = LATI.has(valore) ? valore as FiltriMatrice['lato'] : 'entrambi';
         filtriCambiati();
     });
     document.getElementById('matriceClasse')?.addEventListener('change', (e) => {
-        filtri.classe = e.target.value;
+        filtri.classe = (e.target as HTMLSelectElement).value;
         filtriCambiati();
     });
     // La ricerca si applica 200 ms dopo l'ultimo tasto (AC-8, AC-13)
     document.getElementById('matriceRicerca')?.addEventListener('input', () => {
-        clearTimeout(timerRicerca);
+        if (timerRicerca !== null) clearTimeout(timerRicerca);
         timerRicerca = setTimeout(() => {
             timerRicerca = null;
-            filtri.ricerca = document.getElementById('matriceRicerca').value;
+            filtri.ricerca = campo<HTMLInputElement>('matriceRicerca').value;
             filtriCambiati();
         }, RITARDO_RICERCA);
     });
@@ -526,14 +615,15 @@ export function initMatrice() {
     document.getElementById('btnEsportaMatrice')?.addEventListener('click', esporta);
 
     document.getElementById('matriceContenuto')?.addEventListener('click', (e) => {
-        if (e.target.closest('#btnAltriMatrice')) {
+        const bersaglio = e.target as Element;
+        if (bersaglio.closest('#btnAltriMatrice')) {
             gruppiMostrati += appSettings.matrice.gruppiVisibili;
             aggiorna();
             return;
         }
-        const cella = e.target.closest('[data-chiave]');
+        const cella = bersaglio.closest<HTMLElement>('[data-chiave]');
         if (!cella) return;
-        const chiave = cella.dataset.chiave;
+        const chiave = cella.dataset.chiave ?? '';
         chiudiMatrice();
         apriGerarchiaSu(chiave);
     });

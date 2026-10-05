@@ -86,7 +86,7 @@ function initAiutoCanvas() {
     window.addEventListener('blur', () => impostaShift(false));
 }
 
-async function initApp() {
+export async function initApp() {
     await loadSettings();
     initFiltri();
     initAiutoCanvas();
@@ -176,5 +176,3 @@ async function initApp() {
     // Versione nuova su GitHub: banner sotto l'header (spec 0015)
     avviaAggiornamenti();
 }
-
-initApp();

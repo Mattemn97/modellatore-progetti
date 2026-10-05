@@ -21,7 +21,7 @@ const interfaccia = {
     target: 'chrome130',
     sourcemap: true,
     logLevel: 'warning',
-    entryPoints: { app: 'src/renderer/app.js', benvenuto: 'src/renderer/benvenuto.js' },
+    entryPoints: { app: 'src/renderer/avvio.ts', benvenuto: 'src/renderer/benvenuto.js' },
     outdir: 'out/renderer'
 };
 
