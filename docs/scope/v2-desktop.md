@@ -41,15 +41,23 @@ spec [0017](../specs/0017-rete-sicurezza-e2e/index.md) · code in `tests/e2e/`
 
 ## Slice 1: Niente server, file diretti
 
-### 19. Progetti su disco senza server · needs a decision
+### 19. Progetti su disco senza server · done
 Il salvataggio automatico, le versioni, Annulla e Ripeti, il cestino, l'ultimo progetto aperto e i conflitti passano dalle chiamate HTTP a `start.py` a operazioni dirette sui file fatte dal processo desktop, con la stessa serializzazione delle scritture di oggi.
 **Done when:** tutto quello che fa la funzionalità 1 funziona senza alcun server in ascolto, i file su disco hanno lo stesso formato di oggi, e i test end to end dei progetti sono verdi.
-- [ ] Design it (spec): `/architect progetti su disco senza server`
+spec [0018](../specs/0018-api-nel-processo-principale/index.md) · code in `src/main/api/`
+- [x] Design it (spec): `/architect progetti su disco senza server`
+- [x] Build it: `/develop progetti su disco senza server`
+  - [x] Basi: errori, file atomici con ritentativi, copie numerate, JSON e forma canonica uguali a Python, impostazioni (AC-4, AC-6, AC-9)
+  - [x] `ArchivioProgetti` e router con progetti, ultimo e aggiornamento; libreria e cliente ancora al ponte (AC-1, AC-5, AC-7)
+- [x] Verify it: suite e2e verde (53 test) con i progetti in TypeScript
+- [x] Test it: `tests/unit/file.test.ts` (impronte confrontate con Python)
 
-### 20. Libreria, changelog e import senza server · needs a decision
+### 20. Libreria, changelog e import senza server
 Apri, salva, elimina e rinomina della libreria, il calcolo delle differenze e il changelog versionato, le copie in `_versioni/` e la lettura di CSV ed Excel per l'import cliente passano dal Python al codice dell'app desktop. Alla fine `start.py` non serve più per far funzionare l'app.
 **Done when:** le funzionalità 2, 3 e 10 fanno esattamente quello che fanno oggi (stesse versioni, stesse voci di changelog, stessi conflitti e sola lettura) senza server, e i loro test end to end sono verdi.
-- [ ] Design it (spec): `/architect libreria, changelog e import senza server`
+spec [0018](../specs/0018-api-nel-processo-principale/index.md)
+- [x] Design it (spec): `/architect libreria, changelog e import senza server`
+- [ ] Build it: `/develop libreria, changelog e import senza server`
 
 ### 21. Impostazioni e cartelle di lavoro · needs a decision
 Una sezione Impostazioni dove indichi dove trovare librerie, progetti e gli altri dati. Se le cartelle indicate non esistono, l'app ti propone di crearle e ci prepara la struttura di base (come oggi `shared/libreria.json` con un blocco di esempio). Le impostazioni dell'utente vivono fuori dalla cartella del programma, così un aggiornamento non le tocca mai.

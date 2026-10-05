@@ -2,6 +2,9 @@
 import { app, type BrowserWindow } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ArchivioProgetti } from './api/progetti.js';
+import { leggiImpostazioniApi } from './api/impostazioni.js';
+import { creaRouter } from './api/router.js';
 import { creaFinestraPrincipale } from './finestra.js';
 import { urlPaginaErrore } from './pagina-errore.js';
 import { ErrorePonte, PontePython } from './ponte-python.js';
@@ -30,7 +33,18 @@ function mostraFinestra(): void {
 }
 
 async function avvia(): Promise<void> {
-    installaProtocollo(radice, (richiesta, url) => ponte.inoltra(richiesta, url));
+    // Cartella dei dati (progetti/, shared/, settings.json): la cartella dell'app fino alla voce 21
+    const cartellaDati = radice;
+    const impostazioni = leggiImpostazioniApi(cartellaDati);
+    const progetti = new ArchivioProgetti(cartellaDati, impostazioni.versioniProgetti);
+    progetti.prepara();
+    const router = creaRouter({
+        progetti,
+        versione: app.getVersion(),
+        maxFileClienteMb: impostazioni.maxFileClienteMb,
+        inoltra: (richiesta, url, corpo) => ponte.inoltra(richiesta, url, corpo)
+    });
+    installaProtocollo(radice, router);
     installaRichiestaTesto(cartellaOut);
     finestra = creaFinestraPrincipale(cartellaOut, sviluppo);
     finestra.on('closed', () => { finestra = null; });
