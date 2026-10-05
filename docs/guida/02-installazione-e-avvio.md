@@ -1,44 +1,37 @@
 # 2. Installazione e avvio
 
-L'app è una pagina web servita da un piccolo server locale. Il server gira sul tuo computer, risponde solo a te (indirizzo `127.0.0.1`, porta `8080`) e si occupa di leggere e scrivere i file dei progetti e delle librerie.
+Il Modellatore è un programma desktop per Windows. Legge e scrive direttamente i file dei progetti e delle librerie nella tua cartella di lavoro: non c'è un server, non c'è un browser, non serve internet (solo il controllo degli aggiornamenti la usa, se c'è).
 
 ## Cosa ti serve
 
-* Windows 10 o 11 se usi `start.exe`. Con il codice sorgente va bene qualsiasi sistema con Python 3.11.
-* Un browser recente: Chrome, Edge o Firefox.
-* La porta `8080` libera. Se un altro programma la sta già usando il server non parte; chiudi quel programma e riprova.
+* Windows 10 o 11, 64 bit.
+* Circa 300 MB liberi. Non servono diritti di amministratore.
 
-## Avvio con il pacchetto (consigliato per chi usa l'app)
+## Installazione
 
-1. Scarica dalla pagina Releases del repository il file `ModellatoreMBSE-<versione>.zip`. Non servono diritti di amministratore.
-2. Fai clic destro sullo zip, scegli "Estrai tutto…" ed estrai in una cartella in cui hai il permesso di scrivere (per esempio in Documenti, non in Programmi). Nasce la sottocartella `ModellatoreMBSE` con `start.exe`, i file dell'app, le cartelle vuote `progetti/` e `shared/`, la cartella `esempi/` con un file di requisiti cliente di prova, `TUTORIAL.md` (un tutorial passo passo per iniziare) e `VERSIONE.txt` (il numero della versione installata).
-3. Fai doppio clic su `start.exe`.
-4. Si apre una finestra nera con l'indirizzo dell'app e la cartella dei progetti, e dopo circa un secondo il browser su `http://localhost:8080`.
-5. Quando hai finito, chiudi la finestra nera: il server si ferma. Prima di chiuderla controlla che in alto il badge dica `Salvato`.
+1. Scarica dalla pagina Releases del repository il file `Modellatore-MBSE-Setup-<versione>.exe`.
+2. Fai doppio clic. L'installazione è per il solo utente: Windows non chiede conferme di sicurezza (UAC), dura pochi secondi e non fa domande.
+3. Trovi **Modellatore MBSE** nel menu Start e sul desktop.
 
-Windows SmartScreen potrebbe dirti che l'app non è riconosciuta, perché l'eseguibile non è firmato. Clicca "Ulteriori informazioni" e poi "Esegui comunque".
+Windows SmartScreen potrebbe dirti che il setup non è riconosciuto, perché non è firmato. Clicca "Ulteriori informazioni" e poi "Esegui comunque".
 
-Se chiudi solo la scheda del browser, il server resta acceso: puoi riaprire `http://localhost:8080` quando vuoi.
+Il programma finisce in `%LOCALAPPDATA%\Programs\modellatore-mbse\`. Lì c'è anche `resources\esempi\` con un file di requisiti cliente di prova. I tuoi dati non stanno lì.
 
-## Avvio dal codice sorgente (per chi sviluppa)
+Per disinstallare: Impostazioni di Windows › App › App installate › Modellatore MBSE › Disinstalla. Cartella di lavoro, configurazione e disposizione dei pannelli restano; se reinstalli, il programma li ritrova.
 
-Dalla cartella del repository:
+## Primo avvio
 
-```bash
-python start.py
-```
+Al primo avvio il programma ti propone una cartella di lavoro, di solito `Documenti\Modellatore MBSE`. Confermando la crea con:
 
-Succede la stessa cosa dell'exe. Non servono pacchetti aggiuntivi: il server usa solo la libreria standard di Python.
+* `progetti/`, dove finiscono i progetti;
+* `shared/`, la cartella delle librerie, con una libreria di esempio `libreria.json` che contiene un solo blocco, "Centralina Condivisa";
+* `settings.json` con i valori predefiniti.
 
-Non aprire `index.html` con un doppio clic. Il browser, con una pagina caricata da `file://`, blocca i moduli JavaScript e la lettura di `settings.json` e della libreria, e l'app non parte.
+Poi crea e apre "Nuovo progetto" con il canvas vuoto, e parte il tour guidato.
 
-## Cosa succede al primo avvio
+Agli avvii successivi riapre l'ultimo progetto su cui hai lavorato, con la sua libreria e i pannelli come li avevi lasciati. Se la cartella di lavoro non c'è più (un disco esterno scollegato, una cartella spostata) ti mostra la pagina di benvenuto per sceglierne un'altra o crearla.
 
-* Il server crea, accanto a `start.exe` (o a `start.py`), la cartella `shared/` con una libreria di esempio `libreria.json` che contiene un solo blocco, "Centralina Condivisa".
-* Crea la cartella `progetti/`.
-* L'app non trova progetti, quindi crea e apre `progetti/nuovo_progetto.json`, con nome "Nuovo progetto" e canvas vuoto.
-
-Agli avvii successivi l'app riapre l'ultimo progetto su cui hai lavorato, con la sua libreria. Se quel file non esiste più ma ci sono altri progetti, ti mostra l'elenco con il messaggio "L'ultimo progetto non è stato trovato".
+Il programma ha una sola finestra principale: se lo lanci di nuovo, torna in primo piano quella già aperta.
 
 ## Dove finiscono i tuoi dati
 
@@ -50,24 +43,37 @@ Agli avvii successivi l'app riapre l'ultimo progetto su cui hai lavorato, con la
 | `shared/` | Le librerie dei blocchi e, accanto a ciascuna, il suo `.changelog.json` |
 | `shared/_versioni/` | Le copie di sicurezza di ogni libreria e il riferimento usato per riconoscere le modifiche fatte a mano |
 
-Per fare un backup completo ti basta copiare `progetti/` e `shared/`.
+Cartella di lavoro e cartella delle librerie si cambiano da **⚙ Impostazioni**. Per un backup completo copia la cartella di lavoro (e quella delle librerie, se l'hai spostata altrove).
 
-## Aggiornare a una nuova versione
+## Passare dalla versione 1
 
-1. Chiudi la finestra nera dell'app.
-2. Se avevi modificato `settings.json`, salvane una copia: l'aggiornamento lo sostituisce.
-3. Estrai la nuova versione nello stesso posto della precedente, così la cartella `ModellatoreMBSE` è la stessa, e conferma la sovrascrittura.
-4. Se serve, rimetti le tue modifiche in `settings.json`.
+La versione 1 era uno zip con `start.exe` e i dati accanto. Per portarli nella versione desktop:
 
-Nel pacchetto `progetti/` e `shared/` sono vuote apposta, quindi i tuoi dati non vengono toccati.
+1. Installa la versione desktop e scegli la cartella di lavoro.
+2. Apri **⚙ Impostazioni › Importa dalla versione 1…** e indica la cartella della vecchia installazione (quella con `start.exe`).
+3. Il programma copia progetti, librerie, changelog, versioni, cestino e `settings.json`; per un file che esiste già con un contenuto diverso ti chiede se sostituirlo. La cartella vecchia non viene toccata.
 
-## Come si crea il pacchetto
+## Aggiornamenti
+
+All'avvio il programma controlla su GitHub se c'è una versione più recente e, se c'è, mostra un banner con le novità. **Aggiorna e riavvia** scarica il nuovo setup, ne controlla l'impronta, lo installa e riapre il programma; i dati restano dove sono. Per spegnere il controllo metti `"controllo": false` nella sezione `"aggiornamenti"` di `settings.json`.
+
+## Avvio dal codice sorgente (per chi sviluppa)
+
+Ti serve Node.js 24. Dalla cartella del repository:
+
+```bash
+npm ci
+npm run dev
+```
+
+Con `--dev` (lo mette `npm run dev`) la cartella di lavoro è il repository stesso. I comandi di controllo, test e pacchetto sono in [AGENTS.md](../../AGENTS.md).
+
+## Come si pubblica una versione
 
 Questa parte serve solo a chi pubblica nuove versioni.
 
-* `pyinstaller start.spec` crea `dist/start.exe`. L'eseguibile contiene solo il server: i file dell'app (`index.html`, `style.css`, `settings.json`, `js/`) li legge dalla sua stessa cartella, non da dentro l'exe.
-* `packaging/crea-pacchetto.ps1 -Versione 1.0.0` compila l'exe, gli mette accanto i file dell'app, `TUTORIAL.md` (da `packaging/TUTORIAL.md`), la cartella `esempi/` e le cartelle vuote `progetti/` e `shared/`, e crea in `dist/` lo zip. Non c'è l'autoestraente: Windows chiede i diritti di amministratore per ogni exe con "setup" nel nome. Se aggiungi un file che l'app deve leggere quando gira, ricordati di aggiungerlo all'elenco delle copie in quello script.
-* Il workflow `.github/workflows/rilascio.yml` fa tutto da solo su GitHub: a ogni push su `main` (un merge o un commit diretto) compila il pacchetto su Windows, prova ad avviare `start.exe` e controlla che risponda, poi pubblica una Release con lo zip.
-* La versione è automatica: l'ultimo tag `v*` con la patch aumentata di uno (`v1.0.0` per il primo rilascio). Per passare a una nuova minor o major fai push del tag a mano (es. `git tag v2.0.0 && git push origin v2.0.0`): il workflow pubblica quella Release e i push successivi ripartono da lì.
-* La descrizione della Release è il messaggio del commit. Per un merge c'è anche l'elenco dei commit del branch unito, ciascuno con il suo messaggio (lo script è `.github/scripts/note-rilascio.sh`).
-* Avviato a mano dalla scheda Actions produce solo i file da scaricare, senza Release.
+* `npm run dist` crea in `release/` il setup, il suo `.blockmap` e `latest.yml` (l'impronta che l'aggiornamento automatico controlla).
+* Il workflow `.github/workflows/rilascio.yml` fa tutto su GitHub a ogni push su `main`: verifica completa, setup, prova del programma impacchettato e Release `v<version>` con setup, `latest.yml`, tutorial ed esempio.
+* La versione è il campo `version` di `package.json`: per un rilascio nuovo alzalo. Se il tag esiste già il workflow non pubblica niente.
+* Le note della Release sono `packaging/note/<versione>.md` se c'è, altrimenti il messaggio del commit.
+* Non servono segreti: basta il token che GitHub dà a ogni esecuzione.

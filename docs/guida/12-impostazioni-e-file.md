@@ -4,9 +4,9 @@ Questo capitolo è per chi vuole adattare l'app (nuove tipologie, nuovi document
 
 ## settings.json
 
-Il file `settings.json` sta accanto a `index.html` (e a `start.exe`). L'app lo legge a ogni caricamento della pagina: dopo una modifica ti basta ricaricare il browser. Fanno eccezione le due chiavi `versioni`, che il server legge solo all'avvio: per quelle chiudi e riavvia `start.exe`.
+Il file `settings.json` sta nella cartella di lavoro (da **⚙ Impostazioni › Apri settings.json**). Il programma lo legge all'avvio: dopo una modifica chiudilo e riaprilo.
 
-Se una chiave manca, l'app usa il valore predefinito. Prima di aggiornare l'app a una nuova versione salva una copia del tuo `settings.json`, perché l'aggiornamento lo sostituisce.
+Se una chiave manca, il programma usa il valore predefinito. Gli aggiornamenti non toccano il tuo `settings.json`: sta fuori dalla cartella del programma.
 
 | Chiave | Predefinito | A cosa serve |
 |---|---|---|
@@ -99,9 +99,9 @@ Si può fare, ma con qualche attenzione:
 * **Progetto**: modificalo con l'app chiusa, oppure aspetta che il badge dica `Salvato`. Se lo modifichi mentre è aperto, al salvataggio successivo l'app segnala un conflitto e ti fa scegliere.
 * **Libreria**: l'app registra la tua modifica nel changelog come "Modifica esterna" e avanza la versione. Gli id dei requisiti devono restare unici in tutta la libreria.
 
-## Il server e la sicurezza
+## I file e la sicurezza
 
-Il server (`start.py`, oppure `start.exe`) ascolta solo sull'indirizzo locale `127.0.0.1`, porta `8080`: dagli altri computer della rete non si raggiunge. Oltre a servire i file dell'app offre alcune API:
+Non c'è un server né una porta aperta: la pagina del programma chiede al processo desktop di leggere e scrivere i file, tramite indirizzi interni `app://modellatore/api/…` che nessun altro programma raggiunge:
 
 | Indirizzo | Uso |
 |---|---|
@@ -111,9 +111,9 @@ Il server (`start.py`, oppure `start.exe`) ascolta solo sull'indirizzo locale `1
 
 Qualche protezione da conoscere:
 
-* il server scrive solo dentro `progetti/` (progetti, versioni, cestino) e dentro `shared/` (librerie, changelog, copie di sicurezza);
+* il programma scrive solo dentro `progetti/` della cartella di lavoro (progetti, versioni, cestino) e dentro la cartella delle librerie (librerie, changelog, copie di sicurezza);
 * rifiuta percorsi assoluti, percorsi con `..`, nomi riservati di Windows e file che non finiscono in `.json`;
-* accetta richieste alle API solo dalla pagina servita da lui stesso (`localhost` o `127.0.0.1` sulla sua porta);
+* la pagina non ha accesso a Node né al disco: passa sempre dal processo desktop;
 * rifiuta corpi oltre 50 MB;
 * la cartella `progetti/` non è servita come file statici;
 * le operazioni sui file passano una alla volta, così due richieste insieme non si pestano i piedi.
