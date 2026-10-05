@@ -1,0 +1,44 @@
+/* --- COMPILAZIONE: PROCESSO PRINCIPALE, PRELOAD E INTERFACCIA --- */
+// esbuild compila e basta: i tipi li controlla `npm run typecheck` (tsc)
+import { build } from 'esbuild';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const nodo = {
+    bundle: true,
+    platform: 'node',
+    target: 'node22',
+    sourcemap: true,
+    external: ['electron'],
+    logLevel: 'warning'
+};
+
+// Interfaccia: un bundle ESM per pagina, servito da out/renderer/ tramite app://
+const interfaccia = {
+    bundle: true,
+    platform: 'browser',
+    format: 'esm',
+    target: 'chrome130',
+    sourcemap: true,
+    logLevel: 'warning',
+    entryPoints: { app: 'src/renderer/avvio.ts', benvenuto: 'src/renderer/benvenuto.ts' },
+    // La build UMD di dockview inietta da sola il suo CSS; quella ESM no e il pacchetto non ha il .css (spec 0021)
+    alias: { 'dockview-core': './node_modules/dockview-core/dist/dockview-core.js' },
+    outdir: 'out/renderer'
+};
+
+fs.rmSync('out/renderer', { recursive: true, force: true });
+await Promise.all([
+    // Processo principale in ESM (Electron lo carica da package.json "main")
+    // electron-updater è CommonJS e chiede require('electron'): nel bundle ESM serve un require vero (spec 0025)
+    build({
+        ...nodo, entryPoints: ['src/main/index.ts'], outfile: 'out/main/index.mjs', format: 'esm',
+        banner: { js: "import { createRequire as __creaRequire } from 'node:module'; const require = __creaRequire(import.meta.url);" }
+    }),
+    // Il preload in sandbox deve essere CommonJS
+    build({ ...nodo, entryPoints: ['src/preload/index.ts'], outfile: 'out/preload/index.cjs', format: 'cjs' }),
+    build(interfaccia)
+]);
+for (const file of ['index.html', 'benvenuto.html', 'popout.html', 'style.css']) {
+    fs.copyFileSync(path.join('src/renderer', file), path.join('out/renderer', file));
+}

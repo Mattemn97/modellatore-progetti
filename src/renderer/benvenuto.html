@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benvenuto - Modellatore MBSE</title>
+    <style>
+        body { font-family: "Segoe UI", sans-serif; background: #f4f6f8; color: #2c3e50; margin: 0; padding: 40px 16px; }
+        .riquadro { max-width: 720px; margin: 0 auto; background: white; border-top: 5px solid #0078d4; padding: 28px 32px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+        h1 { font-size: 22px; margin: 0 0 6px; }
+        p { line-height: 1.5; }
+        .avviso { background: #fff4e5; border-left: 4px solid #e67e22; padding: 10px 14px; margin: 14px 0; border-radius: 3px; }
+        .errore { background: #fdecea; border-left: 4px solid #c0392b; padding: 10px 14px; margin: 14px 0; border-radius: 3px; }
+        .cartella { font-family: Consolas, monospace; background: #f0f4f8; border: 1px solid #d0d7de; padding: 8px 10px; border-radius: 4px; word-break: break-all; margin: 6px 0 2px; }
+        .etichetta { font-weight: 600; margin-top: 16px; }
+        .nota { font-size: 12px; color: #6b7785; }
+        .pulsanti { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+        button { font-size: 14px; padding: 8px 18px; border-radius: 4px; border: 1px solid #aab4be; background: #f4f6f8; cursor: pointer; }
+        button.principale { background: #0078d4; color: white; border-color: #0078d4; }
+        button:disabled { opacity: .6; cursor: default; }
+    </style>
+</head>
+<body>
+<div class="riquadro">
+    <h1>Benvenuto nel Modellatore MBSE</h1>
+    <p>Scegli dove tenere i tuoi progetti e le librerie dei blocchi. Il programma prepara la cartella da solo: dentro trovi <code>progetti</code>, <code>shared</code> (le librerie) e <code>settings.json</code>.</p>
+    <div id="motivo" class="avviso" hidden></div>
+    <div class="etichetta">Cartella di lavoro</div>
+    <div id="cartellaLavoro" class="cartella">…</div>
+    <div class="nota">Progetti, versioni, cestino e impostazioni. Puoi cambiarla dopo da ⚙ Impostazioni.</div>
+    <div class="etichetta">Cartella delle librerie</div>
+    <div id="cartellaLibrerie" class="cartella">…</div>
+    <div class="nota">All'inizio è la cartella <code>shared</code> dentro la cartella di lavoro; da ⚙ Impostazioni puoi spostarla, anche su un disco di rete.</div>
+    <div id="errore" class="errore" hidden></div>
+    <div class="pulsanti">
+        <button id="btnUsa" class="principale">Usa questa cartella</button>
+        <button id="btnScegli">Scegli un'altra cartella…</button>
+    </div>
+</div>
+<script type="module" src="benvenuto.js"></script>
+</body>
+</html>

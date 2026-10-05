@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modellatore di Requisiti a Blocchi - MBSE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Header -->
+    <div class="header" id="header">
+        <button class="back-btn" id="backBtn" style="display: none;">&larr; Indietro</button>
+        <div class="breadcrumb" id="breadcrumb"></div>
+
+        <!-- Stato del salvataggio automatico, annulla/ripeti e menu Progetto (js/progetto.js) -->
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+            <span id="badgeSalvataggio" class="badge-salvataggio stato-salvato" data-aiuto="header.salvataggio" hidden>Salvato</span>
+            <button id="btnAnnulla" class="pulsante-progetto" data-aiuto="header.annulla" disabled>&#8630; Annulla</button>
+            <button id="btnRipeti" class="pulsante-progetto" data-aiuto="header.ripeti" disabled>&#8631; Ripeti</button>
+            <!-- Cartelle di lavoro e delle librerie (js/impostazioni.js, spec 0019) -->
+            <button id="btnImpostazioni" class="pulsante-progetto" data-aiuto="header.impostazioni">⚙ Impostazioni</button>
+            <!-- Menu Finestra: riapre i pannelli e ripristina il layout (pannelli.ts, spec 0021) -->
+            <div class="menu-progetto">
+                <button id="btnMenuFinestra" class="pulsante-progetto" data-aiuto="header.finestra">🪟 Finestra &#9662;</button>
+                <div id="menuFinestra" class="menu-progetto-voci menu-aiuto-voci" hidden>
+                    <button data-pannello="libreria" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Libreria</button>
+                    <button data-pannello="cliente" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Cliente</button>
+                    <button data-pannello="coerenza" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Coerenza</button>
+                    <button data-pannello="gerarchia" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Gerarchia</button>
+                    <button data-pannello="canvas" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Canvas</button>
+                    <button data-pannello="ispettore" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Ispettore</button>
+                    <button data-pannello="matrice" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Matrice</button>
+                    <button data-pannello="documenti" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Documenti</button>
+                    <button data-pannello="changelog" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Changelog</button>
+                    <hr>
+                    <button data-azione="ripristina" data-aiuto="finestra.ripristina">Ripristina layout</button>
+                </div>
+            </div>
+            <!-- Menu Aiuto: tour guidato e icone (i) (js/aiuto.js, spec 0012) -->
+            <div class="menu-progetto">
+                <button id="btnMenuAiuto" class="pulsante-progetto" data-aiuto="header.aiuto">❓ Aiuto &#9662;</button>
+                <div id="menuAiuto" class="menu-progetto-voci menu-aiuto-voci" hidden>
+                    <button data-aiuto-azione="tour">🎓 Tour guidato</button>
+                    <button data-aiuto-azione="icone" role="menuitemcheckbox" aria-checked="true"><span class="spunta-aiuto">✓</span>Mostra le (i)</button>
+                </div>
+            </div>
+            <div class="menu-progetto">
+                <button id="btnMenuProgetto" class="pulsante-progetto pulsante-menu" data-aiuto="header.progetto">Progetto &#9662;</button>
+                <div id="menuProgetto" class="menu-progetto-voci" hidden>
+                    <button data-azione="nuovo">Nuovo…</button>
+                    <button data-azione="apri">Apri…</button>
+                    <button data-azione="copia">Salva una copia come…</button>
+                    <button data-azione="rinomina">Rinomina…</button>
+                    <button data-azione="elimina">Elimina</button>
+                    <hr>
+                    <button data-azione="importa">Importa JSON…</button>
+                    <button data-azione="scarica">Scarica JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Errori di salvataggio, conflitti e avvisi sulla libreria -->
+    <div id="bannerProgetto" class="banner-progetto" hidden></div>
+
+    <!-- Versione nuova disponibile e stato dell'aggiornamento (spec 0015) -->
+    <div id="bannerAggiornamento" class="banner-aggiornamento" hidden></div>
+
+    <!-- Pannelli agganciabili (pannelli.ts, spec 0021): dockview li dispone in #areaPannelli -->
+    <div class="main-area">
+        <div id="areaPannelli" class="area-pannelli"></div>
+    </div>
+
+    <!-- Contenuto dei pannelli: ogni nodo entra nel suo pannello quando si vede, altrimenti resta qui -->
+    <div id="pannelliParcheggiati" hidden>
+        <div id="schedaLibreria" class="contenuto-scheda">
+        <!-- Versione, sola lettura e changelog della libreria su disco (js/libreria.js) -->
+        <div class="testata-libreria">
+            <h3>Libreria Blocchi <span id="versioneLibreria" class="versione-libreria"></span><span class="icona-aiuto" data-aiuto="libreria.titolo" tabindex="0" role="button" aria-label="Informazioni">i</span></h3>
+            <button id="btnChangelog" class="pulsante-changelog" data-aiuto="libreria.changelog" disabled>📜 Changelog</button>
+        </div>
+        <div id="etichettaSolaLettura" class="etichetta-sola-lettura" data-aiuto="libreria.solaLettura" hidden>Sola lettura</div>
+
+        <!-- Configurazione e ricarica da Path/URL -->
+        <div style="margin-bottom: 10px; background: #f0f4f8; padding: 8px; border-radius: 4px; border: 1px solid #d0d7de;">
+            <label style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px;">Percorso / URL Libreria:<span class="icona-aiuto" data-aiuto="libreria.percorso" tabindex="0" role="button" aria-label="Informazioni">i</span></label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="libPathInput" placeholder="es. shared/libreria.json" style="flex: 1; padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;">
+                <button id="btnLoadFromPath" style="background: #0078d4; color: white; border: none; border-radius: 3px; padding: 0 8px; cursor: pointer; font-size: 11px;" data-aiuto="libreria.ricarica" aria-label="Ricarica da Path">🔄</button>
+            </div>
+        </div>
+
+        <div class="campo-con-aiuto" style="margin-bottom: 8px;"><input type="text" id="libSearchInput" placeholder="🔍 Cerca nella libreria..." style="width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"><span class="icona-aiuto" data-aiuto="libreria.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
+        <div id="libraryContent" style="flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 4px;"></div>
+        </div>
+
+        <!-- Requisiti cliente del progetto aperto (js/cliente.js) -->
+        <div id="schedaCliente" class="contenuto-scheda">
+            <div id="clienteNessunProgetto" class="empty-props">Apri un progetto</div>
+            <div id="clienteStrumenti" class="strumenti-cliente" hidden>
+                <button id="btnImportaCliente" class="pulsante-progetto pulsante-menu" data-aiuto="cliente.importa">Importa…</button>
+                <button id="btnVistiCliente" class="pulsante-progetto" data-aiuto="cliente.visti" hidden>Segna tutti come visti</button>
+            </div>
+            <p id="clienteVuoto" class="spiegazione-cliente" hidden>Importa da Excel (.xlsx) o CSV le frasi del cliente: diventano requisiti che trascini sulla radice come blocchi tondi, da cui tiri i fili verso i blocchi di sistema.</p>
+            <div id="clienteFiltri" class="filtri-cliente" hidden>
+                <div class="campo-con-aiuto"><input type="text" id="clienteRicerca" placeholder="🔍 Cerca per ID, titolo o testo..."><span class="icona-aiuto" data-aiuto="cliente.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <select id="clienteStato" aria-label="Stato">
+                        <option value="tutti">Tutti</option>
+                        <option value="nonCollegati">Non collegati</option>
+                        <option value="modificati">Modificati</option>
+                        <option value="ritirati">Ritirati</option>
+                    </select><span class="icona-aiuto" data-aiuto="cliente.stato" tabindex="0" role="button" aria-label="Informazioni">i</span>
+                    <select id="clienteSezione" aria-label="Sezione"></select><span class="icona-aiuto" data-aiuto="cliente.sezione" tabindex="0" role="button" aria-label="Informazioni">i</span>
+                </div>
+                <div id="clienteConteggio" class="conteggio-cliente"></div>
+            </div>
+            <div id="clienteElenco" hidden>
+                <div id="clienteRighe"></div>
+            </div>
+        </div>
+
+        <!-- Requisiti scoperti e difetti del modello (js/coerenza.js); solo #coerenzaGruppi si ridisegna -->
+        <div id="schedaCoerenza" class="contenuto-scheda">
+            <div class="campo-con-aiuto"><input type="text" id="coerenzaRicerca" class="ricerca-coerenza" placeholder="🔍 Cerca per id, ID del cliente o titolo..."><span class="icona-aiuto" data-aiuto="coerenza.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
+            <div id="coerenzaAvviso" class="avviso-coerenza" hidden></div>
+            <div id="coerenzaGruppi"></div>
+        </div>
+
+        <!-- Antenati e discendenti del requisito scelto (js/gerarchia.js); solo #gerarchiaContenuto si ridisegna -->
+        <div id="schedaGerarchia" class="contenuto-scheda">
+            <div id="gerarchiaContenuto"></div>
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <div class="canvas-toolbar">
+                <button id="toggleLeftBtn" data-aiuto="barra.libreria">☰ Libreria</button>
+                
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                    <!-- Filtri del canvas (js/filtri.js, spec 0008): il pannello si apre sotto la barra -->
+                    <button id="btnFiltri" class="pulsante-filtri" aria-pressed="false" data-aiuto="barra.filtri">🔎 Filtri</button>
+                    <div id="pannelloFiltri" class="pannello-filtri" hidden></div>
+
+                    <button id="btnReqMatrix" data-aiuto="barra.matrice" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Matrice Requisiti</button>
+                    <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" data-aiuto="barra.documenti">📄 Documenti</button>
+                    <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false" data-aiuto="barra.coerenza">⚠️ Verifica Coerenza</button>
+                    <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" data-aiuto="barra.gerarchia">🌳 Gerarchia</button>
+                    <button id="btnResetView" data-aiuto="barra.resetVista" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
+                </div>
+
+                <button id="toggleRightBtn" data-aiuto="barra.proprieta">☰ Proprietà</button>
+            </div>
+
+            <svg id="workspaceSvg">
+                <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+                    </pattern>
+                </defs>
+                <rect id="gridBackground" width="100%" height="100%" fill="url(#grid)" />
+                <g id="viewport">
+                    <g id="edgesLayer"></g>
+                    <!-- Blocchi tondi del padre sopra i fili, così i loro pin restano cliccabili -->
+                    <g id="parentLayer"></g>
+                    <g id="nodesLayer"></g>
+                </g>
+            </svg>
+            <!-- Riga di aiuto con i gesti senza pulsante (spec 0011) -->
+            <div id="aiutoCanvas" class="aiuto-canvas">
+                <span>Shift+trascina una porta per spostarla lungo il bordo · Doppio clic su un filo: aggiungi snodo · Clic destro su un filo: elimina · Doppio clic su un blocco: entra</span>
+                <button id="btnChiudiAiuto" title="Nascondi l'aiuto">✕</button>
+            </div>
+        </div>
+
+        <div class="contenuto-ispettore" id="propertiesPanel">
+            <div id="propsHeader" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Ispettore & Gestione</h3>
+                <button id="btnNewBlockFromScratch" data-aiuto="ispettore.nuovoBlocco" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">+ Nuovo Blocco</button>
+            </div>
+            <div id="propsContent" style="margin-top:10px;">
+                <div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>
+            </div>
+        </div>
+
+        <!-- Matrice di tracciabilità: filtri, conteggi, tabella ed export Markdown (matrice.ts, spec 0006 e 0022) -->
+        <div id="pannelloMatrice" class="contenuto-finestra">
+            <div class="riga-guida"><button class="pulsante-tour-finestra" data-tour-avvia="matrice" data-aiuto="finestra.tour" aria-label="Guida di questo pannello">❓ Guida</button></div>
+            <div id="matriceFiltri" class="filtri-matrice">
+                <label class="campo-import"><span>Documento<span class="icona-aiuto" data-aiuto="matrice.documento" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="matriceDocumento"></select></label>
+                <label class="campo-import"><span>Lato<span class="icona-aiuto" data-aiuto="matrice.lato" tabindex="0" role="button" aria-label="Informazioni">i</span></span>
+                    <select id="matriceLato">
+                        <option value="entrambi">Uno dei due</option>
+                        <option value="padre">Padre</option>
+                        <option value="figlio">Figlio</option>
+                    </select>
+                </label>
+                <label class="campo-import"><span>Classe<span class="icona-aiuto" data-aiuto="matrice.classe" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="matriceClasse"></select></label>
+                <label class="campo-import campo-ricerca-matrice"><span>Ricerca<span class="icona-aiuto" data-aiuto="matrice.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></span><input type="text" id="matriceRicerca" placeholder="🔍 ID o titolo di padre o figlio..."></label>
+                <button id="btnEsportaMatrice" class="pulsante-progetto" data-aiuto="matrice.esporta" disabled>⬇ Esporta .md</button>
+            </div>
+            <div id="matriceConteggi" class="import-conteggi"></div>
+            <div id="matriceContenuto" class="contenuto-matrice"></div>
+        </div>
+
+        <!-- Documenti MIL-STD-498: selettore, riepilogo, anteprima ed export Markdown (documenti.ts, spec 0007 e 0022) -->
+        <div id="pannelloDocumenti" class="contenuto-finestra">
+            <div class="riga-guida"><button class="pulsante-tour-finestra" data-tour-avvia="documenti" data-aiuto="finestra.tour" aria-label="Guida di questo pannello">❓ Guida</button></div>
+            <div id="documentiBarra" class="filtri-matrice">
+                <label class="campo-import"><span>Documento<span class="icona-aiuto" data-aiuto="documenti.documento" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="documentiScelta"></select></label>
+                <button id="btnEsportaDocumento" class="pulsante-progetto" data-aiuto="documenti.esporta" disabled>⬇ Esporta .md</button>
+            </div>
+            <div id="documentiRiepilogo" class="import-conteggi"></div>
+            <div id="documentiMessaggio" class="empty-props" hidden></div>
+            <pre id="anteprimaDocumento" class="anteprima-documento"></pre>
+        </div>
+
+        <!-- Changelog della libreria aperta, con filtro (libreria.ts, spec 0002 e 0022) -->
+        <div id="pannelloChangelog" class="contenuto-finestra">
+            <div id="changelogTitolo" class="titolo-changelog"></div>
+            <div class="campo-con-aiuto"><input type="text" id="filtroChangelog" placeholder="Filtra per blocco (id o titolo) o id requisito..." class="filtro-changelog"><span class="icona-aiuto" data-aiuto="changelog.filtro" tabindex="0" role="button" aria-label="Informazioni">i</span></div>
+            <div id="vociChangelog"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Finestra Apri progetto -->
+<div id="reportModal" class="modal-overlay" style="display: none;">
+    <div class="modal-body">
+        <div class="modal-header">
+            <h3 id="modalTitle">Titolo Report</h3>
+            <button id="btnCloseModal" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <div id="modalContent" style="max-height: 400px; overflow-y: auto; margin-top: 10px;"></div>
+    </div>
+</div>
+
+<!-- Finestra Impostazioni: cartella di lavoro, cartella delle librerie e settings.json (js/impostazioni.js, spec 0019) -->
+<div id="impostazioniModal" class="modal-overlay" style="display: none;">
+    <div class="modal-body modal-impostazioni">
+        <div class="modal-header">
+            <h3>Impostazioni</h3>
+            <button id="btnChiudiImpostazioni" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Chiudi">✕</button>
+        </div>
+        <div id="impostazioniContenuto"></div>
+    </div>
+</div>
+
+<!-- Finestra di import dei requisiti cliente: file, mappatura delle colonne, anteprima (js/cliente.js) -->
+<div id="importClienteModal" class="modal-overlay" style="display: none;">
+    <div class="modal-body modal-import">
+        <div class="modal-header">
+            <h3>Importa requisiti cliente</h3>
+            <div class="pulsanti-finestra"><button class="pulsante-tour-finestra" data-tour-avvia="importCliente" data-aiuto="finestra.tour" aria-label="Guida di questa finestra">❓ Guida</button><button id="btnChiudiImport" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button></div>
+        </div>
+        <div id="importClienteContenuto"></div>
+    </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

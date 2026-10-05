@@ -1,0 +1,85 @@
+{
+  "name": "modellatore-mbse",
+  "productName": "Modellatore MBSE",
+  "version": "2.0.0",
+  "description": "Modellatore di requisiti a blocchi (MBSE)",
+  "private": true,
+  "main": "out/main/index.mjs",
+  "author": "Matteo Filippini",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && electron . --dev",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "node scripts/build.mjs && playwright test",
+    "verifica": "npm run typecheck && npm run lint && npm run test && npm run test:e2e",
+    "dist": "node scripts/build.mjs && electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.1",
+    "dockview-core": "^8.4.0",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "electron-updater": "^6.8.9",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "happy-dom": "^20.14.5",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  },
+  "allowScripts": {
+    "electron@44.5.1": true,
+    "esbuild@0.28.2": true,
+    "electron-winstaller@5.4.0": false
+  },
+  "build": {
+    "appId": "io.github.mattemn97.modellatore-mbse",
+    "productName": "Modellatore MBSE",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "!out/**/*.map",
+      "settings.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Modellatore MBSE",
+      "uninstallDisplayName": "Modellatore MBSE",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Modellatore-MBSE-Setup-${version}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "packaging/esempi",
+        "to": "esempi"
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Mattemn97",
+      "repo": "modellatore-progetti"
+    }
+  }
+}
