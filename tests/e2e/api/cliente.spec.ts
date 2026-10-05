@@ -9,7 +9,7 @@ const b64 = (testo: string | Buffer) => Buffer.from(testo).toString('base64');
 
 test.describe.serial('contratto /api/cliente/leggi', () => {
     let a: AppDiProva;
-    const leggi = (corpo: unknown) => api<{ formato: string; fogli: Array<{ nome: string; nascosto: boolean; righe: string[][] }> }>(a.pagina, 'POST', '/api/cliente/leggi', corpo);
+    const leggi = (corpo: unknown) => api<{ formato: string; fogli: Array<{ nome: string; nascosto: boolean; righe: string[][] }>; errore?: string }>(a.pagina, 'POST', '/api/cliente/leggi', corpo);
 
     // cliente.maxFileMB si legge all'avvio: 0.01 MB per provare il limite senza file enormi
     test.beforeAll(async () => {
