@@ -1,4 +1,5 @@
-# CI della v2: tipi, lint, test unitari ed end to end sull'app desktop, a ogni push e pull request verso develop
+# CI della v2: tipi, lint, test unitari ed end to end sull'app desktop, a ogni push e pull request verso develop;
+# sui push a develop anche il setup Windows (installa, avvia, disinstalla)
 name: CI
 
 on:
@@ -53,4 +54,61 @@ jobs:
           path: |
             playwright-report/
             test-results/
+          retention-days: 7
+
+  # Setup Windows per utente (spec 0024): solo sui push a develop, dopo la verifica
+  setup:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: verifica
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Dipendenze
+        run: npm ci
+
+      - name: Binario di Electron
+        run: node node_modules/electron/install.js
+
+      - name: Costruzione del setup
+        run: npm run dist
+
+      - name: Installazione silenziosa per utente
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem release\Modellatore-MBSE-Setup-*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $exe = "$env:LOCALAPPDATA\Programs\modellatore-mbse\Modellatore MBSE.exe"
+          if (-not (Test-Path $exe)) { throw "Programma non installato in $exe" }
+          $start = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Modellatore MBSE.lnk"
+          if (-not (Test-Path $start)) { throw "Collegamento mancante nel menu Start: $start" }
+          "MODELLATORE_ESEGUIBILE_INSTALLATO=$exe" >> $env:GITHUB_ENV
+
+      - name: Il programma installato parte
+        run: npx playwright test tests/e2e/installato.spec.ts
+
+      - name: Disinstallazione senza toccare i dati
+        shell: pwsh
+        run: |
+          $cartella = "$env:LOCALAPPDATA\Programs\modellatore-mbse"
+          $dati = "$env:APPDATA\Modellatore MBSE"
+          New-Item -ItemType Directory -Force $dati | Out-Null
+          Set-Content "$dati\segno.txt" 'resta'
+          Start-Process "$cartella\Uninstall Modellatore MBSE.exe" -ArgumentList '/S' -Wait
+          # Il disinstallatore si copia in una cartella temporanea e torna subito: si aspetta che finisca
+          for ($i = 0; $i -lt 60 -and (Test-Path "$cartella\Modellatore MBSE.exe"); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path "$cartella\Modellatore MBSE.exe") { throw 'Il programma è ancora installato' }
+          if (-not (Test-Path "$dati\segno.txt")) { throw 'La disinstallazione ha toccato userData' }
+
+      - name: Setup da provare
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup-windows
+          path: release/Modellatore-MBSE-Setup-*.exe
           retention-days: 7

@@ -2,7 +2,7 @@
 
 Versione {VERSIONE}
 
-Questo tutorial ti accompagna dall'estrazione dello zip fino al primo documento generato. Ci vogliono circa 20 minuti. Segui i passi in ordine: ogni parte usa quello che hai fatto nella precedente.
+Questo tutorial ti accompagna dall'installazione fino al primo documento generato. Ci vogliono circa 20 minuti. Segui i passi in ordine: ogni parte usa quello che hai fatto nella precedente.
 
 Alla fine avrai costruito un piccolo modello di esempio: un impianto con una **Centralina** che contiene una **Pompa**, collegato a due requisiti del cliente.
 
@@ -10,43 +10,31 @@ Alla fine avrai costruito un piccolo modello di esempio: un impianto con una **C
 
 ## Parte 1. Installazione (senza diritti di amministratore)
 
-L'app non si installa: è una cartella che estrai e usi. Non servono diritti di amministratore.
+Il programma si installa solo per te: non servono diritti di amministratore e Windows non chiede conferme di sicurezza (UAC).
 
-1. Fai clic destro sul file `ModellatoreMBSE-{VERSIONE}.zip` e scegli **Estrai tutto…**.
-2. Come destinazione scegli una cartella tua, per esempio `Documenti` o `Desktop`.
-   **Non** estrarre in `C:\Programmi`: lì l'app non ha il permesso di salvare i progetti.
-3. Premi **Estrai**. Nasce la cartella `ModellatoreMBSE` con questo contenuto:
+1. Fai doppio clic su **`Modellatore-MBSE-Setup-{VERSIONE}.exe`**.
+2. Se compare la finestra blu **"Windows ha protetto il PC"** (SmartScreen), è perché il setup non è firmato digitalmente. Clicca **Ulteriori informazioni** e poi **Esegui comunque**.
+3. L'installazione dura pochi secondi e non fa domande. Alla fine trovi **Modellatore MBSE** nel menu Start e sul desktop.
 
-   | Elemento | Cos'è |
-   |---|---|
-   | `start.exe` | Il programma da avviare (un piccolo server locale) |
-   | `index.html`, `style.css`, `js\` | L'app vera e propria, che si apre nel browser |
-   | `settings.predefinite.json` | Le impostazioni di fabbrica (colori, tipologie, documenti…). Al primo avvio diventano `settings.json`, il file che puoi modificare |
-   | `progetti\` | Qui finiscono i tuoi progetti |
-   | `shared\` | Qui finiscono le librerie dei blocchi |
-   | `esempi\` | Un file di requisiti cliente da usare in questo tutorial |
-   | `TUTORIAL.md` | Questo file |
-   | `VERSIONE.txt` | Il numero della versione |
+Il programma finisce in `%LOCALAPPDATA%\Programs\modellatore-mbse\`. I tuoi dati **non** stanno lì: stanno nella cartella di lavoro che scegli al primo avvio (Parte 2), quindi disinstallare o reinstallare non li tocca mai.
 
-> Non spostare `start.exe` fuori dalla cartella: ha bisogno dei file che ha accanto.
+Per disinstallare: **Impostazioni di Windows › App › App installate › Modellatore MBSE › Disinstalla**. Progetti, librerie e impostazioni restano dove sono; se reinstalli, l'app li ritrova.
 
 ---
 
 ## Parte 2. Primo avvio
 
-1. Apri la cartella `ModellatoreMBSE` e fai doppio clic su **`start.exe`**.
-2. Se compare la finestra blu **"Windows ha protetto il PC"** (SmartScreen), è perché il programma non è firmato digitalmente. Clicca **Ulteriori informazioni** e poi **Esegui comunque**. Succede solo la prima volta.
-3. Si apre una **finestra nera**: è il server. Dopo circa un secondo si apre il browser su `http://localhost:8080` con l'app.
-4. Trovi già aperto un progetto vuoto chiamato **"Nuovo progetto"**.
-5. Parte da solo un **tour guidato**: lo schermo si scurisce tranne l'area spiegata e un fumetto ti racconta a cosa serve. Vai avanti con **Avanti** (o la freccia →), torna indietro con **Indietro** (←), esci quando vuoi con **Salta il tour** o **Esc**. Non riparte più da solo.
+1. Apri **Modellatore MBSE** dal menu Start o dal desktop.
+2. Al primo avvio l'app ti propone la **cartella di lavoro**, di solito `Documenti\Modellatore MBSE`. Conferma: l'app la crea con dentro `progetti\`, la cartella delle librerie `shared\` con un blocco di esempio e `settings.json`. Puoi cambiarla quando vuoi da **`⚙ Impostazioni`**.
+3. Trovi già aperto un progetto vuoto chiamato **"Nuovo progetto"**.
+4. Parte da solo un **tour guidato**: lo schermo si scurisce tranne l'area spiegata e un fumetto ti racconta a cosa serve. Vai avanti con **Avanti** (o la freccia →), torna indietro con **Indietro** (←), esci quando vuoi con **Salta il tour** o **Esc**. Non riparte più da solo.
 
 **Regole d'oro:**
 
-* La finestra nera deve restare aperta finché usi l'app. Puoi ridurla a icona, ma non chiuderla.
 * Non devi mai salvare a mano: il progetto si salva da solo circa un secondo dopo ogni modifica. In alto a destra il badge dice `Salvato` quando tutto è su disco.
-* Se chiudi per sbaglio la scheda del browser, riapri `http://localhost:8080`.
+* Si apre una sola finestra del programma: se lo lanci di nuovo, torna in primo piano quella già aperta.
 
-**Se il browser non si apre o dà errore:** probabilmente un altro programma usa la porta 8080. Chiudilo e riavvia `start.exe`.
+> Usavi la versione 1 (lo zip con `start.exe`)? Da **`⚙ Impostazioni` › Importa dalla versione 1…** indichi la sua cartella e l'app copia progetti, librerie, changelog e impostazioni nella cartella di lavoro nuova, senza toccare quella vecchia.
 
 ---
 
@@ -133,7 +121,7 @@ Premi **`💾 Salva in Libreria`**.
 Di solito il cliente ti manda i requisiti in un foglio Excel. Per il tutorial usiamo il file di esempio incluso.
 
 1. Apri la scheda **`Cliente`** (a sinistra, accanto a Libreria) e premi **`Importa…`**.
-2. Vai nella cartella `ModellatoreMBSE\esempi` e scegli `requisiti_cliente_esempio.csv`.
+2. Vai nella cartella `%LOCALAPPDATA%\Programs\modellatore-mbse\resources\esempi` (puoi incollare il percorso nella barra della finestra) e scegli `requisiti_cliente_esempio.csv`.
 3. Nella finestra **Importa requisiti cliente** controlla le scelte:
    * **Foglio**: quello proposto;
    * **Riga di intestazione**: `1`;
@@ -228,8 +216,8 @@ I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni 
 ## Parte 12. Chiudere e riaprire
 
 1. Controlla che il badge in alto dica **`Salvato`**.
-2. Chiudi la scheda del browser e poi la **finestra nera**.
-3. La prossima volta fai doppio clic su `start.exe`: l'app riapre da sola l'ultimo progetto.
+2. Chiudi la finestra del programma (anche le finestre staccate si chiudono con lei). Se una modifica non è ancora su disco, l'app te lo chiede prima di chiudere.
+3. La prossima volta apri **Modellatore MBSE** dal menu Start: riapre da solo l'ultimo progetto, con i pannelli come li avevi lasciati.
 
 **Gestire più progetti** dal menu **`Progetto ▾`**:
 
@@ -246,29 +234,9 @@ I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni 
 
 ## Backup e aggiornamenti
 
-**Backup:** copia le cartelle `progetti\` e `shared\` in un posto sicuro. Contengono tutti i tuoi dati.
+**Backup:** copia la cartella di lavoro (di solito `Documenti\Modellatore MBSE`, la vedi in **`⚙ Impostazioni`**) in un posto sicuro. Contiene progetti, librerie e impostazioni.
 
-**Aggiornamento automatico:**
-
-All'avvio `start.exe` controlla su GitHub se c'è una versione più recente. Se c'è, lo scrive nella finestra nera e mostra un banner azzurro in cima all'app:
-
-- **Novità** mostra cosa cambia nella nuova versione.
-- **Aggiorna e riavvia** salva il progetto, scarica la nuova versione, ne controlla l'impronta (così un file rovinato non viene mai installato) e sostituisce solo i file dell'app. `progetti\`, `shared\` e `settings.json` non vengono toccati. La finestra nera si chiude, se ne apre una nuova e la pagina si ricarica da sola con la nuova versione.
-- Se la nuova versione non parte, l'app rimette da sola quella di prima e il banner ti dice cosa è successo.
-- **Più tardi** nasconde l'avviso fino al prossimo avvio.
-
-Senza rete l'app parte come sempre, senza avvisi. Per spegnere il controllo apri `settings.json` e metti `"controllo": false` nella sezione `"aggiornamenti"`, poi riavvia `start.exe`.
-
-**Aggiornare a mano a una nuova versione** (se preferisci, o se l'aggiornamento automatico non è possibile):
-
-1. Chiudi la finestra nera.
-2. Estrai il nuovo zip **nella stessa posizione** del precedente e conferma la sovrascrittura dei file.
-
-Un aggiornamento non tocca mai il tuo lavoro: `progetti\`, `shared\` e `settings.json` non sono nello zip, quindi non vengono sovrascritti né cancellati. Vengono sostituiti solo i file dell'app.
-
-- `settings.predefinite.json` contiene le impostazioni di fabbrica della nuova versione. Se cancelli `settings.json`, al prossimo avvio l'app lo ricrea da lì (utile per tornare ai valori di fabbrica).
-- I file di `esempi\` vengono sovrascritti a ogni aggiornamento: se vuoi modificarli, copiali prima in un'altra cartella.
-- La protezione vale solo se estrai sopra la cartella esistente. Se cancelli la cartella e la estrai da capo, i dati se ne vanno con lei: tieni sempre un backup di `progetti\` e `shared\`.
+**Aggiornare a una nuova versione:** scarica il nuovo setup e avvialo: installa sopra quella vecchia. Il tuo lavoro non viene toccato, perché non sta nella cartella del programma.
 
 ---
 
@@ -276,16 +244,14 @@ Un aggiornamento non tocca mai il tuo lavoro: `progetti\`, `shared\` e `settings
 
 | Problema | Soluzione |
 |---|---|
-| Windows chiede di confermare l'avvio | È SmartScreen: **Ulteriori informazioni** → **Esegui comunque** |
-| La finestra nera si chiude subito | La porta 8080 è occupata: chiudi l'altro programma o riavvia il PC |
-| Il badge è rosso, "Errore di salvataggio" | Hai chiuso la finestra nera: riavvia `start.exe`, il salvataggio riparte da solo |
-| Il badge dice "Conflitto" | Il progetto è aperto in due schede: tienine una e scegli **Ricarica dal disco** o **Sovrascrivi** |
+| Windows chiede di confermare il setup | È SmartScreen: **Ulteriori informazioni** → **Esegui comunque** |
+| All'avvio compare la pagina di benvenuto invece dell'editor | La cartella di lavoro non c'è più (disco esterno, cartella spostata): sceglila di nuovo o creane una |
+| Il badge è rosso, "Errore di salvataggio" | La cartella di lavoro non è scrivibile o non c'è più: leggi il banner e controlla **`⚙ Impostazioni`** |
+| Il badge dice "Conflitto" | Il progetto è stato cambiato da fuori mentre era aperto: scegli **Ricarica dal disco** o **Sovrascrivi** |
 | Non riesco a collegare due requisiti | Devono essere della stessa classe (stessa tipologia, oppure entrambi di capacità) |
-| L'app non salva i progetti | La cartella è in una posizione protetta (es. `C:\Programmi`): spostala in `Documenti` |
-| Ho aperto `index.html` con un doppio clic e non funziona | L'app va aperta sempre con `start.exe` |
+| Ho perso un pannello o la disposizione è confusa | **`🪟 Finestra`** › il pannello che manca, oppure **Ripristina layout** |
 
 ## Requisiti di sistema
 
-* Windows 10 o 11
-* Un browser recente: Chrome, Edge o Firefox
-* La porta 8080 libera
+* Windows 10 o 11, 64 bit
+* Circa 300 MB liberi per il programma

@@ -6,8 +6,8 @@ Block diagram editor for MBSE requirements: drag blocks from a library onto an S
 
 - **Language / Runtime**: TypeScript (`strict`) everywhere in `src/`: desktop shell, file API and the editor in `src/renderer/` (spec 0020). HTML, CSS. Python 3.11 only for the 1.x `start.py` (and to regenerate the test oracles in `tests/unit/dati/`)
 - **Framework**: Electron (spec 0016). No UI framework: hand written SVG rendering and DOM code
-- **Key dependencies**: Electron, `dockview-core` (docking panels in the editor, spec 0021), esbuild (compiles `src/main` and `src/preload` to `out/`), TypeScript 6.0 (pinned below 6.1 because `typescript-eslint` does not support 7 yet), ESLint with `typescript-eslint`, Vitest, Playwright (`_electron`). 1.x only: `http.server`, `rich`, PyInstaller from `requirements.txt`
-- **Package manager**: npm (`package-lock.json`). npm 11 runs install scripts only for packages listed in `allowScripts` in `package.json` (Electron needs its script to download the binary: `npm approve-scripts <pkg>` after a version bump)
+- **Key dependencies**: Electron, `dockview-core` (docking panels in the editor, spec 0021, bundled into `app.js` so it is a dev dependency), electron-builder (Windows setup, spec 0024), esbuild (compiles `src/main` and `src/preload` to `out/`), TypeScript 6.0 (pinned below 6.1 because `typescript-eslint` does not support 7 yet), ESLint with `typescript-eslint`, Vitest, Playwright (`_electron`). 1.x only: `http.server`, `rich`, PyInstaller from `requirements.txt`
+- **Package manager**: npm (`package-lock.json`). npm 11 runs install scripts only for packages listed in `allowScripts` in `package.json` (Electron needs its script to download the binary: `npm approve-scripts <pkg>` after a version bump; `electron-winstaller`, pulled in by electron-builder for Squirrel, stays `false` because the setup is NSIS)
 
 ## Build approach
 
@@ -28,6 +28,9 @@ npm run lint        # eslint
 npm test            # Vitest, tests/unit/*.test.ts
 npm run test:e2e    # build + Playwright on Electron, tests/e2e/*.spec.ts
 npm run verifica    # all four
+
+# Windows setup (spec 0024): electron-builder NSIS per user, in release/ (Modellatore-MBSE-Setup-<version>.exe, latest.yml)
+npm run dist
 
 # 1.x (main): browser app on http://localhost:8080, exe and zip, release on every push to main
 python start.py
@@ -77,6 +80,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title/index.md` (plus `rationa
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.
 - 1.x self update (spec 0015): at startup `start.exe` checks the latest GitHub Release in a thread (skipped when `VERSIONE.txt` is missing, i.e. `python start.py`). Installing downloads into `_aggiornamento/` (app scratch, removed a minute after the next start), checks the asset SHA256 `digest`, replaces only the files in the zip (never `PERCORSI_UTENTE`), restarts with `--dopo-aggiornamento` and rolls back with `--dopo-ripristino` if the new exe does not answer. Test it against a fake Release server with the `MODELLATORE_URL_RELEASE` env var. Keep any thread that must outlive the HTTP server non daemon (request threads are daemon).
 - 1.x: the server binds its port exclusively (`ServerApp`, `SO_EXCLUSIVEADDRUSE` on Windows): a second `start.exe` fails with a message instead of sharing the port.
+- The setup packs only `out/` (no sourcemaps), `settings.json` and `package.json` (`build.files` in `package.json`), plus `packaging/esempi` as `resources/esempi`. Anything else the app needs at runtime must be added there. The CI job `setup` (push to `develop` only) installs it silently, launches it through `tests/e2e/installato.spec.ts` (skipped unless `MODELLATORE_ESEGUIBILE_INSTALLATO` is set) and checks that uninstalling keeps `userData`.
 - `build/`, `dist/`, `.venv/`, `node_modules/`, `out/`, `release/`, `test-results/`, `playwright-report/` are generated; `progetti/` is user data and is gitignored.
 - 1.x: `start.py` is also the API: `/api/progetti`, `/api/ultimo`, `/api/libreria/{apri,salva,elimina,rinomina,changelog}`, `/api/cliente/leggi` and `/api/aggiornamento` (+ `/installa`), multithreaded, with one lock serializing every file operation (the update state has its own lock). The app writes only in `progetti/` (projects, `_versioni/`, `_cestino/`) and in `shared/` (libraries, `.changelog.json`, `_versioni/`). The exe creates `progetti/` next to itself.
 

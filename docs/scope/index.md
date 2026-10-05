@@ -10,7 +10,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 ## Epic
 
 - [v1-web.md](v1-web.md): editor web con server locale (1.x). 18 voci, tutte `done` o `existing`.
-- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 15 voci; prossima la 28.
+- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 15 voci; prossima la 29.
 
 ## At a glance
 
@@ -46,7 +46,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 25 | Matrice, Documenti e Changelog come pannelli | v2 | Slice 3 | done |
 | 26 | Pannelli in finestre staccate | v2 | Slice 3 | done |
 | 27 | Tour, aiuto e tutorial sui pannelli | v2 | Slice 3 | done |
-| 28 | Installabile Windows per utente | v2 | Slice 4 | planned |
+| 28 | Installabile Windows per utente | v2 | Slice 4 | done |
 | 29 | Aggiornamento automatico della versione desktop | v2 | Slice 4 | planned |
 | 30 | Rilascio 2.0.0 e passaggio dalla 1.x | v2 | Slice 4 | planned |
 
