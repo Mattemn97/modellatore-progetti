@@ -65,10 +65,17 @@ spec [0018](../specs/0018-api-nel-processo-principale/index.md) · code in `src/
 - [x] Verify it: suite e2e verde (53 test, circa 40 secondi) senza Python
 - [x] Test it: `tests/unit/confronto.test.ts`, `tests/unit/cliente.test.ts`
 
-### 21. Impostazioni e cartelle di lavoro · needs a decision
+### 21. Impostazioni e cartelle di lavoro · done
 Una sezione Impostazioni dove indichi dove trovare librerie, progetti e gli altri dati. Se le cartelle indicate non esistono, l'app ti propone di crearle e ci prepara la struttura di base (come oggi `shared/libreria.json` con un blocco di esempio). Le impostazioni dell'utente vivono fuori dalla cartella del programma, così un aggiornamento non le tocca mai.
 **Done when:** al primo avvio, senza cartelle configurate, l'app propone una posizione e la crea su conferma; dalle Impostazioni cambi le cartelle e l'app riapre dati da lì; una cartella sparita o non scrivibile ti viene segnalata con la proposta di sceglierne o crearne un'altra; le impostazioni di oggi (griglia, colori, tipologie, documenti) restano modificabili e con i loro valori predefiniti.
-- [ ] Design it (spec): `/architect impostazioni e cartelle di lavoro`
+spec [0019](../specs/0019-impostazioni-cartelle-lavoro/index.md) · code in `src/main/configurazione.ts`, `src/main/cartelle-ipc.ts`, `src/main/index.ts`, `benvenuto.html`, `js/benvenuto.js`, `js/impostazioni.js`
+- [x] Design it (spec): `/architect impostazioni e cartelle di lavoro`
+- [x] Build it: `/develop impostazioni e cartelle di lavoro`
+  - [x] Configurazione in `userData`, validazione e preparazione delle cartelle (AC-1, AC-3, AC-7)
+  - [x] API e `settings.json` sulle cartelle configurate, `shared/` sulla cartella delle librerie, variabili per sviluppo e test (AC-4, AC-5, AC-8)
+  - [x] Pagina di benvenuto e finestra Impostazioni con aiuto (AC-2, AC-3, AC-6, AC-9)
+- [x] Verify it: `tests/e2e/ui/impostazioni.spec.ts` (primo avvio, cartella sparita, librerie spostate, settings.json)
+- [x] Test it: `tests/unit/configurazione.test.ts`
 
 ### 22. Import dei dati dalla versione 1
 Dalle Impostazioni indichi la cartella di una vecchia installazione 1.x e l'app copia (senza spostare né cancellare) progetti, librerie, changelog, versioni, cestino e impostazioni personali nelle cartelle di lavoro nuove.

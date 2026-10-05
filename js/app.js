@@ -14,6 +14,7 @@ import { initDocumenti } from './documenti.js';
 import { initFiltri } from './filtri.js';
 import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { avviaAggiornamenti } from './aggiornamento.js';
+import { initImpostazioni } from './impostazioni.js';
 import { generaId } from './utils.js';
 
 const svg = document.getElementById('workspaceSvg');
@@ -95,6 +96,7 @@ async function initApp() {
     initMatrice();
     initDocumenti();
     initAiuto();
+    initImpostazioni();
 
     // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
     // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti

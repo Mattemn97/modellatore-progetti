@@ -8,6 +8,17 @@ export const SUGGERIMENTI = {
     'header.salvataggio': { titolo: 'Stato del salvataggio', testo: "Ogni modifica viene scritta da sola sul file del progetto dopo circa un secondo. Verde: salvato. Giallo: modifica in attesa. Rosso: errore o conflitto, leggi il banner sotto l'header." },
     'header.progetto': { titolo: 'Menu Progetto', testo: "Crea, apri, copia, rinomina o elimina un progetto della cartella progetti/. Da qui puoi anche importare o scaricare il progetto come JSON." },
     'header.aiuto': { titolo: 'Aiuto', testo: "Rilancia il tour guidato dell'interfaccia e mostra o nasconde le icone (i) accanto ai campi." },
+    'header.impostazioni': { titolo: 'Impostazioni', testo: "Dove stanno i tuoi progetti e le tue librerie, e il file settings.json con griglia, colori, tipologie e documenti." },
+
+    // Finestra Impostazioni (spec 0019)
+    'impostazioni.lavoro': { titolo: 'Cartella di lavoro', testo: "Contiene progetti/ (con versioni e cestino) e settings.json. Cambiandola, l'editor si riapre sui progetti della cartella nuova." },
+    'impostazioni.librerie': { titolo: 'Cartella delle librerie', testo: "Dove stanno le librerie dei blocchi con changelog e copie. I progetti la chiamano shared/ (es. shared/libreria.json): spostandola, anche su un disco di rete, i progetti continuano a trovarla." },
+    'impostazioni.settings': { titolo: "Impostazioni dell'editor", testo: "Il file settings.json della cartella di lavoro: griglia, dimensioni, colori delle tipologie, metodi di verifica e documenti. Le modifiche valgono dal prossimo avvio." },
+    'impostazioni.cambia': { titolo: 'Cambia cartella', testo: "Scegli un'altra cartella. Il cambiamento vale solo dopo Applica." },
+    'impostazioni.apri': { titolo: 'Apri in Esplora risorse', testo: 'Apre la cartella in Esplora risorse di Windows.' },
+    'impostazioni.predefinita': { titolo: 'Cartella predefinita', testo: 'Rimette le librerie nella cartella shared dentro la cartella di lavoro.' },
+    'impostazioni.apriSettings': { titolo: 'Apri settings.json', testo: "Apre settings.json con il programma associato ai file .json. Salva il file e riavvia il modellatore per vedere le modifiche." },
+    'impostazioni.applica': { titolo: 'Applica', testo: "Salva il progetto aperto, prepara le cartelle nuove se servono e riapre l'editor su di esse." },
 
     // Banner dell'aggiornamento (spec 0015)
     'aggiornamento.novita': { titolo: 'Novità', testo: "Mostra le note della nuova versione, come scritte nella Release su GitHub." },

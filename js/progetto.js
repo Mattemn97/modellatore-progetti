@@ -683,7 +683,7 @@ export function modaleAperta() {
         const modal = document.getElementById(id);
         return !!modal && modal.style.display !== 'none';
     };
-    return tourAttivo() || aperta('reportModal') || aperta('matriceModal') || aperta('documentiModal') || importClienteAperto();
+    return tourAttivo() || aperta('reportModal') || aperta('matriceModal') || aperta('documentiModal') || aperta('impostazioniModal') || importClienteAperto();
 }
 
 function chiudiModale() {

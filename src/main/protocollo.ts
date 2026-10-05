@@ -21,7 +21,10 @@ function nonTrovato(): Response {
     return new Response('Non trovato', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
-export function installaProtocollo(radice: string, api: GestoreApi): void {
+export const URL_BENVENUTO = `${SCHEMA}://${HOST}/benvenuto.html`;
+
+// settingsUtente: il settings.json della cartella di lavoro, se c'è (spec 0019); altrimenti quello del programma
+export function installaProtocollo(radice: string, api: GestoreApi, settingsUtente: () => string | null): void {
     protocol.handle(SCHEMA, async (richiesta) => {
         const url = new URL(richiesta.url);
         if (url.host !== HOST) return nonTrovato();
@@ -29,7 +32,7 @@ export function installaProtocollo(radice: string, api: GestoreApi): void {
         if (richiesta.method !== 'GET' && richiesta.method !== 'HEAD') {
             return new Response('Metodo non consentito', { status: 405 });
         }
-        const file = risolviFile(radice, url.pathname);
+        const file = url.pathname === '/settings.json' ? (settingsUtente() ?? risolviFile(radice, url.pathname)) : risolviFile(radice, url.pathname);
         if (!file) return nonTrovato();
         try {
             // net.fetch su file:// sceglie il Content-Type giusto (text/javascript per i moduli)

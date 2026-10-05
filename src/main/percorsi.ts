@@ -2,7 +2,7 @@
 import path from 'node:path';
 
 // Solo questi file e cartelle della radice dell'app si possono servire alla pagina
-const RADICI_AMMESSE = new Set(['index.html', 'style.css', 'settings.json', 'js']);
+const RADICI_AMMESSE = new Set(['index.html', 'benvenuto.html', 'style.css', 'settings.json', 'js']);
 
 // Risolve un percorso dell'URL dentro la radice; null se esce dalla radice o non è ammesso
 export function risolviFile(radice: string, percorsoUrl: string): string | null {

@@ -19,7 +19,7 @@ Tracer Bullet: each feature complete and working end to end (data, canvas, file)
 # Install
 npm ci
 
-# Dev: compiles src/ and opens the desktop app (F12 = developer tools); data in the repo's progetti/ and shared/
+# Dev: compiles src/ and opens the desktop app (F12 = developer tools); with --dev the work folder is the repo (progetti/, shared/, settings.json)
 npm run dev
 
 # Checks (CI runs all of them on every push to develop and feat/**: .github/workflows/ci.yml)
@@ -64,12 +64,14 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title/index.md` (plus `rationa
 ## Gotchas
 
 - The VS Code terminal sets `ELECTRON_RUN_AS_NODE=1`, which makes `electron.exe` run as plain Node ("does not provide an export named BrowserWindow"). `npm run dev` from that terminal fails the same way: unset it first. `tests/e2e/app.ts` removes it.
-- `MODELLATORE_DATI_UTENTE` moves Electron's `userData` (localStorage, tour state, single instance lock) to another folder; tests use it so they never clash with an open app.
+- `MODELLATORE_DATI_UTENTE` moves Electron's `userData` (localStorage, tour state, `configurazione.json`, single instance lock) to another folder; tests use it so they never clash with an open app. `MODELLATORE_CARTELLA_LAVORO` / `MODELLATORE_CARTELLA_LIBRERIE` replace the saved folders without saving them, `MODELLATORE_DOCUMENTI` moves Documents (the first launch proposal): `tests/e2e/app.ts` sets all of them, `apriApp({ senzaCartella: true })` gives a first launch.
+- Data folders (spec 0019): the work folder (`progetti/`, `settings.json`) and the library folder (default `<work>\shared`) come from `configurazione.json` in `userData`, never from the app folder. A `libraryPath` starting with `shared/` points into the library folder; other relative paths are read only from the work folder. Without ready folders the window shows `benvenuto.html` and `/api/*` answers 503 `non_configurato`. The page's `settings.json` is the work folder one (the app's `settings.json` is only the defaults).
 - Single instance (`app.requestSingleInstanceLock()`): a second launch focuses the open window and exits. It replaces the exclusive port of 1.x.
 - In Electron a blocking `beforeunload` closes nothing silently: `will-prevent-unload` in `src/main/finestra.ts` asks "Chiudi comunque / Annulla". Playwright handles that dialog itself when attached, so test it by hand.
 - Electron has no `window.prompt()`: ask for a text with `chiediTesto()` (`js/utils.js`), which goes through the preload (`ipcRenderer.sendSync`) to a modal window in `src/main/richiesta-testo.ts` and blocks the page like `prompt`. In Playwright, start the click without awaiting it, answer in the new window, then await the click (`rispondiRichiesta()` in `tests/e2e/app.ts`).
 - Electron downloads (`<a download>`) open the Save As dialog; tests redirect them with `intercettaDownload()`.
-- In JavaScript regexes the `m` flag treats `` as a line end, Python's `re.MULTILINE` does not: when porting a Python regex with `^`/`$`, spell them out (see `csv.ts`).
+- In JavaScript regexes the `m` flag treats `
+` as a line end, Python's `re.MULTILINE` does not: when porting a Python regex with `^`/`$`, spell them out (see `csv.ts`).
 - 1.x: the exe serves files from its own folder, not from inside the bundle (`datas=[]` in `start.spec`). To ship it, copy `index.html`, `style.css`, `settings.json`, `js/` and `shared/` next to `start.exe`.
 - 1.x: the package (`packaging/crea-pacchetto.ps1`) ships `shared/` and `progetti/` empty on purpose, so extracting an update over an install never overwrites user data; `start.exe` fills them. It ships `settings.json` only as `settings.predefinite.json`: `start.py` copies it to `settings.json` when missing and never rewrites an existing one. `PERCORSI_UTENTE` in `start.py` lists the user owned paths; the package script reads it and fails if the package contains any of them (spec 0013). The user tutorial is `packaging/TUTORIAL.md` (with `packaging/esempi/`), keep it in step with UI changes. A new file the app needs at runtime must be added to the copy list there.
 - On startup `start.py` creates `shared/libreria.json` with a sample block if it's missing.

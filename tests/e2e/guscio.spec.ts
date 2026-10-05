@@ -65,7 +65,7 @@ test('un secondo avvio esce subito e lascia la finestra già aperta', async () =
     const { app, pagina, chiudi } = await apriApp({ copia });
     try {
         await expect(pagina.getByText('Centralina Condivisa')).toBeVisible({ timeout: 20_000 });
-        const seconda = spawn(eseguibileElectron(), [copia.cartella], { env: ambienteElectron(copia.datiUtente) });
+        const seconda = spawn(eseguibileElectron(), [copia.cartella], { env: ambienteElectron(copia) });
         const codice = await new Promise<number | null>((r) => seconda.on('exit', r));
         expect(codice).toBe(0);
         expect(app.windows()).toHaveLength(1);

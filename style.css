@@ -331,3 +331,11 @@ span.segno-ramo { cursor: default; }
 .tour-testo { margin: 0 0 12px; line-height: 1.45; white-space: pre-line; }
 .tour-pulsanti { display: flex; align-items: center; gap: 6px; }
 .tour-salta { margin-right: auto; border: none; background: none; color: #777; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 0; }
+
+/* Finestra Impostazioni (spec 0019) */
+.modal-impostazioni { width: 640px; max-width: 92vw; }
+.campo-impostazioni { margin: 12px 0 16px; }
+.percorso-impostazioni { font-family: Consolas, monospace; font-size: 12px; background: #f0f4f8; border: 1px solid #d0d7de; padding: 6px 8px; border-radius: 4px; margin: 6px 0; word-break: break-all; }
+.pulsanti-impostazioni { display: flex; gap: 6px; flex-wrap: wrap; }
+.piede-impostazioni { justify-content: flex-end; margin-top: 18px; border-top: 1px solid #e5e8eb; padding-top: 12px; }
+.nota-impostazioni { font-size: 11px; color: #6b7785; margin-top: 6px; }

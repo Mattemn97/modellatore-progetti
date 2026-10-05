@@ -174,9 +174,10 @@ export class ArchivioLibrerie {
     private readonly cartellaShared: string;
     private readonly cartellaProgetti: string;
 
-    constructor(cartellaDati: string, private readonly maxVersioni: number) {
-        this.base = percorsoReale(cartellaDati);
-        this.cartellaShared = path.join(this.base, 'shared');
+    // Il prefisso shared/ dei percorsi punta alla cartella delle librerie (spec 0019), che può stare altrove
+    constructor(cartellaLavoro: string, cartellaLibrerie: string, private readonly maxVersioni: number) {
+        this.base = percorsoReale(cartellaLavoro);
+        this.cartellaShared = percorsoReale(cartellaLibrerie);
         this.cartellaProgetti = path.join(this.base, 'progetti');
     }
 
@@ -197,12 +198,17 @@ export class ArchivioLibrerie {
         if (segmenti.some((s) => s === '' || s === '.' || s === '..') || !minuscolo.endsWith('.json') || minuscolo.endsWith(SUFFISSO_CHANGELOG)) {
             throw nonValido;
         }
+        // shared/...: nella cartella delle librerie, l'unica scrivibile (escluse le _versioni)
+        if (normcase(segmenti[0] ?? '') === 'shared' && segmenti.length > 1) {
+            const reale = percorsoReale(path.join(this.cartellaShared, ...segmenti.slice(1)));
+            if (!dentro(reale, this.cartellaShared)) throw nonValido;
+            const cartelleIntermedie = path.relative(this.cartellaShared, reale).split(path.sep).slice(0, -1).map(normcase);
+            return new FileLibreria(reale, !cartelleIntermedie.includes('_versioni'));
+        }
+        // Altri percorsi: dalla cartella di lavoro, in sola lettura, mai da progetti/
         const reale = percorsoReale(path.join(this.base, ...segmenti));
         if (!dentro(reale, this.base) || dentro(reale, this.cartellaProgetti)) throw nonValido;
-        const shared = percorsoReale(this.cartellaShared);
-        const cartelleIntermedie = path.relative(shared, reale).split(path.sep).slice(0, -1).map(normcase);
-        const scrivibile = dentro(reale, shared) && !cartelleIntermedie.includes('_versioni');
-        return new FileLibreria(reale, scrivibile);
+        return new FileLibreria(reale, false);
     }
 
     /* --- Lettura --- */
