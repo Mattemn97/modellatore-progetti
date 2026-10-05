@@ -8,7 +8,8 @@
 import { appState, appSettings, pathStack, getCurrentLevel, setActiveNodeId } from './state.js';
 import { render, centraVista, evidenziaCliente } from './renderer.js';
 import { selectNode, openLibraryBlock, mostraDettaglioCliente } from './inspector.js';
-import { mostraScheda, impostaSelezioneCliente } from './cliente.js';
+import { impostaSelezioneCliente } from './cliente.js';
+import { mostraPannello, chiudiPannello, pannelloVisibile, allaVista, allaChiusura, aperturaDalMenu } from './pannelli.js';
 import { coerenzaAttiva, spegniCoerenza } from './coerenza.js';
 import { apriPercorso, modaleAperta } from './progetto.js';
 import { visitaDerivazioni, getColoreRequisito, isRequisitoCliente, titoloRequisito, ID_CLIENTE } from './model.js';
@@ -330,10 +331,6 @@ function svuotaScelta(): void {
     ramiChiusi.clear();
 }
 
-function linguetta(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('.scheda-pannello[data-scheda="gerarchia"]');
-}
-
 function accendi(): void {
     if (modalitaAttiva) return;
     // Coerenza e Gerarchia non sono mai accese insieme
@@ -342,15 +339,12 @@ function accendi(): void {
     svuotaScelta();
     ultimaImprontaCatena = null;
     ultimoHtmlScheda = null;
-    const l = linguetta();
-    if (l) l.hidden = false;
-    document.getElementById('libraryPanel')?.classList.remove('collapsed');
     ricalcolaGerarchia();
-    mostraScheda('gerarchia');
+    mostraPannello('gerarchia');
     aggiornaPulsante();
 }
 
-// Spegne la modalità con linguetta, scheda, pulsante, scelta e risultato, senza render(): lo fa chi la chiama
+// Spegne la modalità con pannello, pulsante, scelta e risultato, senza render(): lo fa chi la chiama
 export function spegniGerarchia(): void {
     if (!modalitaAttiva) return;
     modalitaAttiva = false;
@@ -358,12 +352,7 @@ export function spegniGerarchia(): void {
     ultimoIndice = null;
     ultimaCatena = null;
     ultimaImprontaCatena = null;
-    const scheda = document.getElementById('schedaGerarchia');
-    const eraAperta = !!scheda && !scheda.hidden;
-    const l = linguetta();
-    if (l) l.hidden = true;
-    if (eraAperta) mostraScheda('libreria');
-    if (scheda) scheda.hidden = true;
+    chiudiPannello('gerarchia');
     aggiornaPulsante();
 }
 
@@ -413,18 +402,16 @@ export function mostraGerarchiaCliente(reqId: string): void {
 }
 
 // Da una riga della matrice (spec 0006, AC-10): accende la modalità, apre la scheda e va all'istanza come un clic
-// su una riga della scheda. Pannello e scheda sono espliciti perché accendi() esce subito a modalità già accesa
+// su una riga della scheda. Il pannello è esplicito perché accendi() esce subito a modalità già accesa
 export function apriGerarchiaSu(chiave: string): void {
     accendi();
-    document.getElementById('libraryPanel')?.classList.remove('collapsed');
-    mostraScheda('gerarchia');
+    mostraPannello('gerarchia');
     vaiAOccorrenza(chiave);
 }
 
 export function mostraGerarchiaDi(chiave: string): void {
     accendi();
-    document.getElementById('libraryPanel')?.classList.remove('collapsed');
-    mostraScheda('gerarchia');
+    mostraPannello('gerarchia');
     scegli(chiave);
 }
 
@@ -505,8 +492,7 @@ export function vaiAOccorrenza(chiave: string): void {
 /* --- SCHEDA GERARCHIA (AC-6, AC-7, AC-8) --- */
 
 function schedaVisibile(): boolean {
-    const scheda = document.getElementById('schedaGerarchia');
-    return modalitaAttiva && !!scheda && !scheda.hidden;
+    return modalitaAttiva && pannelloVisibile('gerarchia');
 }
 
 function plurale(n: number, uno: string, molti: string): string {
@@ -656,6 +642,14 @@ function cambiaRamo(ramo: string, aperto: boolean): void {
 
 export function initGerarchia(): void {
     document.getElementById('btnGerarchia')?.addEventListener('click', cambiaModalitaGerarchia);
+    // Pannello e modalità vanno insieme: aprirlo dal menu accende, chiuderlo con la ✕ spegne (spec 0021, AC-5)
+    aperturaDalMenu('gerarchia', cambiaModalitaGerarchia);
+    allaVista('gerarchia', () => { if (modalitaAttiva) aggiornaSchedaGerarchia(true); });
+    allaChiusura('gerarchia', () => {
+        if (!modalitaAttiva) return;
+        spegniGerarchia();
+        render();
+    });
 
     document.getElementById('gerarchiaContenuto')?.addEventListener('click', (e) => {
         const bersaglio = e.target as Element;

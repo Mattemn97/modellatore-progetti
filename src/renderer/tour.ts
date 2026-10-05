@@ -1,18 +1,19 @@
 /* --- TOUR GUIDATO: RIFLETTORE, FUMETTO, TASTIERA E RIPRISTINO DELLA VISTA (spec 0012) --- */
 import { TOUR, type PassoTour } from './aiuto-testi.js';
-import { mostraScheda } from './cliente.js';
+import { mostraPannello, chiudiPannello, pannelloAperto, pannelloVisibile, eIdPannello, type IdPannello } from './pannelli.js';
 
 const CHIAVE_TOUR_VISTO = 'modellatore.tourVisto';
 const MARGINE_RIFLETTORE = 6;
 const DISTANZA_FUMETTO = 12;
 const BORDO_FINESTRA = 8;
-// Durata della transizione dei pannelli laterali (style.css), più un poco
+// Attesa dopo l'apertura di un pannello, perché dockview lo disponga prima di misurarlo
 const ATTESA_PANNELLI = 350;
+// Pannelli che il tour può aprire (Coerenza e Gerarchia seguono le loro modalità: il tour non li tocca)
+const PANNELLI_DEL_TOUR: IdPannello[] = ['libreria', 'cliente', 'canvas', 'ispettore'];
 
 interface StatoVista {
-    sinistro: boolean;
-    destro: boolean;
-    scheda: string;
+    chiusi: IdPannello[];
+    visibili: IdPannello[];
 }
 
 // Stato di sola vista, null senza tour
@@ -104,44 +105,36 @@ function trovaArea(selettore: string | null | undefined): Element | null {
     return r.width > 0 && r.height > 0 ? el : null;
 }
 
-function schedaAttiva(): string {
-    return document.querySelector<HTMLElement>('.scheda-pannello.attiva')?.dataset.scheda || 'libreria';
-}
-
 function statoVista(): StatoVista {
     return {
-        sinistro: document.getElementById('libraryPanel')?.classList.contains('collapsed') ?? false,
-        destro: document.getElementById('propertiesPanel')?.classList.contains('collapsed') ?? false,
-        scheda: schedaAttiva()
+        chiusi: PANNELLI_DEL_TOUR.filter((id) => !pannelloAperto(id)),
+        visibili: PANNELLI_DEL_TOUR.filter(pannelloVisibile)
     };
 }
 
-// Restituisce true se ha cambiato qualcosa (i pannelli hanno una transizione)
+// Restituisce true se ha aperto o portato in primo piano un pannello (spec 0021, AC-7)
 function prepara(nome: string | undefined): boolean {
     if (!nome) return false;
-    const apri = (id: string): boolean => {
-        const pannello = document.getElementById(id);
-        if (!pannello?.classList.contains('collapsed')) return false;
-        pannello.classList.remove('collapsed');
+    const apri = (id: IdPannello): boolean => {
+        if (pannelloVisibile(id)) return false;
+        mostraPannello(id);
         return true;
     };
-    if (nome === 'pannelloSinistro') return apri('libraryPanel');
-    if (nome === 'pannelloDestro') return apri('propertiesPanel');
-    if (nome.startsWith('scheda:')) {
-        const aperto = apri('libraryPanel');
-        const scheda = nome.slice('scheda:'.length);
-        if (schedaAttiva() !== scheda) mostraScheda(scheda);
-        return aperto;
+    if (nome === 'pannelloSinistro') return apri('libreria');
+    if (nome === 'pannelloDestro') return apri('ispettore');
+    if (nome.startsWith('pannello:')) {
+        const id = nome.slice('pannello:'.length);
+        if (eIdPannello(id)) return apri(id);
     }
     console.warn(`Tour: preparazione sconosciuta "${nome}"`);
     return false;
 }
 
+// Richiude i pannelli aperti apposta e rimette in primo piano quelli che si vedevano
 function ripristina(stato: StatoVista | null): void {
     if (!stato) return;
-    document.getElementById('libraryPanel')?.classList.toggle('collapsed', stato.sinistro);
-    document.getElementById('propertiesPanel')?.classList.toggle('collapsed', stato.destro);
-    if (schedaAttiva() !== stato.scheda) mostraScheda(stato.scheda);
+    stato.chiusi.forEach(chiudiPannello);
+    stato.visibili.forEach((id) => { if (!pannelloVisibile(id)) mostraPannello(id); });
 }
 
 /* --- POSIZIONE DI RIFLETTORE E FUMETTO --- */

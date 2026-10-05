@@ -1,7 +1,7 @@
 # 0021. Pannelli agganciabili con dockview
 
 **Date**: 2026-10-05
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 
@@ -36,7 +36,8 @@ Si aggiunge `dockview-core` (versione 8.x) alle dipendenze; un nuovo modulo `src
 - **Modalità e pannelli**: `coerenza.ts` e `gerarchia.ts` chiamano `mostraPannello()` e `chiudiPannello()` al posto di `mostraScheda()` e del controllo su `.scheda-pannello[hidden]`; registrano con `allaChiusura(id, funzione)` lo spegnimento della modalità. `chiudiPannello()` fatto dal codice e la ✕ dell'utente passano dallo stesso evento `onDidRemovePanel`, con una protezione contro la doppia chiamata (spegnere la modalità chiude il pannello che spegne la modalità). Al ripristino del layout, Coerenza e Gerarchia vengono chiuse senza chiamare le funzioni di chiusura.
 - **Barra delle schede di oggi** (`.schede-pannello`, `mostraScheda` in `cliente.ts`) sparisce: `mostraScheda(nome)` diventa `mostraPannello(nome)` in tutti i chiamanti (cliente, coerenza, gerarchia, tour).
 - **Pulsanti ☰ Libreria e ☰ Proprietà**: restano con i loro `data-aiuto`, ora aprono o chiudono i pannelli `libreria` e `ispettore`. Le classi `.side-panel`, `.collapsed` e le larghezze fisse spariscono dal CSS.
-- **Stile**: tema chiaro di dockview (`dockview-theme-light`) con le variabili CSS ritoccate sui colori di oggi (bordi `#ddd`, scheda attiva in `#0078d4`). Il CSS di dockview entra nel bundle con un `import` in `avvio.ts`: esbuild produce `out/renderer/app.css`, collegato in `index.html` prima di `style.css`. Il protocollo serve già qualunque file di `out/renderer/`.
+- **Stile**: tema chiaro di dockview (`dockview-theme-light`) con le variabili CSS ritoccate sui colori di oggi (bordi `#ddd`, scheda attiva in `#0078d4`). Il pacchetto npm non contiene un file `.css` e la build ESM non inietta lo stile: esbuild usa la build UMD (`alias` in `scripts/build.mjs`), che lo aggiunge da sola alla pagina. Arrivando dopo `style.css`, le nostre regole su dockview usano un selettore sotto `.area-pannelli`.
+- **Schede**: dockview mette già `data-tab-panel-id` su ogni scheda; il CSS nasconde con quello la ✕ del Canvas e i test lo usano come selettore.
 - **Dimensioni minime**: 180 px di larghezza per i pannelli laterali, 300 px per il Canvas, per evitare pannelli schiacciati a zero.
 - **Pannelli staccati**: non in questa voce (voce 26), ma la scelta di dockview li rende possibili senza cambiare libreria.
 

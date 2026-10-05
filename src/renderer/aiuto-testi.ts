@@ -5,7 +5,7 @@ export interface Suggerimento {
     testo: string;
 }
 
-// Un passo di un tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | scheda:<nome>
+// Un passo di un tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | pannello:<id>
 export interface PassoTour {
     area: string | null;
     titolo: string;
@@ -21,6 +21,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'header.salvataggio': { titolo: 'Stato del salvataggio', testo: "Ogni modifica viene scritta da sola sul file del progetto dopo circa un secondo. Verde: salvato. Giallo: modifica in attesa. Rosso: errore o conflitto, leggi il banner sotto l'header." },
     'header.progetto': { titolo: 'Menu Progetto', testo: "Crea, apri, copia, rinomina o elimina un progetto della cartella progetti/. Da qui puoi anche importare o scaricare il progetto come JSON." },
     'header.aiuto': { titolo: 'Aiuto', testo: "Rilancia il tour guidato dell'interfaccia e mostra o nasconde le icone (i) accanto ai campi." },
+    'header.finestra': { titolo: 'Finestra', testo: "I pannelli dell'interfaccia: la spunta indica quelli aperti. Scegline uno chiuso per riaprirlo, uno aperto per portarlo in primo piano. Ripristina layout torna alla disposizione di partenza. La disposizione si salva da sola." },
     'header.impostazioni': { titolo: 'Impostazioni', testo: "Dove stanno i tuoi progetti e le tue librerie, e il file settings.json con griglia, colori, tipologie e documenti." },
 
     // Finestra Impostazioni (spec 0019)
@@ -148,7 +149,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'finestra.tour': { titolo: 'Guida di questa finestra', testo: "Un breve tour che ti spiega le parti di questa finestra." }
 };
 
-// Passi dei tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | scheda:<nome>
+// Passi dei tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | pannello:<id>
 export const TOUR: Record<string, PassoTour[]> = {
     principale: [
         { area: null, titolo: 'Benvenuto nel Modellatore', testo: "Qui disegni il sistema come blocchi annidati e colleghi i requisiti con dei fili, dai requisiti del cliente fino ai blocchi più piccoli. Questo giro ti mostra ogni area in pochi passi.\n\nUsa → o Invio per andare avanti, ← per tornare indietro, Esc per uscire." },
@@ -156,16 +157,16 @@ export const TOUR: Record<string, PassoTour[]> = {
         { area: '#btnAnnulla', titolo: 'Salvataggio automatico', testo: "Non c'è un pulsante Salva: ogni modifica finisce da sola sul file del progetto. Il badge accanto ne mostra lo stato. Annulla e Ripeti (Ctrl+Z, Ctrl+Y) lavorano sulle copie salvate." },
         { area: '#btnMenuProgetto', titolo: 'Menu Progetto', testo: "Crea un progetto nuovo, apri un altro, salvane una copia, rinominalo o eliminalo. Da qui anche import e download del JSON." },
         { area: '#btnMenuAiuto', titolo: 'Menu Aiuto', testo: "Da qui rilanci questo tour quando vuoi e mostri o nascondi le icone (i) accanto ai campi." },
-        { area: '.schede-pannello', titolo: 'Pannello sinistro', prepara: 'scheda:libreria', testo: "Quattro schede: Libreria (i tipi di blocco), Cliente (i requisiti importati), Coerenza e Gerarchia (compaiono quando accendi quelle modalità)." },
-        { area: '#schedaLibreria', titolo: 'Libreria', prepara: 'scheda:libreria', testo: "I blocchi disponibili, divisi per categoria e sottocategoria. Trascinane uno sul canvas per usarlo, cliccalo per modificarlo. In alto la versione della libreria e il Changelog; sotto il percorso del file e la ricerca." },
-        { area: '#schedaCliente', titolo: 'Requisiti cliente', prepara: 'scheda:cliente', testo: "Importa da Excel o CSV le frasi del cliente. Ognuna diventa un requisito che trascini sulla radice come blocco tondo: da lì tiri i fili verso i requisiti dei blocchi di sistema." },
-        { area: '#workspaceSvg', titolo: 'Il canvas', prepara: 'scheda:libreria', testo: "Il piano di lavoro. Rotella: zoom verso il cursore. Trascina lo sfondo: sposta la vista. Trascina da un pin a un altro pin della stessa classe per creare un filo. Doppio clic su un blocco per entrare, clic per selezionarlo." },
+        { area: '#btnMenuFinestra', titolo: 'Pannelli', testo: "Libreria, Cliente, Coerenza, Gerarchia, Canvas e Ispettore sono pannelli: trascinane la scheda per spostarli, affiancarli o impilarli, tira i bordi per ridimensionarli. Dal menu Finestra riapri un pannello chiuso o ripristini la disposizione di partenza." },
+        { area: '#schedaLibreria', titolo: 'Libreria', prepara: 'pannello:libreria', testo: "I blocchi disponibili, divisi per categoria e sottocategoria. Trascinane uno sul canvas per usarlo, cliccalo per modificarlo. In alto la versione della libreria e il Changelog; sotto il percorso del file e la ricerca." },
+        { area: '#schedaCliente', titolo: 'Requisiti cliente', prepara: 'pannello:cliente', testo: "Importa da Excel o CSV le frasi del cliente. Ognuna diventa un requisito che trascini sulla radice come blocco tondo: da lì tiri i fili verso i requisiti dei blocchi di sistema." },
+        { area: '#workspaceSvg', titolo: 'Il canvas', prepara: 'pannello:canvas', testo: "Il piano di lavoro. Rotella: zoom verso il cursore. Trascina lo sfondo: sposta la vista. Trascina da un pin a un altro pin della stessa classe per creare un filo. Doppio clic su un blocco per entrare, clic per selezionarlo." },
         { area: '#aiutoCanvas', titolo: 'I gesti senza pulsante', testo: "Questa riga ricorda i gesti nascosti: Shift+trascina per spostare una porta lungo il bordo, doppio clic su un filo per aggiungere uno snodo, clic destro per eliminarlo." },
         { area: '#btnFiltri', titolo: 'Filtri', testo: "Attenua o nascondi blocchi e fili per classe, documento, categoria e sottocategoria. Dentro il pannello trovi un ❓ con la sua guida." },
         { area: '#btnReqMatrix', titolo: 'Matrice e Documenti', testo: "Matrice Requisiti: la tabella di tracciabilità padre → figlio, esportabile. Documenti: genera i documenti MIL-STD-498 in Markdown. Ogni finestra ha un ❓ con la sua guida." },
         { area: '#btnDRC', titolo: 'Verifica Coerenza', testo: "Evidenzia in rosso cosa manca: requisiti cliente senza figli, requisiti di blocco senza padre, fili rotti. L'elenco compare nella scheda Coerenza; un clic su una voce ti porta lì." },
         { area: '#btnGerarchia', titolo: 'Gerarchia', testo: "Accendila e clicca un pin: vedi tutta la catena dei suoi antenati e discendenti attraverso i livelli, sul canvas e nella scheda Gerarchia." },
-        { area: '#btnResetView', titolo: 'Vista e pannelli', testo: "Reset Vista riporta zoom e spostamento all'inizio. I pulsanti ☰ ai lati della barra chiudono e riaprono i pannelli laterali." },
+        { area: '#btnResetView', titolo: 'Vista e pannelli', testo: "Reset Vista riporta zoom e spostamento all'inizio. I pulsanti ☰ ai lati della barra chiudono e riaprono i pannelli Libreria e Ispettore." },
         { area: '#propertiesPanel', titolo: 'Ispettore', prepara: 'pannelloDestro', testo: "Mostra e modifica quello che selezioni: un blocco con i suoi requisiti, un requisito cliente o un filo. + Nuovo Blocco crea un tipo di blocco nella libreria." },
         { area: null, titolo: 'Fatto!', testo: "Ora conosci l'interfaccia. Accanto ai campi trovi le icone (i): passaci sopra con il mouse (o arrivaci con Tab) per sapere cosa rappresenta ogni campo. Matrice, Documenti, Import cliente e Filtri hanno un ❓ con una guida dedicata. Puoi rifare questo tour dal menu ❓ Aiuto." }
     ],

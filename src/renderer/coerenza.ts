@@ -7,7 +7,8 @@ import { appState, appSettings, pathStack, getCurrentLevel, setActiveNodeId } fr
 import { render, centraVista, evidenziaCliente, posizioneInColonna } from './renderer.js';
 import { renderUI } from './app.js';
 import { selectNode, mostraDettaglioCliente } from './inspector.js';
-import { mostraScheda, impostaSelezioneCliente } from './cliente.js';
+import { impostaSelezioneCliente } from './cliente.js';
+import { mostraPannello, chiudiPannello, pannelloVisibile, allaVista, allaChiusura, aperturaDalMenu } from './pannelli.js';
 import { apriPercorso } from './progetto.js';
 import { visitaDerivazioni, getClasseRequisito, isRequisitoCliente, titoloRequisito, ID_CLIENTE, type ContestoLivello } from './model.js';
 import { spegniGerarchia } from './gerarchia.js';
@@ -277,21 +278,12 @@ function aggiornaPulsante(): void {
     pulsante.textContent = `⚠️ Verifica Coerenza${numero}`;
 }
 
-function linguetta(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('.scheda-pannello[data-scheda="coerenza"]');
-}
-
-// Spegne la modalità con linguetta, scheda, pulsante e risultato, senza render(): lo fa chi la chiama (spec 0005)
+// Spegne la modalità con pannello, pulsante e risultato, senza render(): lo fa chi la chiama (spec 0005, 0021)
 export function spegniCoerenza(): void {
     if (!modalitaAttiva) return;
     modalitaAttiva = false;
     ultimoRisultato = null;
-    const scheda = document.getElementById('schedaCoerenza');
-    const eraAperta = !!scheda && !scheda.hidden;
-    const l = linguetta();
-    if (l) l.hidden = true;
-    if (eraAperta) mostraScheda('libreria');
-    if (scheda) scheda.hidden = true;
+    chiudiPannello('coerenza');
     aggiornaPulsante();
 }
 
@@ -302,12 +294,9 @@ export function cambiaModalitaCoerenza(): void {
         // Coerenza e Gerarchia non sono mai accese insieme
         spegniGerarchia();
         modalitaAttiva = true;
-        const l = linguetta();
-        if (l) l.hidden = false;
-        document.getElementById('libraryPanel')?.classList.remove('collapsed');
         ultimaImpronta = null;
         aggiornaCoerenza();
-        mostraScheda('coerenza');
+        mostraPannello('coerenza');
     }
     render();
 }
@@ -315,8 +304,7 @@ export function cambiaModalitaCoerenza(): void {
 /* --- SCHEDA COERENZA --- */
 
 function schedaVisibile(): boolean {
-    const scheda = document.getElementById('schedaCoerenza');
-    return modalitaAttiva && !!scheda && !scheda.hidden;
+    return modalitaAttiva && pannelloVisibile('coerenza');
 }
 
 // Chiamata da render(): l'aggiornamento vero avviene una volta per fotogramma e solo se la scheda si vede
@@ -519,6 +507,14 @@ export function rimuoviFiloNonValido(chiave: string): void {
 
 export function initCoerenza(): void {
     document.getElementById('btnDRC')?.addEventListener('click', cambiaModalitaCoerenza);
+    // Pannello e modalità vanno insieme: aprirlo dal menu accende, chiuderlo con la ✕ spegne (spec 0021, AC-5)
+    aperturaDalMenu('coerenza', cambiaModalitaCoerenza);
+    allaVista('coerenza', () => { if (modalitaAttiva) aggiornaSchedaCoerenza(true); });
+    allaChiusura('coerenza', () => {
+        if (!modalitaAttiva) return;
+        spegniCoerenza();
+        render();
+    });
 
     document.getElementById('coerenzaRicerca')?.addEventListener('input', (e) => {
         clearTimeout(timerRicerca);
