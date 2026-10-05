@@ -32,5 +32,8 @@
   "allowScripts": {
     "electron@44.5.1": true,
     "esbuild@0.28.2": true
+  },
+  "dependencies": {
+    "dockview-core": "^8.4.0"
   }
 }

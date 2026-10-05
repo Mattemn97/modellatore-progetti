@@ -11,8 +11,7 @@ import { mostraDettaglioCliente } from './inspector.js';
 import { verificaCompatibilita, getTipologie, getColoreRequisito, titoloRequisito, type Estremo } from './model.js';
 import { escapeHtml, messaggioDi } from './utils.js';
 import { iconaAiuto } from './aiuto.js';
-import { aggiornaSchedaCoerenza } from './coerenza.js';
-import { aggiornaSchedaGerarchia } from './gerarchia.js';
+import { allaVista, pannelloVisibile } from './pannelli.js';
 import type { Cliente, Grafo, Libreria, Punto, Requisito, RequisitoCliente, TipoEstremo, UltimoImport } from './tipi.js';
 
 type ChiaveCampo = 'id' | 'testo' | 'titolo' | 'note' | 'sezione' | 'tipologia';
@@ -705,8 +704,7 @@ let fotogrammaRichiesto = false;
 let timerRicerca: ReturnType<typeof setTimeout> | undefined;
 
 function schedaVisibile(): boolean {
-    const scheda = document.getElementById('schedaCliente');
-    return !!scheda && !scheda.hidden;
+    return pannelloVisibile('cliente');
 }
 
 // Chiamata da render(): l'aggiornamento vero avviene una volta per fotogramma e solo se la scheda si vede
@@ -837,25 +835,9 @@ export function posizionaRequisitoCliente(id: string, coords: Punto): void {
     render();
 }
 
-function nascondi(id: string, nascosto: boolean): void {
-    const el = document.getElementById(id);
-    if (el) el.hidden = nascosto;
-}
-
-// Commutatore delle schede del pannello sinistro: Libreria, Cliente, Coerenza (spec 0004) e Gerarchia (spec 0005)
-export function mostraScheda(nome: string): void {
-    document.querySelectorAll<HTMLElement>('.scheda-pannello').forEach((b) => b.classList.toggle('attiva', b.dataset.scheda === nome));
-    nascondi('schedaLibreria', nome !== 'libreria');
-    nascondi('schedaCliente', nome !== 'cliente');
-    nascondi('schedaCoerenza', nome !== 'coerenza');
-    nascondi('schedaGerarchia', nome !== 'gerarchia');
-    if (nome === 'cliente') aggiornaSchedaCliente();
-    if (nome === 'coerenza') aggiornaSchedaCoerenza(true);
-    if (nome === 'gerarchia') aggiornaSchedaGerarchia(true);
-}
-
 export function initSchedaCliente(): void {
-    document.querySelectorAll<HTMLElement>('.scheda-pannello').forEach((b) => b.addEventListener('click', () => mostraScheda(b.dataset.scheda ?? '')));
+    // Il pannello Cliente si ridisegna quando torna visibile (spec 0021)
+    allaVista('cliente', aggiornaSchedaCliente);
     document.getElementById('btnImportaCliente')?.addEventListener('click', () => {
         aggiornaPulsantiCliente();
         if (!(document.getElementById('btnImportaCliente') as HTMLButtonElement | null)?.disabled) scegliFile();

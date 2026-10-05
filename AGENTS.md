@@ -6,7 +6,7 @@ Block diagram editor for MBSE requirements: drag blocks from a library onto an S
 
 - **Language / Runtime**: TypeScript (`strict`) everywhere in `src/`: desktop shell, file API and the editor in `src/renderer/` (spec 0020). HTML, CSS. Python 3.11 only for the 1.x `start.py` (and to regenerate the test oracles in `tests/unit/dati/`)
 - **Framework**: Electron (spec 0016). No UI framework: hand written SVG rendering and DOM code
-- **Key dependencies**: Electron, esbuild (compiles `src/main` and `src/preload` to `out/`), TypeScript 6.0 (pinned below 6.1 because `typescript-eslint` does not support 7 yet), ESLint with `typescript-eslint`, Vitest, Playwright (`_electron`). 1.x only: `http.server`, `rich`, PyInstaller from `requirements.txt`
+- **Key dependencies**: Electron, `dockview-core` (docking panels in the editor, spec 0021), esbuild (compiles `src/main` and `src/preload` to `out/`), TypeScript 6.0 (pinned below 6.1 because `typescript-eslint` does not support 7 yet), ESLint with `typescript-eslint`, Vitest, Playwright (`_electron`). 1.x only: `http.server`, `rich`, PyInstaller from `requirements.txt`
 - **Package manager**: npm (`package-lock.json`). npm 11 runs install scripts only for packages listed in `allowScripts` in `package.json` (Electron needs its script to download the binary: `npm approve-scripts <pkg>` after a version bump)
 
 ## Build approach

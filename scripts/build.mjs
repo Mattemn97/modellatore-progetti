@@ -22,6 +22,8 @@ const interfaccia = {
     sourcemap: true,
     logLevel: 'warning',
     entryPoints: { app: 'src/renderer/avvio.ts', benvenuto: 'src/renderer/benvenuto.ts' },
+    // La build UMD di dockview inietta da sola il suo CSS; quella ESM no e il pacchetto non ha il .css (spec 0021)
+    alias: { 'dockview-core': './node_modules/dockview-core/dist/dockview-core.js' },
     outdir: 'out/renderer'
 };
 

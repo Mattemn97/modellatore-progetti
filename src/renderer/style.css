@@ -15,12 +15,23 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahom
 /* min-height: 0 lascia spazio al banner del progetto sotto l'header */
 .main-area { display: flex; flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; }
 
-.side-panel { width: 20%; background: white; border-right: 1px solid #ddd; padding: 15px; box-sizing: border-box; overflow-y: auto; transition: margin-left 0.3s ease, margin-right 0.3s ease; z-index: 5; }
-.right-panel { border-right: none; border-left: 1px solid #ddd; }
-.side-panel.collapsed.left-panel { margin-left: -20%; }
-.side-panel.collapsed.right-panel { margin-right: -20%; }
+/* Pannelli agganciabili (pannelli.ts, spec 0021): tema chiaro di dockview sui colori dell'app.
+   Il CSS di dockview arriva dopo questo file, quindi qui serve un selettore più specifico */
+.area-pannelli { flex: 1; min-width: 0; height: 100%; }
+.area-pannelli .dockview-theme-light, .area-pannelli.dockview-theme-light {
+    --dv-group-view-background-color: white;
+    --dv-tabs-and-actions-container-background-color: #f8f9fa;
+    --dv-activegroup-visiblepanel-tab-color: #0078d4;
+    --dv-separator-border: #ddd;
+    --dv-paneview-header-border-color: #ddd;
+}
+.area-pannelli .dv-tab[data-tab-panel-id="canvas"] .dv-default-tab-action { display: none; }
+.contenuto-pannello { height: 100%; overflow: auto; background: white; box-sizing: border-box; }
+.contenuto-pannello[data-pannello="canvas"] { overflow: hidden; }
+.contenuto-scheda, .contenuto-ispettore { padding: 15px; box-sizing: border-box; }
 
-.canvas-container { width: 60%; flex-grow: 1; display: flex; flex-direction: column; position: relative; background-color: #f4f6f8; overflow: hidden; }
+
+.canvas-container { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; background-color: #f4f6f8; overflow: hidden; }
 
 .canvas-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #ffffff; border-bottom: 1px solid #ddd; z-index: 6; }
 .canvas-toolbar button { background: #f8f9fa; border: 1px solid #ccc; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; color: #333; }
@@ -143,10 +154,6 @@ svg { width: 100%; flex: 1; display: block; }
 .voce-modifiche ul { margin: 2px 0; padding-left: 18px; }
 
 /* Pannello sinistro: schede Libreria e Cliente */
-.schede-pannello { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid #ddd; }
-.scheda-pannello { flex: 1; background: #f8f9fa; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; padding: 5px; font-size: 12px; cursor: pointer; color: #555; }
-.scheda-pannello.attiva { background: white; color: #0078d4; font-weight: bold; position: relative; top: 1px; }
-.contenuto-scheda[hidden] { display: none; }
 
 /* Scheda Cliente */
 .strumenti-cliente { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
@@ -202,7 +209,7 @@ ins { color: #1e8449; text-decoration: none; }
 .contatore-coerenza { pointer-events: none; }
 .contatore-coerenza circle { fill: #d0021b; stroke: white; stroke-width: 1.5; }
 .contatore-coerenza text { fill: white; font-size: 10px; font-weight: bold; user-select: none; }
-.scheda-pannello[hidden], .ricerca-coerenza[hidden], .avviso-coerenza[hidden] { display: none; }
+.ricerca-coerenza[hidden], .avviso-coerenza[hidden] { display: none; }
 .ricerca-coerenza { width: 100%; padding: 6px; margin-bottom: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
 .avviso-coerenza { font-size: 11px; color: #7a5b00; background: #fff3cd; border: 1px solid #ffe08a; border-radius: 3px; padding: 3px 6px; margin-bottom: 6px; }
 .gruppo-coerenza { margin-bottom: 4px; }

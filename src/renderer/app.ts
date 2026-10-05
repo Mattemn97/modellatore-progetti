@@ -16,6 +16,7 @@ import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { avviaAggiornamenti } from './aggiornamento.js';
 import { initImpostazioni } from './impostazioni.js';
 import { generaId } from './utils.js';
+import { avviaPannelli, commutaPannello } from './pannelli.js';
 import type { Nodo } from './tipi.js';
 
 const svg = document.getElementById('workspaceSvg');
@@ -89,6 +90,8 @@ function initAiutoCanvas(): void {
 
 export async function initApp(): Promise<void> {
     await loadSettings();
+    // Prima di tutto il resto: i pannelli mettono i contenitori nella pagina (spec 0021)
+    avviaPannelli();
     initFiltri();
     initAiutoCanvas();
     initSchedaCliente();
@@ -122,8 +125,8 @@ export async function initApp(): Promise<void> {
         initLibrary();
     });
 
-    document.getElementById('toggleLeftBtn')?.addEventListener('click', () => document.getElementById('libraryPanel')?.classList.toggle('collapsed'));
-    document.getElementById('toggleRightBtn')?.addEventListener('click', () => document.getElementById('propertiesPanel')?.classList.toggle('collapsed'));
+    document.getElementById('toggleLeftBtn')?.addEventListener('click', () => commutaPannello('libreria'));
+    document.getElementById('toggleRightBtn')?.addEventListener('click', () => commutaPannello('ispettore'));
 
     canvasContainer?.addEventListener('dragover', (e) => e.preventDefault());
     canvasContainer?.addEventListener('drop', (e) => {

@@ -14,7 +14,7 @@ test('import di un CSV: mappatura, conferma, elenco Cliente e blocco tondo sul c
     fs.writeFileSync(csv, 'ID;Testo;Titolo\nR1;Il sistema pesa meno di 10 kg;Peso\nR2;Il sistema funziona a 24V;Tensione\n', 'utf-8');
     try {
         await pronta(pagina);
-        await pagina.locator('[data-scheda="cliente"]').click();
+        await pagina.locator('.dv-tab[data-tab-panel-id="cliente"]').click();
         await expect(pagina.locator('#clienteVuoto')).toBeVisible();
         const scelta = pagina.waitForEvent('filechooser');
         await pagina.locator('#btnImportaCliente').click();
