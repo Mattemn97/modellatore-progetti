@@ -1,5 +1,5 @@
-/* --- PONTE TEMPORANEO VERSO start.py (rimosso con le voci 19 e 20) --- */
-// Le rotte /api le serve ancora start.py, avviato in silenzio come processo figlio su una porta libera.
+/* --- PONTE TEMPORANEO VERSO start.py (rimosso con la voce 20) --- */
+// Libreria e lettura dei file del cliente le serve ancora start.py, avviato in silenzio come processo figlio su una porta libera.
 import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
 import path from 'node:path';
@@ -94,17 +94,16 @@ export class PontePython {
         }
     }
 
-    async inoltra(richiesta: Request, url: URL): Promise<Response> {
+    async inoltra(richiesta: Request, url: URL, corpo: ArrayBuffer | null): Promise<Response> {
         const intestazioni = new Headers();
         richiesta.headers.forEach((valore, nome) => {
             if (!INTESTAZIONI_SALTATE.has(nome.toLowerCase())) intestazioni.set(nome, valore);
         });
-        const conCorpo = richiesta.method !== 'GET' && richiesta.method !== 'HEAD';
         try {
             const risposta = await fetch(`http://127.0.0.1:${this.porta}${url.pathname}${url.search}`, {
                 method: richiesta.method,
                 headers: intestazioni,
-                body: conCorpo ? await richiesta.arrayBuffer() : undefined
+                body: corpo ?? (richiesta.method === 'DELETE' ? '' : undefined)
             });
             const senzaCorpo = risposta.status === 204 || risposta.status === 304;
             const uscita = new Headers(risposta.headers);
