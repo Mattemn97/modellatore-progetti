@@ -34,6 +34,10 @@ jobs:
       - name: Dipendenze
         run: npm ci
 
+      # npm 11 può saltare gli script di installazione: il binario di Electron va scaricato a mano
+      - name: Binario di Electron
+        run: node node_modules/electron/install.js
+
       - name: Controllo dei tipi
         run: npm run typecheck
 
