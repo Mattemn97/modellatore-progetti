@@ -13,7 +13,9 @@
     "verbatimModuleSyntax": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false
   },
   "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "tests/**/*.ts", "*.config.ts", "*.config.mts"]
 }
