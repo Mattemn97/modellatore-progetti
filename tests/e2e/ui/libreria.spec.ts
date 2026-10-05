@@ -26,9 +26,9 @@ test('salvare un blocco dall\'ispettore aggiorna file, versione e changelog', as
         await expect(pagina.locator('#libraryContent')).toContainText('Centralina principale');
 
         await pagina.locator('#btnChangelog').click();
-        await expect(pagina.locator('#reportModal')).toBeVisible();
-        await expect(pagina.locator('#modalContent')).toContainText('Nome più chiaro');
-        await expect(pagina.locator('#modalContent')).toContainText('1.0.1');
+        await expect(pagina.locator('#pannelloChangelog')).toBeVisible();
+        await expect(pagina.locator('#vociChangelog')).toContainText('Nome più chiaro');
+        await expect(pagina.locator('#changelogTitolo')).toContainText('1.0.1');
     } finally {
         await chiudi();
     }

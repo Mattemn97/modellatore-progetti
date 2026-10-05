@@ -7,7 +7,7 @@ import { openLibraryBlock } from './inspector.js';
 import { progettoInConflitto, impostaStatoLibreriaBanner } from './progetto.js';
 import { chiamaApi } from './api.js';
 import { escapeHtml, messaggioDi } from './utils.js';
-import { iconaAiuto } from './aiuto.js';
+import { mostraPannello, pannelloVisibile, allaVista } from './pannelli.js';
 
 /* --- Forme delle risposte dell'API delle librerie (spec 0002, 0010, 0018) --- */
 
@@ -132,6 +132,7 @@ function adotta(nuovoStato: Partial<typeof libreria>, avviso: string): void {
     impostaStatoLibreriaBanner({ conflitto: false, avviso });
     aggiornaPannelloLibreria();
     aggiornaPulsantiLibreria();
+    segnaChangelogDaAggiornare();
 }
 
 // Lettura statica senza API, sempre in sola lettura
@@ -204,6 +205,7 @@ async function invia(rotta: string, corpo: Record<string, unknown>, record: Reco
         impostaStatoLibreriaBanner(avviso ? { conflitto: false, avviso } : { conflitto: false });
         aggiornaPannelloLibreria();
         aggiornaPulsantiLibreria();
+        segnaChangelogDaAggiornare();
         record.alSuccesso(d);
         return { ok: true, dati: d };
     }
@@ -389,43 +391,67 @@ function toccaFiltro(voce: VoceChangelog, testo: string): boolean {
         (Array.isArray(m.requisiti) ? m.requisiti : []).some((r) => contiene(r.id) || contiene(r.idPrecedente)));
 }
 
-export async function mostraChangelog(filtroIniziale = ''): Promise<void> {
+/* --- PANNELLO CHANGELOG (spec 0022) --- */
+
+let vociChangelog: VoceChangelog[] = [];
+let changelogDaAggiornare = false;
+let letturaChangelog = 0;
+
+function disegnaChangelog(): void {
+    const filtro = document.getElementById('filtroChangelog') as HTMLInputElement | null;
+    const elenco = document.getElementById('vociChangelog');
+    if (!filtro || !elenco) return;
+    const testo = filtro.value.trim().toLowerCase();
+    const filtrate = testo ? vociChangelog.filter((v) => toccaFiltro(v, testo)) : vociChangelog;
+    elenco.innerHTML = filtrate.length > 0
+        ? filtrate.map(htmlVoce).join('')
+        : `<p class="empty-props">${vociChangelog.length > 0 ? 'Nessuna voce corrisponde al filtro.' : 'Il changelog è vuoto.'}</p>`;
+}
+
+// Rilegge dal disco; una risposta arrivata dopo una lettura più recente si scarta
+async function caricaChangelog(): Promise<void> {
+    changelogDaAggiornare = false;
+    const titolo = document.getElementById('changelogTitolo');
+    const elenco = document.getElementById('vociChangelog');
+    if (!titolo || !elenco) return;
+    const numero = ++letturaChangelog;
     if (!libreria.percorso) {
-        alert("Il changelog è disponibile solo per le librerie aperte tramite l'app.");
+        vociChangelog = [];
+        titolo.textContent = 'Changelog';
+        elenco.innerHTML = `<p class="empty-props">Il changelog è disponibile solo per le librerie aperte tramite l'app.</p>`;
         return;
     }
-    // Il changelog si legge solo all'apertura della finestra
     const r = await chiamaApi<{ versione: string | null; voci: VoceChangelog[] }>('GET', `/api/libreria/changelog?percorso=${encodeURIComponent(libreria.percorso)}`);
+    if (numero !== letturaChangelog) return;
     if (!r.ok) {
-        alert(`Impossibile leggere il changelog: ${r.messaggio}`);
+        vociChangelog = [];
+        elenco.innerHTML = `<p class="empty-props">${escapeHtml(`Impossibile leggere il changelog: ${r.messaggio}`)}</p>`;
         return;
     }
-    const voci = [...r.dati.voci].reverse();
+    vociChangelog = [...r.dati.voci].reverse();
     const versione = r.dati.versione || libreria.versione;
+    titolo.textContent = `${libreria.nomeFile}${versione ? ` · v${versione}` : ''}`;
+    disegnaChangelog();
+}
 
-    const titolo = document.getElementById('modalTitle');
-    if (titolo) titolo.textContent = `Changelog · ${libreria.nomeFile}${versione ? ` · v${versione}` : ''}`;
-    const chiudi = document.getElementById('btnCloseModal');
-    if (chiudi) chiudi.style.display = '';
-    const contenuto = document.getElementById('modalContent');
-    if (!contenuto) return;
-    contenuto.innerHTML = `
-        <div class="campo-con-aiuto"><input type="text" id="filtroChangelog" placeholder="Filtra per blocco (id o titolo) o id requisito..." class="filtro-changelog">${iconaAiuto('changelog.filtro')}</div>
-        <div id="vociChangelog"></div>`;
+// Apre il pannello (o lo porta in primo piano) con il filtro dato: vuoto dal pulsante, l'id del blocco dall'Ispettore
+export async function mostraChangelog(filtroIniziale = ''): Promise<void> {
+    const filtro = document.getElementById('filtroChangelog') as HTMLInputElement | null;
+    if (filtro) filtro.value = filtroIniziale;
+    changelogDaAggiornare = true;
+    mostraPannello('changelog');
+    // Se era già visibile allaVista non è partita: la lettura la facciamo qui
+    if (changelogDaAggiornare) await caricaChangelog();
+    filtro?.focus();
+}
 
-    const filtro = document.getElementById('filtroChangelog') as HTMLInputElement;
-    const elenco = document.getElementById('vociChangelog') as HTMLElement;
-    const disegna = () => {
-        const testo = filtro.value.trim().toLowerCase();
-        const filtrate = testo ? voci.filter((v) => toccaFiltro(v, testo)) : voci;
-        elenco.innerHTML = filtrate.length > 0
-            ? filtrate.map(htmlVoce).join('')
-            : `<p class="empty-props">${voci.length > 0 ? 'Nessuna voce corrisponde al filtro.' : 'Il changelog è vuoto.'}</p>`;
-    };
-    filtro.value = filtroIniziale;
-    filtro.addEventListener('input', disegna);
-    disegna();
-    const modale = document.getElementById('reportModal');
-    if (modale) modale.style.display = 'flex';
-    filtro.focus();
+// Ogni cambio di stato della libreria (salvataggio, ricarica, un'altra libreria): rilegge se il pannello si vede
+function segnaChangelogDaAggiornare(): void {
+    changelogDaAggiornare = true;
+    if (pannelloVisibile('changelog')) void caricaChangelog();
+}
+
+export function initChangelog(): void {
+    document.getElementById('filtroChangelog')?.addEventListener('input', disegnaChangelog);
+    allaVista('changelog', () => { if (changelogDaAggiornare || !letturaChangelog) void caricaChangelog(); });
 }

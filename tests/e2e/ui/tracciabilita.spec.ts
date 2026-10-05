@@ -55,7 +55,7 @@ test.describe.serial('tracciabilità su un progetto con requisiti cliente', () =
     test('Matrice: derivazione con documenti, filtro per documento ed export .md', async () => {
         const { pagina } = a;
         await pagina.locator('#btnReqMatrix').click();
-        await expect(pagina.locator('#matriceModal')).toBeVisible();
+        await expect(pagina.locator('#pannelloMatrice')).toBeVisible();
         const tabella = pagina.locator('#matriceContenuto');
         await expect(tabella).toContainText('R1');
         await expect(tabella).toContainText('ali_002');
@@ -68,14 +68,27 @@ test.describe.serial('tracciabilità su un progetto con requisiti cliente', () =
         expect(nome).toMatch(/\.md$/);
         await expect.poll(() => fs.existsSync(path.join(cartellaDownload, nome))).toBe(true);
         expect(fs.readFileSync(path.join(cartellaDownload, nome), 'utf-8')).toContain('ali_002');
-        await pagina.locator('#btnChiudiMatrice').click();
-        await expect(pagina.locator('#matriceModal')).toBeHidden();
+    });
+
+    test('Matrice aperta come pannello: si aggiorna dopo una modifica e con Ctrl+Z (spec 0022)', async () => {
+        const { pagina } = a;
+        const conteggi = pagina.locator('#matriceConteggi');
+        const prima = await conteggi.textContent();
+        // Tolgo la derivazione CLI-R1 → ali_002 dal canvas: la Matrice resta aperta e si ricalcola
+        await pagina.locator('#edgesLayer .edge-derivazione').first().dispatchEvent('contextmenu');
+        await expect(conteggi).not.toHaveText(prima ?? '');
+        await expect(pagina.locator('#btnAnnulla')).toBeEnabled();
+        await pagina.locator('#matriceConteggi').click();
+        await pagina.keyboard.press('Control+z');
+        await expect(conteggi).toHaveText(prima ?? '');
+        await pagina.locator('.dv-tab[data-tab-panel-id="matrice"] .dv-default-tab-action').click();
+        await expect(pagina.locator('#pannelloMatrice')).toBeHidden();
     });
 
     test('Documenti: SSS con i testi da esportare ed export .md', async () => {
         const { pagina } = a;
         await pagina.locator('#btnDocumenti').click();
-        await expect(pagina.locator('#documentiModal')).toBeVisible();
+        await expect(pagina.locator('#pannelloDocumenti')).toBeVisible();
         await pagina.locator('#documentiScelta').selectOption('SSS');
         const anteprima = pagina.locator('#anteprimaDocumento');
         await expect(anteprima).toContainText("L'efficienza è almeno del 90%");
@@ -85,6 +98,5 @@ test.describe.serial('tracciabilità su un progetto con requisiti cliente', () =
         const nome = (await scaricati())[1] ?? '';
         await expect.poll(() => fs.existsSync(path.join(cartellaDownload, nome))).toBe(true);
         expect(fs.readFileSync(path.join(cartellaDownload, nome), 'utf-8')).toContain("L'efficienza è almeno del 90%");
-        await pagina.locator('#btnChiudiDocumenti').click();
     });
 });

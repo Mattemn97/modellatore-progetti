@@ -5,6 +5,8 @@ import { selectNode, mostraDettaglioCliente, mostraDettaglioCollegamento, aggior
 import { renderUI } from './app.js';
 import { pianificaSalvataggio } from './progetto.js';
 import { segnaSchedaClienteDaAggiornare } from './cliente.js';
+import { segnaMatriceDaAggiornare } from './matrice.js';
+import { segnaDocumentiDaAggiornare } from './documenti.js';
 import { coerenzaAttiva, aggiornaCoerenza, problemaPin, contatoreBlocco, segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 import {
     gerarchiaAttiva, segnaGerarchiaDaRicalcolare, segnaSchedaGerarchiaDaAggiornare, catenaAttiva, filoInCatena,
@@ -339,6 +341,9 @@ export function render(): void {
     segnaSchedaClienteDaAggiornare();
     segnaSchedaCoerenzaDaAggiornare();
     segnaSchedaGerarchiaDaAggiornare();
+    // Matrice e Documenti come pannelli: ricalcolo differito dopo una raffica di modifiche (spec 0022)
+    segnaMatriceDaAggiornare();
+    segnaDocumentiDaAggiornare();
 }
 
 // Percorso di un nodo del livello corrente: gli id dei livelli aperti più il suo

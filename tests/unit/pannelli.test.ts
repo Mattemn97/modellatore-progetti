@@ -14,7 +14,7 @@ describe('layoutValido', () => {
 
     it('rifiuta versione diversa, pannello sconosciuto, Canvas mancante e dati non validi', () => {
         expect(layoutValido(layout({ canvas: {} }, 2))).toBe(false);
-        expect(layoutValido(layout({ canvas: {}, matrice: {} }))).toBe(false);
+        expect(layoutValido(layout({ canvas: {}, sconosciuto: {} }))).toBe(false);
         expect(layoutValido(layout({ libreria: {} }))).toBe(false);
         expect(layoutValido({ versione: 1, layout: { panels: { canvas: {} } } })).toBe(false);
         expect(layoutValido(null)).toBe(false);
