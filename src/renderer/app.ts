@@ -16,11 +16,12 @@ import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { avviaAggiornamenti } from './aggiornamento.js';
 import { initImpostazioni } from './impostazioni.js';
 import { generaId } from './utils.js';
+import type { Nodo } from './tipi.js';
 
 const svg = document.getElementById('workspaceSvg');
 const canvasContainer = document.getElementById('canvasContainer');
 
-export function renderUI() {
+export function renderUI(): void {
     const breadcrumb = document.getElementById('breadcrumb');
     const backBtn = document.getElementById('backBtn');
     if (!breadcrumb || !backBtn) return;
@@ -61,9 +62,9 @@ export function renderUI() {
 
 const CHIAVE_AIUTO = 'modellatore.aiutoCanvasNascosto';
 
-function initAiutoCanvas() {
+function initAiutoCanvas(): void {
     const aiuto = document.getElementById('aiutoCanvas');
-    let nascosto = false;
+    let nascosto: boolean;
     try {
         nascosto = localStorage.getItem(CHIAVE_AIUTO) === '1';
     } catch {
@@ -71,7 +72,7 @@ function initAiutoCanvas() {
     }
     if (aiuto) aiuto.hidden = nascosto;
     document.getElementById('btnChiudiAiuto')?.addEventListener('click', () => {
-        aiuto.hidden = true;
+        if (aiuto) aiuto.hidden = true;
         try {
             localStorage.setItem(CHIAVE_AIUTO, '1');
         } catch {
@@ -80,13 +81,13 @@ function initAiutoCanvas() {
     });
 
     // Shift premuto: cursore di spostamento sulle porte
-    const impostaShift = (premuto) => document.body.classList.toggle('shift-premuto', premuto);
+    const impostaShift = (premuto: boolean) => document.body.classList.toggle('shift-premuto', premuto);
     window.addEventListener('keydown', (e) => { if (e.key === 'Shift') impostaShift(true); });
     window.addEventListener('keyup', (e) => { if (e.key === 'Shift') impostaShift(false); });
     window.addEventListener('blur', () => impostaShift(false));
 }
 
-async function initApp() {
+export async function initApp(): Promise<void> {
     await loadSettings();
     initFiltri();
     initAiutoCanvas();
@@ -101,42 +102,42 @@ async function initApp() {
     // Evento ricarica manuale da path: richiama sempre l'API, anche con lo stesso percorso (riallinea impronta e versione).
     // Se riesce, diventa la libreria del progetto; se fallisce restano libreria e stato precedenti
     document.getElementById('btnLoadFromPath')?.addEventListener('click', async () => {
-        const path = document.getElementById('libPathInput').value.trim();
+        const path = (document.getElementById('libPathInput') as HTMLInputElement).value.trim();
         const esito = await loadLibraryFromPath(path);
         if (esito.ok) {
             aggiornaPercorsoLibreria(path);
             alert(`Libreria ricaricata con successo da: ${path}`);
         } else {
-            alert(`Impossibile caricare la libreria: ${esito.messaggio}`);
+            alert(`Impossibile caricare la libreria: ${esito.messaggio ?? ''}`);
         }
     });
 
-    document.getElementById('btnChangelog')?.addEventListener('click', () => mostraChangelog());
+    document.getElementById('btnChangelog')?.addEventListener('click', () => { void mostraChangelog(); });
 
     document.getElementById('btnNewBlockFromScratch')?.addEventListener('click', renderNewBlockForm);
     document.getElementById('btnResetView')?.addEventListener('click', resetView);
 
     document.getElementById('libSearchInput')?.addEventListener('input', (e) => {
-        appState.librarySearchQuery = e.target.value;
+        appState.librarySearchQuery = (e.target as HTMLInputElement).value;
         initLibrary();
     });
 
-    document.getElementById('toggleLeftBtn')?.addEventListener('click', () => document.getElementById('libraryPanel').classList.toggle('collapsed'));
-    document.getElementById('toggleRightBtn')?.addEventListener('click', () => document.getElementById('propertiesPanel').classList.toggle('collapsed'));
+    document.getElementById('toggleLeftBtn')?.addEventListener('click', () => document.getElementById('libraryPanel')?.classList.toggle('collapsed'));
+    document.getElementById('toggleRightBtn')?.addEventListener('click', () => document.getElementById('propertiesPanel')?.classList.toggle('collapsed'));
 
     canvasContainer?.addEventListener('dragover', (e) => e.preventDefault());
     canvasContainer?.addEventListener('drop', (e) => {
         e.preventDefault();
-        const typeId = e.dataTransfer.getData('blockType');
-        if (typeId && appState.library[typeId]) {
-            const blockDef = appState.library[typeId];
+        const typeId = e.dataTransfer?.getData('blockType') ?? '';
+        const blockDef = typeId ? appState.library[typeId] : undefined;
+        if (blockDef) {
             const gridSize = appSettings.grid.size;
             const larghezza = appSettings.node.width;
             const altezza = appSettings.node.height;
             // Centrato sotto il cursore a qualsiasi zoom e pan, angolo agganciato alla griglia (spec 0011, AC-1)
             const punto = puntoCanvas(e);
 
-            const newNode = {
+            const newNode: Nodo = {
                 id: generaId('node'),
                 type: typeId,
                 label: blockDef.titolo,
@@ -154,7 +155,7 @@ async function initApp() {
             return;
         }
         // Una riga della scheda Cliente: diventa un blocco tondo della radice, centrato sul punto di griglia più vicino
-        const idCliente = e.dataTransfer.getData('requisitoCliente');
+        const idCliente = e.dataTransfer?.getData('requisitoCliente');
         if (idCliente) posizionaRequisitoCliente(idCliente, getCanvasCoords(e));
     });
 
@@ -163,7 +164,7 @@ async function initApp() {
         impostaSelezioneCliente(null);
         evidenziaCliente(null);
         const propsContent = document.getElementById('propsContent');
-        if (propsContent) propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>`;
+        if (propsContent) propsContent.innerHTML = '<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>';
         render();
     });
 
@@ -174,7 +175,5 @@ async function initApp() {
     // Il tour parte da solo la prima volta (spec 0012, AC-2)
     avviaTourPrimoAvvio();
     // Versione nuova su GitHub: banner sotto l'header (spec 0015)
-    avviaAggiornamenti();
+    void avviaAggiornamenti();
 }
-
-initApp();

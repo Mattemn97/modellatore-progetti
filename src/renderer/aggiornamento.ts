@@ -1,39 +1,57 @@
 /* --- AGGIORNAMENTO AUTOMATICO: BANNER, INSTALLAZIONE E RIAVVIO (spec 0015) --- */
 
-import { chiamaApi, svuota } from './progetto.js';
+import { svuota } from './progetto.js';
+import { chiamaApi } from './api.js';
 import { escapeHtml } from './utils.js';
+
+type FaseInstallazione = 'download' | 'verifica' | 'installazione' | 'riavvio';
+
+// Risposta di GET /api/aggiornamento
+interface StatoAggiornamento {
+    stato: string;
+    attuale?: string;
+    nuova?: string | null;
+    note?: string | null;
+    installabile?: boolean;
+    pagina?: string | null;
+    motivo?: string | null;
+}
 
 const CHIAVE_RIMANDATO = 'modellatore.aggiornamentoRimandato';
 const INTERVALLO_CONTROLLO_MS = 2000;
 const DURATA_CONTROLLO_MS = 30000;
 const INTERVALLO_INSTALLAZIONE_MS = 1000;
 const ATTESA_RIAVVIO_MS = 60000;
-const ETICHETTE_FASE = { download: 'Scaricamento…', verifica: 'Verifica…', installazione: 'Installazione…', riavvio: 'Riavvio…' };
+const ETICHETTE_FASE: Record<FaseInstallazione, string> = { download: 'Scaricamento…', verifica: 'Verifica…', installazione: 'Installazione…', riavvio: 'Riavvio…' };
 const MSG_RIAVVIO_MUTO = 'Il riavvio non risponde: chiudi la finestra nera e avvia di nuovo start.exe.';
 
-let ultimoStato = null;      // ultima risposta di GET /api/aggiornamento
+let ultimoStato: StatoAggiornamento | null = null;      // ultima risposta di GET /api/aggiornamento
 let noteAperte = false;
-let attesaRiavvio = null;    // { nuova, inizio } mentre il server cambia processo
+let attesaRiavvio: { nuova: string; inizio: number } | null = null;    // mentre il server cambia processo
 let silenzioso = false;      // messaggio fisso al posto del banner normale
 
-function leggiRimandato() {
+function etichettaFase(stato: string): string | undefined {
+    return ETICHETTE_FASE[stato as FaseInstallazione];
+}
+
+function leggiRimandato(): string | null {
     try { return sessionStorage.getItem(CHIAVE_RIMANDATO); } catch { return null; }
 }
 
-function scriviRimandato(versione) {
+function scriviRimandato(versione: string): void {
     try { sessionStorage.setItem(CHIAVE_RIMANDATO, versione); } catch { /* solo fino al ricaricamento */ }
 }
 
-async function leggiStato() {
-    const r = await chiamaApi('GET', '/api/aggiornamento');
+async function leggiStato(): Promise<StatoAggiornamento | null> {
+    const r = await chiamaApi<StatoAggiornamento>('GET', '/api/aggiornamento');
     return r.ok ? r.dati : null;
 }
 
-function banner() {
+function banner(): HTMLElement | null {
     return document.getElementById('bannerAggiornamento');
 }
 
-function mostra(html, classe = '') {
+function mostra(html: string, classe = ''): void {
     const el = banner();
     if (!el) return;
     el.className = `banner-aggiornamento ${classe}`.trim();
@@ -41,11 +59,11 @@ function mostra(html, classe = '') {
     el.hidden = !html;
 }
 
-function disegna() {
+function disegna(): void {
     const s = ultimoStato;
     if (silenzioso) return;
     if (!s) return mostra('');
-    const fase = ETICHETTE_FASE[s.stato];
+    const fase = etichettaFase(s.stato);
     if (fase) {
         return mostra(`<span>Aggiornamento alla versione ${escapeHtml(s.nuova || '')}: <strong>${fase}</strong></span>
             <button disabled>Aggiorna e riavvia</button>`);
@@ -64,24 +82,24 @@ function disegna() {
         azione = `<button data-aggiornamento="pagina" data-aiuto="aggiornamento.pagina" data-titolo-nativo="${escapeHtml(s.motivo || '')}">Apri la pagina della versione</button>`;
     }
     const chiudi = `<button data-aggiornamento="rimanda" data-aiuto="aggiornamento.rimanda">${errore ? 'Chiudi' : 'Più tardi'}</button>`;
-    const note = noteAperte && s.note ? `<div class="note-aggiornamento"></div>` : '';
+    const note = noteAperte && s.note ? '<div class="note-aggiornamento"></div>' : '';
     mostra(`<div class="riga-aggiornamento">${testo}${novita}${azione}${chiudi}</div>${note}`, errore ? 'banner-aggiornamento-errore' : '');
     // Le note della Release sono testo, mai HTML
     const box = banner()?.querySelector('.note-aggiornamento');
-    if (box) box.textContent = s.note;
+    if (box) box.textContent = s.note ?? '';
 }
 
-async function aggiornaStato() {
+async function aggiornaStato(): Promise<StatoAggiornamento | null> {
     ultimoStato = await leggiStato();
     disegna();
     return ultimoStato;
 }
 
-async function attendi(ms) {
-    return new Promise(risolvi => setTimeout(risolvi, ms));
+async function attendi(ms: number): Promise<void> {
+    return new Promise((risolvi) => setTimeout(risolvi, ms));
 }
 
-async function seguiInstallazione(nuova) {
+async function seguiInstallazione(nuova: string): Promise<void> {
     // Rilegge lo stato ogni secondo; durante il riavvio gli errori di rete sono attesi
     for (;;) {
         await attendi(INTERVALLO_INSTALLAZIONE_MS);
@@ -113,23 +131,24 @@ async function seguiInstallazione(nuova) {
         disegna();
         if (s.stato === 'riavvio') {
             attesaRiavvio = { nuova, inizio: Date.now() };
-        } else if (!ETICHETTE_FASE[s.stato]) {
+        } else if (!etichettaFase(s.stato)) {
             return;
         }
     }
 }
 
-async function installa() {
+async function installa(): Promise<void> {
     const s = ultimoStato;
     if (!s?.nuova || !s.installabile) return;
-    const conferma = confirm(`Aggiornare alla versione ${s.nuova}?\n\n`
-        + `Progetti, librerie e impostazioni non vengono toccati.\n`
-        + `Le modifiche non salvate di un blocco nell'ispettore vanno perse.\n`
-        + `L'app si riavvia da sola: la pagina si ricarica quando la nuova versione è pronta.`);
+    const nuova = s.nuova;
+    const conferma = confirm(`Aggiornare alla versione ${nuova}?\n\n`
+        + 'Progetti, librerie e impostazioni non vengono toccati.\n'
+        + 'Le modifiche non salvate di un blocco nell\'ispettore vanno perse.\n'
+        + 'L\'app si riavvia da sola: la pagina si ricarica quando la nuova versione è pronta.');
     if (!conferma) return;
     // Il progetto deve essere salvato: con un conflitto o un errore di salvataggio l'aggiornamento non parte
     if (!(await svuota())) return;
-    const r = await chiamaApi('POST', '/api/aggiornamento/installa', { versione: s.nuova });
+    const r = await chiamaApi('POST', '/api/aggiornamento/installa', { versione: nuova });
     if (!r.ok) {
         alert(`Aggiornamento non avviato: ${r.messaggio}`);
         await aggiornaStato();
@@ -137,10 +156,10 @@ async function installa() {
     }
     ultimoStato = { ...s, stato: 'download' };
     disegna();
-    seguiInstallazione(s.nuova);
+    void seguiInstallazione(nuova);
 }
 
-const AZIONI = {
+const AZIONI: Record<string, () => void | Promise<void>> = {
     novita() { noteAperte = !noteAperte; disegna(); },
     installa,
     pagina() { if (ultimoStato?.pagina) window.open(ultimoStato.pagina, '_blank', 'noopener'); },
@@ -151,10 +170,10 @@ const AZIONI = {
     }
 };
 
-export async function avviaAggiornamenti() {
+export async function avviaAggiornamenti(): Promise<void> {
     banner()?.addEventListener('click', (e) => {
-        const pulsante = e.target.closest('[data-aggiornamento]');
-        if (pulsante && !pulsante.disabled) AZIONI[pulsante.dataset.aggiornamento]();
+        const pulsante = (e.target as Element).closest<HTMLButtonElement>('[data-aggiornamento]');
+        if (pulsante && !pulsante.disabled) void AZIONI[pulsante.dataset.aggiornamento ?? '']?.();
     });
     // Il controllo su GitHub gira in un thread del server: si rilegge lo stato finché finisce
     const inizio = Date.now();
@@ -163,5 +182,5 @@ export async function avviaAggiornamenti() {
         await attendi(INTERVALLO_CONTROLLO_MS);
         s = await aggiornaStato();
     }
-    if (s && ETICHETTE_FASE[s.stato] && s.nuova) seguiInstallazione(s.nuova);
+    if (s && etichettaFase(s.stato) && s.nuova) void seguiInstallazione(s.nuova);
 }

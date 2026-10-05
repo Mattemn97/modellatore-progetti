@@ -86,10 +86,17 @@ code in `src/main/import-v1.ts`, `src/main/cartelle-ipc.ts`, `js/impostazioni.js
 
 ## Slice 2: TypeScript
 
-### 23. Passaggio del codice a TypeScript · needs a decision
+### 23. Passaggio del codice a TypeScript · done
 Ogni modulo di `js/` diventa TypeScript, con tipi espliciti per il modello dati (libreria, grafo, livelli, cliente, impostazioni) e per i contratti con il processo desktop. Un modulo alla volta, con l'app sempre funzionante.
 **Done when:** nel sorgente non resta JavaScript scritto a mano, il controllo dei tipi in modalità rigorosa passa senza errori, i test unitari coprono le regole pure (modello, coerenza, gerarchia, matrice, documenti, filtri) e la suite end to end è verde.
-- [ ] Design it (spec): `/architect passaggio del codice a TypeScript`
+spec [0020](../specs/0020-editor-typescript/index.md) · code in `src/renderer/` (bundle esbuild in `out/renderer`)
+- [x] Design it (spec): `/architect passaggio del codice a TypeScript`
+- [x] Build it: `/develop passaggio del codice a TypeScript`
+  - [x] Spostamento in `src/renderer/`, bundle esbuild e protocollo su `out/renderer/`
+  - [x] Tipi del modello, utilità, stato, modello e testi dell'aiuto, con test
+  - [x] Regole e viste (filtri, coerenza, gerarchia, matrice, documenti) con test
+  - [x] Editor, aiuto, tour, aggiornamento, impostazioni e benvenuto; `allowJs` spento
+- [x] Verify it: typecheck e lint senza errori, 43 test unitari e 60 end to end verdi
 
 ## Slice 3: Interfaccia a pannelli
 

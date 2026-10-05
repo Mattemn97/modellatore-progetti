@@ -15,8 +15,10 @@ import { installaRichiestaTesto } from './richiesta-testo.js';
 
 // out/main/index.mjs → out/
 const cartellaOut = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-// Radice del programma: index.html, benvenuto.html, style.css, settings.json (i valori predefiniti), js/
+// Cartella del programma (settings.json con i valori predefiniti) e interfaccia compilata (out/renderer)
 const radice = app.getAppPath();
+const cartellaInterfaccia = path.join(cartellaOut, 'renderer');
+const settingsPredefiniti = path.join(radice, 'settings.json');
 const sviluppo = process.argv.includes('--dev');
 
 // Test end to end: dati di Chromium (localStorage, configurazione, istanza unica) e Documenti in cartelle a parte
@@ -72,14 +74,14 @@ function statoPerPagine(): StatoCartelleApp {
 }
 
 async function avvia(): Promise<void> {
-    installaProtocollo(radice, (richiesta, url) => (router ? router(richiesta, url) : Promise.resolve(rispostaNonConfigurato())), () => {
+    installaProtocollo(cartellaInterfaccia, (richiesta, url) => (router ? router(richiesta, url) : Promise.resolve(rispostaNonConfigurato())), () => {
         const file = cartelle ? path.join(cartelle.lavoro, 'settings.json') : null;
-        return file && fs.existsSync(file) ? file : null;
+        return file && fs.existsSync(file) ? file : settingsPredefiniti;
     });
     installaRichiestaTesto(cartellaOut);
     installaCanaliCartelle({
         stato: statoPerPagine,
-        impostazioniPredefinite: path.join(radice, 'settings.json'),
+        impostazioniPredefinite: settingsPredefiniti,
         usa: (nuove) => {
             scriviConfigurazione(app.getPath('userData'), {
                 formatVersion: 1,

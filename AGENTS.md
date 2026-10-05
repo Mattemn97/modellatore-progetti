@@ -4,7 +4,7 @@ Block diagram editor for MBSE requirements: drag blocks from a library onto an S
 
 ## Stack
 
-- **Language / Runtime**: TypeScript (`strict`) for the desktop shell and the file API in `src/`; the editor in `js/` is still plain JavaScript ES modules until scope item 23 moves it to TypeScript. HTML, CSS. Python 3.11 only for the 1.x `start.py` (and to regenerate the test oracles in `tests/unit/dati/`)
+- **Language / Runtime**: TypeScript (`strict`) everywhere in `src/`: desktop shell, file API and the editor in `src/renderer/` (spec 0020). HTML, CSS. Python 3.11 only for the 1.x `start.py` (and to regenerate the test oracles in `tests/unit/dati/`)
 - **Framework**: Electron (spec 0016). No UI framework: hand written SVG rendering and DOM code
 - **Key dependencies**: Electron, esbuild (compiles `src/main` and `src/preload` to `out/`), TypeScript 6.0 (pinned below 6.1 because `typescript-eslint` does not support 7 yet), ESLint with `typescript-eslint`, Vitest, Playwright (`_electron`). 1.x only: `http.server`, `rich`, PyInstaller from `requirements.txt`
 - **Package manager**: npm (`package-lock.json`). npm 11 runs install scripts only for packages listed in `allowScripts` in `package.json` (Electron needs its script to download the binary: `npm approve-scripts <pkg>` after a version bump)
@@ -24,7 +24,7 @@ npm run dev
 
 # Checks (CI runs all of them on every push to develop and feat/**: .github/workflows/ci.yml)
 npm run typecheck   # tsc --noEmit
-npm run lint        # eslint (js/ excluded until scope item 23)
+npm run lint        # eslint
 npm test            # Vitest, tests/unit/*.test.ts
 npm run test:e2e    # build + Playwright on Electron, tests/e2e/*.spec.ts
 npm run verifica    # all four
@@ -48,14 +48,14 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title/index.md` (plus `rationa
 ## Rules
 
 - `src/` is TypeScript compiled by `scripts/build.mjs` (esbuild); `tsc` only checks types. The main process is ESM (`out/main/index.mjs`), the sandboxed preload must stay CommonJS (`out/preload/index.cjs`).
-- The page loads from `app://modellatore/` (spec 0016), never `file://` or a port. The protocol serves only `index.html`, `style.css`, `settings.json` and `js/` from the app folder; every `/api/*` request goes to `src/main/api/router.ts` (spec 0018), which keeps the JSON contract of `start.py` byte for byte where it matters (responses, error codes, file format, SHA1 fingerprints, changelog entries).
+- The page loads from `app://modellatore/` (spec 0016), never `file://` or a port. The protocol serves only the compiled interface in `out/renderer` (`index.html`, `benvenuto.html`, `style.css`, the bundles) plus `/settings.json` (the work folder's, else the app's defaults); every `/api/*` request goes to `src/main/api/router.ts` (spec 0018), which keeps the JSON contract of `start.py` byte for byte where it matters (responses, error codes, file format, SHA1 fingerprints, changelog entries).
 - API handlers in `src/main/api/` are synchronous (`fs.*Sync`, retries wait with `Atomics.wait`): file operations never interleave, so there is no lock. Never put an `await` between reading and writing a file there.
 - `serializza()` and `formaCanonica()` (`src/main/api/file.ts`) must keep producing the same bytes as Python's `json.dumps(indent=2, ensure_ascii=False)` and `json.dumps(sort_keys=True, ensure_ascii=False, separators=(',', ':'))`: a 1.x changelog compares `improntaContenuto`, and a different byte gives a false "external change" entry.
 - Block diff (`confronto.ts`) and CSV reading (`csv.ts`, a literal port of `csv.Sniffer`) are checked against Python oracles: `tests/unit/dati/confronti.json` and `csv.json`, regenerated with `python tests/unit/dati/genera-*.py` only when the rules change on purpose.
 - Keep the window locked down: `contextIsolation` on, `nodeIntegration` off, `sandbox` on; external links open in the system browser; new renderer to main calls go through the preload (`contextBridge`), never by enabling Node in the page.
 - UI text, comments and messages are in Italian (`<html lang="it">`). Write new ones in Italian too.
 - Tunable values (grid size, node size, pin radius, type colors, default library path) live in `settings.json` and are read through `appSettings`. Don't hardcode them in JS.
-- `start.py` also reads `progetti.versioni` and `libreria.versioni` from `settings.json`, only at startup: restart the app after changing them. A new key goes in `settings.json`, in `DEFAULT_SETTINGS` and in the nested merge of `loadSettings()` in `js/state.js`.
+- `start.py` also reads `progetti.versioni` and `libreria.versioni` from `settings.json`, only at startup: restart the app after changing them. A new key goes in `settings.json`, in `DEFAULT_SETTINGS` and in the nested merge of `loadSettings()` in `src/renderer/state.ts`.
 - Each JS and TS file opens with a `/* --- TITLE --- */` header comment naming its job.
 - Console output in `start.py` goes through `stampa_info`, `stampa_avviso`, `stampa_errore` and `stampa_avvio`, never bare `print`: they use `rich` when present and fall back to plain text (spec 0014). Successful HTTP requests are not logged.
 - Styling is mostly inline `style=""` in `index.html` and in JS template strings; `style.css` holds layout and SVG classes.
@@ -68,7 +68,7 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title/index.md` (plus `rationa
 - Data folders (spec 0019): the work folder (`progetti/`, `settings.json`) and the library folder (default `<work>\shared`) come from `configurazione.json` in `userData`, never from the app folder. A `libraryPath` starting with `shared/` points into the library folder; other relative paths are read only from the work folder. Without ready folders the window shows `benvenuto.html` and `/api/*` answers 503 `non_configurato`. The page's `settings.json` is the work folder one (the app's `settings.json` is only the defaults).
 - Single instance (`app.requestSingleInstanceLock()`): a second launch focuses the open window and exits. It replaces the exclusive port of 1.x.
 - In Electron a blocking `beforeunload` closes nothing silently: `will-prevent-unload` in `src/main/finestra.ts` asks "Chiudi comunque / Annulla". Playwright handles that dialog itself when attached, so test it by hand.
-- Electron has no `window.prompt()`: ask for a text with `chiediTesto()` (`js/utils.js`), which goes through the preload (`ipcRenderer.sendSync`) to a modal window in `src/main/richiesta-testo.ts` and blocks the page like `prompt`. In Playwright, start the click without awaiting it, answer in the new window, then await the click (`rispondiRichiesta()` in `tests/e2e/app.ts`).
+- Electron has no `window.prompt()`: ask for a text with `chiediTesto()` (`src/renderer/utils.ts`), which goes through the preload (`ipcRenderer.sendSync`) to a modal window in `src/main/richiesta-testo.ts` and blocks the page like `prompt`. In Playwright, start the click without awaiting it, answer in the new window, then await the click (`rispondiRichiesta()` in `tests/e2e/app.ts`).
 - Electron downloads (`<a download>`) open the Save As dialog; tests redirect them with `intercettaDownload()`.
 - In JavaScript regexes the `m` flag treats `
 ` as a line end, Python's `re.MULTILINE` does not: when porting a Python regex with `^`/`$`, spell them out (see `csv.ts`).
@@ -86,6 +86,6 @@ Declined: vanilla JS / SVG, Python http.server, PyInstaller, rich, Electron, esb
 
 ## Context files
 
-- [js/AGENTS.md](js/AGENTS.md): editor modules, data model (library, graph, hierarchy), file formats and the render loop
+- [src/renderer/AGENTS.md](src/renderer/AGENTS.md): editor modules, data model (library, graph, hierarchy), file formats and the render loop
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

@@ -11,25 +11,31 @@ import {
     filiInCatena, occorrenzaInCatena, contatoreGerarchia, coloreCatena, chiaveSulCanvas, scegliDaCanvas
 } from './gerarchia.js';
 import {
-    isInterfaccia, getClasseRequisito, getColoreRequisito, descriviRequisito,
-    verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE
+    isInterfaccia, isRequisitoCliente, getClasseRequisito, getColoreRequisito, descriviRequisito,
+    verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE, type Estremo
 } from './model.js';
 import { generaId } from './utils.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
+import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const svg = document.getElementById('workspaceSvg');
-const viewport = document.getElementById('viewport');
-const nodesLayer = document.getElementById('nodesLayer');
-const edgesLayer = document.getElementById('edgesLayer');
-const parentLayer = document.getElementById('parentLayer');
+const svg = document.getElementById('workspaceSvg') as unknown as SVGSVGElement;
+const viewport = document.getElementById('viewport') as unknown as SVGGElement;
+const nodesLayer = document.getElementById('nodesLayer') as unknown as SVGGElement;
+const edgesLayer = document.getElementById('edgesLayer') as unknown as SVGGElement;
+const parentLayer = document.getElementById('parentLayer') as unknown as SVGGElement;
 
 // Distanza dal bordo inferiore interno a cui stanno i pin di capacità di un blocco
 const MARGINE_PIN_CAPACITA = 12;
 
+interface Proprietario {
+    ownerId: string;
+    ownerType: TipoEstremo;
+}
+
 export let isDrawingEdge = false;
-export let edgeStartData = null;
-let tempEdgePath = null;
+export let edgeStartData: (Proprietario & { reqId: string; x: number; y: number }) | null = null;
+let tempEdgePath: SVGPathElement | null = null;
 
 // Gestione Zoom e Pan
 export let zoomState = { scale: 1, x: 0, y: 0 };
@@ -37,31 +43,31 @@ let isPanning = false;
 let startPan = { x: 0, y: 0 };
 
 // Requisito cliente evidenziato sul canvas dal dettaglio nell'ispettore
-let idClienteEvidenziato = null;
+let idClienteEvidenziato: string | null = null;
 
 /* --- FILO SELEZIONATO (spec 0009): per id, mai per oggetto --- */
 
 // { percorso: id dei livelli aperti uniti da '/', edgeId }
-let filoSelezionato = null;
+let filoSelezionato: { percorso: string; edgeId: string } | null = null;
 let dettaglioFiloRichiesto = false;
 
-function percorsoLivello() {
-    return pathStack.map(l => l.id).join('/');
+function percorsoLivello(): string {
+    return pathStack.map((l) => l.id).join('/');
 }
 
-export function filoSelezionatoId() {
+export function filoSelezionatoId(): string | null {
     return filoSelezionato && filoSelezionato.percorso === percorsoLivello() ? filoSelezionato.edgeId : null;
 }
 
-// Restituisce vero se cera un filo selezionato (chi chiama decide se ridisegnare)
-export function togliSelezioneFilo() {
+// Restituisce vero se c'era un filo selezionato (chi chiama decide se ridisegnare)
+export function togliSelezioneFilo(): boolean {
     const cera = filoSelezionato !== null;
     filoSelezionato = null;
     return cera;
 }
 
-export function selezionaFilo(edgeId) {
-    const edge = getCurrentLevel().graph.edges.find(e => e.id === edgeId);
+export function selezionaFilo(edgeId: string): void {
+    const edge = getCurrentLevel().graph.edges.find((e) => e.id === edgeId);
     if (!edge) return;
     filoSelezionato = { percorso: percorsoLivello(), edgeId };
     setActiveNodeId(null);
@@ -71,8 +77,8 @@ export function selezionaFilo(edgeId) {
 }
 
 // Toglie un filo dal livello: usata dal clic destro e dal pulsante dell'ispettore
-export function eliminaFilo(graph, edgeId) {
-    graph.edges = graph.edges.filter(e => e.id !== edgeId);
+export function eliminaFilo(graph: Grafo, edgeId: string): void {
+    graph.edges = graph.edges.filter((e) => e.id !== edgeId);
     if (filoSelezionato?.edgeId === edgeId) {
         filoSelezionato = null;
         chiudiDettaglioCollegamento(edgeId);
@@ -82,10 +88,10 @@ export function eliminaFilo(graph, edgeId) {
 
 // A ogni disegno: un filo sparito (Annulla, Ricarica, cambio livello) si deseleziona; altrimenti il dettaglio si
 // riallinea al più una volta per fotogramma (AC-6)
-function risolviFiloSelezionato(graph) {
+function risolviFiloSelezionato(graph: Grafo): void {
     if (!filoSelezionato) return;
     const id = filoSelezionatoId();
-    const edge = id ? graph.edges.find(e => e.id === id) : null;
+    const edge = id ? graph.edges.find((e) => e.id === id) : null;
     if (!edge) {
         const vecchio = filoSelezionato.edgeId;
         filoSelezionato = null;
@@ -97,39 +103,39 @@ function risolviFiloSelezionato(graph) {
     requestAnimationFrame(() => {
         dettaglioFiloRichiesto = false;
         const idOra = filoSelezionatoId();
-        const edgeOra = idOra ? getCurrentLevel().graph.edges.find(e => e.id === idOra) : null;
+        const edgeOra = idOra ? getCurrentLevel().graph.edges.find((e) => e.id === idOra) : null;
         if (edgeOra) aggiornaDettaglioCollegamento(edgeOra);
     });
 }
 
-export function evidenziaCliente(id) {
+export function evidenziaCliente(id: string | null): void {
     idClienteEvidenziato = id;
 }
 
 // Sposta la vista (zoom invariato) per mettere al centro il punto x, y del canvas
-export function centraVista(x, y) {
+export function centraVista(x: number, y: number): void {
     const rect = svg.getBoundingClientRect();
     zoomState.x = rect.width / 2 - x * zoomState.scale;
     zoomState.y = rect.height / 2 - y * zoomState.scale;
     updateViewportTransform();
 }
 
-export function resetView() {
+export function resetView(): void {
     zoomState = { scale: 1, x: 0, y: 0 };
     updateViewportTransform();
 }
 
-function updateViewportTransform() {
+function updateViewportTransform(): void {
     viewport.setAttribute('transform', `translate(${zoomState.x}, ${zoomState.y}) scale(${zoomState.scale})`);
 }
 
-function creaSvg(tag, attributi = {}) {
+function creaSvg<K extends keyof SVGElementTagNameMap>(tag: K, attributi: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
     const el = document.createElementNS(SVG_NS, tag);
-    Object.entries(attributi).forEach(([k, v]) => el.setAttribute(k, v));
+    Object.entries(attributi).forEach(([k, v]) => el.setAttribute(k, String(v)));
     return el;
 }
 
-function aggiungiTooltip(el, testo) {
+function aggiungiTooltip(el: SVGElement, testo: string): void {
     const title = creaSvg('title');
     title.textContent = testo;
     el.appendChild(title);
@@ -153,7 +159,7 @@ svg.addEventListener('wheel', (e) => {
 });
 
 // Clic sullo sfondo senza spostarsi: toglie la selezione del filo (il pan non la toglie)
-let premutoSfondo = null;
+let premutoSfondo: Punto | null = null;
 
 svg.addEventListener('mouseup', (e) => {
     const p = premutoSfondo;
@@ -167,7 +173,8 @@ svg.addEventListener('mouseup', (e) => {
 });
 
 svg.addEventListener('mousedown', (e) => {
-    if (e.button === 1 || e.target === svg || e.target.id === 'gridBackground') { // Tasto centrale o sfondo
+    const bersaglio = e.target as Element;
+    if (e.button === 1 || bersaglio === svg || bersaglio.id === 'gridBackground') { // Tasto centrale o sfondo
         if (e.button === 0) premutoSfondo = { x: e.clientX, y: e.clientY };
         isPanning = true;
         startPan = { x: e.clientX - zoomState.x, y: e.clientY - zoomState.y };
@@ -190,64 +197,70 @@ window.addEventListener('mouseup', () => {
 
 /* --- RICERCA DEI REQUISITI NEL LIVELLO CORRENTE --- */
 
-function getBlockDef(type) {
-    return appState.library[type] || null;
+function getBlockDef(type: string | null | undefined): Blocco | null {
+    return (type ? appState.library[type] : null) || null;
 }
 
 // Tipo del padre del livello corrente: null alla radice, dove il padre sono i requisiti cliente
-function tipoPadreCorrente() {
+function tipoPadreCorrente(): string | null {
     return getCurrentLevel().parentNode?.type ?? null;
 }
 
 // Requisito di un estremo: ownerType 'parent' = requisito del blocco che contiene il livello corrente
-function trovaRequisito(ownerId, reqId, ownerType) {
+function trovaRequisito(ownerId: string, reqId: string, ownerType: TipoEstremo): Requisito | null {
     if (ownerType === 'parent') return requisitoPadre(tipoPadreCorrente(), reqId);
-    const tipo = getCurrentLevel().graph.nodes.find(n => n.id === ownerId)?.type;
-    return getBlockDef(tipo)?.requisiti.find(r => r.id === reqId) || null;
+    const tipo = getCurrentLevel().graph.nodes.find((n) => n.id === ownerId)?.type;
+    return getBlockDef(tipo)?.requisiti.find((r) => r.id === reqId) || null;
 }
 
 // Estremo di un filo del livello corrente per l'ispettore dei collegamenti (spec 0009): requisito, nodo e definizione,
 // o mancante. I campi ownerId, reqId, ownerType servono a verificaCompatibilita()
-export function descriviEstremo(ownerId, reqId, ownerType) {
+export function descriviEstremo(ownerId: string, reqId: string, ownerType: TipoEstremo): EstremoDescritto {
     const base = { ownerId, reqId, ownerType };
     if (ownerType === 'parent') {
         const parentNode = getCurrentLevel().parentNode || null;
         const req = requisitoPadre(tipoPadreCorrente(), reqId);
         return req ? { ...base, req, tondo: true, cliente: !parentNode, parentNode } : { ...base, mancante: true };
     }
-    const nodo = getCurrentLevel().graph.nodes.find(n => n.id === ownerId) || null;
+    const nodo = getCurrentLevel().graph.nodes.find((n) => n.id === ownerId) || null;
     const def = nodo ? getBlockDef(nodo.type) : null;
-    const req = def?.requisiti.find(r => r.id === reqId) || null;
-    return req ? { ...base, req, nodo, def, tondo: false, cliente: false } : { ...base, mancante: true };
+    const req = def?.requisiti.find((r) => r.id === reqId) || null;
+    return req && nodo && def ? { ...base, req, nodo, def, tondo: false, cliente: false } : { ...base, mancante: true };
 }
 
 /* --- FILTRI (spec 0008): COSA È INCLUSO NEL LIVELLO --- */
 
-const chiaveEstremo = (ownerType, ownerId, reqId) => `${ownerType}:${ownerId}:${reqId}`;
+const chiaveEstremo = (ownerType: TipoEstremo, ownerId: string, reqId: string) => `${ownerType}:${ownerId}:${reqId}`;
+
+interface Inclusi {
+    estremi: Set<string>;
+    nodi: Set<string>;
+    fili: Set<string>;
+}
 
 // Inclusi del livello, una volta per disegno: estremi (pin e blocchi tondi), nodi e fili. Funzione pura
-function calcolaInclusi(graph, parentNode) {
+function calcolaInclusi(graph: Grafo, parentNode: Nodo | null): Inclusi {
     const tutti = filtriAttivi() === 0;
-    const estremi = new Set();
-    const nodi = new Set();
-    const fili = new Set();
+    const estremi = new Set<string>();
+    const nodi = new Set<string>();
+    const fili = new Set<string>();
     // Blocchi tondi: solo i filtri di requisito, mai quelli di blocco (AC-5)
-    const tondi = parentNode ? getBlockDef(parentNode.type)?.requisiti || [] : requisitiPadre(null);
+    const tondi: Requisito[] = parentNode ? getBlockDef(parentNode.type)?.requisiti || [] : requisitiPadre(null);
     const ownerTondi = parentNode ? parentNode.id : ID_CLIENTE;
-    tondi.forEach(req => {
+    tondi.forEach((req) => {
         if (tutti || requisitoIncluso(req)) estremi.add(chiaveEstremo('parent', ownerTondi, req.id));
     });
-    (graph.nodes || []).forEach(node => {
+    (graph.nodes || []).forEach((node) => {
         const def = getBlockDef(node.type);
         if (!def) return;
         if (tutti || bloccoIncluso(def)) nodi.add(node.id);
         const passa = tutti || bloccoPassa(def);
-        def.requisiti.forEach(req => {
+        def.requisiti.forEach((req) => {
             if (passa && (tutti || requisitoIncluso(req))) estremi.add(chiaveEstremo('node', node.id, req.id));
         });
     });
     // Un filo è incluso se almeno un estremo lo è; un estremo che non si trova non conta (AC-5, AC-10)
-    (graph.edges || []).forEach(edge => {
+    (graph.edges || []).forEach((edge) => {
         if (estremi.has(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle))
             || estremi.has(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle))) fili.add(edge.id);
     });
@@ -255,14 +268,14 @@ function calcolaInclusi(graph, parentNode) {
 }
 
 // Inclusi del disegno in corso e fili disegnati (per Nascondi: gli estremi dei fili disegnati restano)
-let inclusi = { estremi: new Set(), nodi: new Set(), fili: new Set() };
-let estremiDisegnati = new Set();
+let inclusi: Inclusi = { estremi: new Set(), nodi: new Set(), fili: new Set() };
+let estremiDisegnati = new Set<string>();
 
-function estremoIncluso(ownerType, ownerId, reqId) {
+function estremoIncluso(ownerType: TipoEstremo, ownerId: string, reqId: string): boolean {
     return inclusi.estremi.has(chiaveEstremo(ownerType, ownerId, reqId));
 }
 
-export function render() {
+export function render(): void {
     if (!appSettings) return;
     // Ogni mutazione del modello passa di qui: parte (o riparte) l'attesa del salvataggio automatico
     pianificaSalvataggio();
@@ -287,15 +300,15 @@ export function render() {
     const nascondi = modoNascondi();
     const filiCatena = filiInCatena(currentGraph);
     // Un filo senza requisito di partenza non si è mai disegnato
-    const candidati = currentGraph.edges.filter(edge => trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType));
-    const daDisegnare = candidati.filter(edge => !nascondi || inclusi.fili.has(edge.id) || filiCatena.has(edge.id));
+    const candidati = currentGraph.edges.filter((edge) => trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType));
+    const daDisegnare = candidati.filter((edge) => !nascondi || inclusi.fili.has(edge.id) || filiCatena.has(edge.id));
     estremiDisegnati = new Set();
-    daDisegnare.forEach(edge => {
+    daDisegnare.forEach((edge) => {
         estremiDisegnati.add(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle));
         estremiDisegnati.add(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle));
     });
-    const nodiDiFili = new Set();
-    daDisegnare.forEach(edge => {
+    const nodiDiFili = new Set<string>();
+    daDisegnare.forEach((edge) => {
         if (edge.sourceType === 'node') nodiDiFili.add(edge.source);
         if (edge.targetType === 'node') nodiDiFili.add(edge.target);
     });
@@ -307,11 +320,11 @@ export function render() {
     }
 
     // RENDER FILI (EDGES)
-    daDisegnare.forEach(edge => renderEdge(edge, currentGraph));
+    daDisegnare.forEach((edge) => renderEdge(edge, currentGraph));
 
     // RENDER NODI: con Nascondi un blocco escluso resta se è nella catena o estremo di un filo disegnato
     let blocchiEsclusi = 0;
-    currentGraph.nodes.forEach(node => {
+    currentGraph.nodes.forEach((node) => {
         const blockDef = getBlockDef(node.type);
         if (!blockDef) return;
         const incluso = inclusi.nodi.has(node.id);
@@ -319,7 +332,7 @@ export function render() {
         if (nascondi && !incluso && !nodiDiFili.has(node.id) && !nodoNellaCatena(node, blockDef)) return;
         renderNode(node, blockDef);
     });
-    aggiornaRiepilogoFiltri(blocchiEsclusi, candidati.filter(e => !inclusi.fili.has(e.id)).length);
+    aggiornaRiepilogoFiltri(blocchiEsclusi, candidati.filter((e) => !inclusi.fili.has(e.id)).length);
 
     renderUI();
     // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
@@ -329,22 +342,22 @@ export function render() {
 }
 
 // Percorso di un nodo del livello corrente: gli id dei livelli aperti più il suo
-function percorsoNodo(node) {
-    return [...pathStack.slice(1).map(l => l.id), node.id];
+function percorsoNodo(node: Nodo): string[] {
+    return [...pathStack.slice(1).map((l) => l.id), node.id];
 }
 
 // Un blocco con pin della catena della Gerarchia (spec 0005, AC-10)
-function haPinInCatena(node, blockDef) {
-    return blockDef.requisiti.some(r => occorrenzaInCatena(chiaveSulCanvas('node', node.id, r.id)));
+function haPinInCatena(node: Nodo, blockDef: Blocco): boolean {
+    return blockDef.requisiti.some((r) => occorrenzaInCatena(chiaveSulCanvas('node', node.id, r.id)));
 }
 
 // Pin della catena o occorrenze della catena nel contenuto: il blocco si disegna anche con Nascondi Non Coinvolti
-function nodoNellaCatena(node, blockDef) {
+function nodoNellaCatena(node: Nodo, blockDef: Blocco): boolean {
     if (!catenaAttiva()) return false;
     return haPinInCatena(node, blockDef) || contatoreGerarchia(percorsoNodo(node)) > 0;
 }
 
-function renderEdge(edge, currentGraph) {
+function renderEdge(edge: Filo, currentGraph: Grafo): void {
     const startCoords = getEstremoCoords(edge.source, edge.sourceHandle, edge.sourceType, currentGraph);
     const endCoords = getEstremoCoords(edge.target, edge.targetHandle, edge.targetType, currentGraph);
     if (!startCoords || !endCoords) return;
@@ -373,8 +386,8 @@ function renderEdge(edge, currentGraph) {
     const relazione = derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi';
     aggiungiTooltip(path,
         `${relazione} [${getClasseRequisito(srcReq)}]\n` +
-        `${srcReq.id} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
-        `Clic: dettaglio · Doppio clic: aggiungi snodo · Clic destro: elimina`);
+        `${srcReq?.id ?? edge.sourceHandle} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
+        'Clic: dettaglio · Doppio clic: aggiungi snodo · Clic destro: elimina');
 
     // Clic: seleziona il filo e ne mostra il dettaglio nell'ispettore (spec 0009)
     path.addEventListener('click', (e) => {
@@ -394,7 +407,7 @@ function renderEdge(edge, currentGraph) {
     path.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (confirm("Vuoi eliminare questo collegamento?")) eliminaFilo(currentGraph, edge.id);
+        if (confirm('Vuoi eliminare questo collegamento?')) eliminaFilo(currentGraph, edge.id);
     });
 
     edgesLayer.appendChild(path);
@@ -416,7 +429,7 @@ function renderEdge(edge, currentGraph) {
     });
 }
 
-function renderNode(node, blockDef) {
+function renderNode(node: Nodo, blockDef: Blocco): void {
     const nodeW = node.width || appSettings.node.width;
     const nodeH = node.height || appSettings.node.height;
 
@@ -485,14 +498,14 @@ function renderNode(node, blockDef) {
         pin.addEventListener('mousedown', (e) => {
             if (e.shiftKey) {
                 e.stopPropagation();
-                startPinPerimeterDrag(e, node, req.id);
+                startPinPerimeterDrag(node, req.id);
             }
         });
         g.appendChild(pin);
     });
 
     // Capacità: pin quadrati all'interno del blocco, lungo il bordo inferiore
-    const capacita = blockDef.requisiti.filter(r => !isInterfaccia(r));
+    const capacita = blockDef.requisiti.filter((r) => !isInterfaccia(r));
     capacita.forEach((req, idx) => {
         const pos = getCapacitaPos(node, idx, capacita.length);
         g.appendChild(createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'quadrato'));
@@ -507,23 +520,33 @@ function renderNode(node, blockDef) {
 
 /* --- BLOCCHI TONDI: I REQUISITI DEL BLOCCO PADRE VISTI DALL'INTERNO --- */
 
+interface OpzioniBloccoTondo {
+    etichetta: string;
+    sottotitolo: string;
+    tooltip: string;
+    ritirato?: boolean;
+    modificato?: boolean;
+    evidenziato?: boolean;
+    alClic?: () => void;
+}
+
 // Posizione del centro del blocco tondo; salvata in graph.parentReqPositions quando lo sposti
-function getParentBlockCenter(graph, reqId, idx) {
+function getParentBlockCenter(graph: Grafo, reqId: string, idx: number): Punto {
     return graph.parentReqPositions?.[reqId] || posizioneInColonna(idx);
 }
 
 // Posto idx della colonna a sinistra in cui stanno i blocchi tondi non ancora spostati
-export function posizioneInColonna(idx) {
+export function posizioneInColonna(idx: number): Punto {
     const passo = appSettings.parentBlock.radius * 2 + appSettings.grid.size * 2;
     return { x: 60, y: 60 + idx * passo };
 }
 
-function getParentReqPinPos(graph, reqId, idx) {
+function getParentReqPinPos(graph: Grafo, reqId: string, idx: number): Punto {
     const centro = getParentBlockCenter(graph, reqId, idx);
     return { x: centro.x + appSettings.parentBlock.radius, y: centro.y };
 }
 
-function renderParentBlocks(parentNode, graph) {
+function renderParentBlocks(parentNode: Nodo, graph: Grafo): void {
     const parentDef = getBlockDef(parentNode.type);
     if (!parentDef) return;
     const intestazione = `Requisito del blocco padre [${parentNode.label || parentDef.titolo}]`;
@@ -537,10 +560,10 @@ function renderParentBlocks(parentNode, graph) {
 }
 
 // Alla radice: i requisiti cliente che hanno una posizione salvata (sono "sul canvas")
-function renderBlocchiCliente(graph) {
+function renderBlocchiCliente(graph: Grafo): void {
     const posizioni = graph.parentReqPositions || {};
     requisitiPadre(null).forEach((req, idx) => {
-        if (!posizioni[req.id]) return;
+        if (!posizioni[req.id] || !isRequisitoCliente(req)) return;
         disegnaBloccoTondo(graph, req, idx, ID_CLIENTE, {
             etichetta: req.idCliente,
             sottotitolo: titoloRequisito(req),
@@ -553,7 +576,7 @@ function renderBlocchiCliente(graph) {
     });
 }
 
-function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
+function disegnaBloccoTondo(graph: Grafo, req: Requisito, idx: number, ownerId: string, opzioni: OpzioniBloccoTondo): void {
     const raggio = appSettings.parentBlock.radius;
     const centro = getParentBlockCenter(graph, req.id, idx);
     const colore = opzioni.ritirato ? '#9e9e9e' : getColoreRequisito(req);
@@ -610,7 +633,7 @@ function disegnaBloccoTondo(graph, req, idx, ownerId, opzioni) {
 
 // Trascina un blocco tondo; premuto e rilasciato senza cambiare casella della griglia è un clic:
 // a modalità Gerarchia accesa sceglie il requisito, altrimenti chiama alClic (il dettaglio del cliente)
-function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
+function startParentBlockDrag(e: MouseEvent, graph: Grafo, req: Requisito, idx: number, ownerId: string, alClic?: () => void): void {
     e.stopPropagation();
     const reqId = req.id;
     const centro = getParentBlockCenter(graph, reqId, idx);
@@ -618,7 +641,7 @@ function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
     const offset = { x: startCoords.x - centro.x, y: startCoords.y - centro.y };
     let spostato = false;
 
-    function drag(ev) {
+    function drag(ev: MouseEvent): void {
         const coords = getCanvasCoords(ev);
         const nuova = { x: coords.x - offset.x, y: coords.y - offset.y };
         if (!spostato && nuova.x === centro.x && nuova.y === centro.y) return;
@@ -627,7 +650,7 @@ function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
         graph.parentReqPositions[reqId] = nuova;
         render();
     }
-    function endDrag() {
+    function endDrag(): void {
         window.removeEventListener('mousemove', drag);
         window.removeEventListener('mouseup', endDrag);
         if (spostato) return;
@@ -641,7 +664,7 @@ function startParentBlockDrag(e, graph, req, idx, ownerId, alClic) {
 /* --- COORDINATE --- */
 
 // Punto del canvas sotto il cursore, con zoom e pan tolti, senza aggancio alla griglia (spec 0011)
-export function puntoCanvas(e) {
+export function puntoCanvas(e: { clientX: number; clientY: number }): Punto {
     const rect = svg.getBoundingClientRect();
     return {
         x: (e.clientX - rect.left - zoomState.x) / zoomState.scale,
@@ -649,7 +672,7 @@ export function puntoCanvas(e) {
     };
 }
 
-export function getCanvasCoords(e) {
+export function getCanvasCoords(e: { clientX: number; clientY: number }): Punto {
     const p = puntoCanvas(e);
     const gridSize = appSettings.grid.size;
     return {
@@ -658,7 +681,7 @@ export function getCanvasCoords(e) {
     };
 }
 
-function getReqPerimeterPos(node, reqId, idx, totalReqs) {
+function getReqPerimeterPos(node: Nodo, reqId: string, idx: number, totalReqs: number): Punto {
     const nodeW = node.width || appSettings.node.width;
     const nodeH = node.height || appSettings.node.height;
 
@@ -680,19 +703,19 @@ function getReqPerimeterPos(node, reqId, idx, totalReqs) {
     };
 }
 
-function getCapacitaPos(node, idx, totalReqs) {
+function getCapacitaPos(node: Nodo, idx: number, totalReqs: number): Punto {
     const nodeW = node.width || appSettings.node.width;
     const nodeH = node.height || appSettings.node.height;
     return { x: (nodeW / (totalReqs + 1)) * (idx + 1), y: nodeH - MARGINE_PIN_CAPACITA };
 }
 
 // Coordinate assolute del pin di un requisito di un nodo (bordo per l'interfaccia, interno per la capacità)
-export function getReqCoordinates(node, reqId) {
+export function getReqCoordinates(node: Nodo, reqId: string): Punto | null {
     const blockDef = getBlockDef(node.type);
-    const req = blockDef?.requisiti.find(r => r.id === reqId);
-    if (!req) return null;
+    const req = blockDef?.requisiti.find((r) => r.id === reqId);
+    if (!blockDef || !req) return null;
 
-    const gruppo = blockDef.requisiti.filter(r => isInterfaccia(r) === isInterfaccia(req));
+    const gruppo = blockDef.requisiti.filter((r) => isInterfaccia(r) === isInterfaccia(req));
     const idx = gruppo.indexOf(req);
     const relPos = isInterfaccia(req)
         ? getReqPerimeterPos(node, reqId, idx, gruppo.length)
@@ -700,24 +723,24 @@ export function getReqCoordinates(node, reqId) {
     return { x: node.position.x + relPos.x, y: node.position.y + relPos.y };
 }
 
-function getEstremoCoords(ownerId, reqId, ownerType, graph) {
+function getEstremoCoords(ownerId: string, reqId: string, ownerType: TipoEstremo, graph: Grafo): Punto | null {
     if (ownerType === 'parent') {
         const tipoPadre = tipoPadreCorrente();
         // Un requisito cliente si disegna solo se ha una posizione salvata
         if (tipoPadre === null && !graph.parentReqPositions?.[reqId]) return null;
-        const idx = requisitiPadre(tipoPadre).findIndex(r => r.id === reqId);
+        const idx = requisitiPadre(tipoPadre).findIndex((r) => r.id === reqId);
         return idx >= 0 ? getParentReqPinPos(graph, reqId, idx) : null;
     }
-    const node = graph.nodes.find(n => n.id === ownerId);
+    const node = graph.nodes.find((n) => n.id === ownerId);
     return node ? getReqCoordinates(node, reqId) : null;
 }
 
 /* --- PIN E DISEGNO DEI COLLEGAMENTI --- */
 
-function createReqPin(cx, cy, req, owner, forma) {
+function createReqPin(cx: number, cy: number, req: Requisito, owner: Proprietario, forma: 'quadrato' | 'cerchio'): SVGElement {
     const raggio = appSettings.requirements.radius;
     const colore = getColoreRequisito(req);
-    const pin = forma === 'quadrato'
+    const pin: SVGElement = forma === 'quadrato'
         ? creaSvg('rect', { x: cx - raggio, y: cy - raggio, width: raggio * 2, height: raggio * 2 })
         : creaSvg('circle', { cx, cy, r: raggio });
     // L'alone sta sul pin solo per i requisiti dei blocchi; per i blocchi tondi sta sul cerchio
@@ -738,32 +761,34 @@ function createReqPin(cx, cy, req, owner, forma) {
     aggiungiTooltip(pin, descriviRequisito(req) + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
 
     pin.addEventListener('mousedown', (e) => {
-        if (e.shiftKey) return;
+        if ((e as MouseEvent).shiftKey) return;
         e.stopPropagation();
         isDrawingEdge = true;
         edgeStartData = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, x: cx, y: cy };
 
-        tempEdgePath = creaSvg('path', { class: 'edge-path', stroke: colore });
-        tempEdgePath.style.strokeDasharray = '4,4';
+        const temp = creaSvg('path', { class: 'edge-path', stroke: colore });
+        temp.style.strokeDasharray = '4,4';
         // La linea segue il mouse: non deve intercettare il rilascio sul pin di destinazione
-        tempEdgePath.style.pointerEvents = 'none';
-        edgesLayer.appendChild(tempEdgePath);
+        temp.style.pointerEvents = 'none';
+        edgesLayer.appendChild(temp);
+        tempEdgePath = temp;
     });
 
     pin.addEventListener('mouseup', (e) => {
         e.stopPropagation();
-        const stessoPin = edgeStartData && edgeStartData.ownerId === owner.ownerId &&
-            edgeStartData.ownerType === owner.ownerType && edgeStartData.reqId === req.id;
+        const inizio = edgeStartData;
+        const stessoPin = !!inizio && inizio.ownerId === owner.ownerId &&
+            inizio.ownerType === owner.ownerType && inizio.reqId === req.id;
         // Gerarchia: premi e rilascia sullo stesso pin sceglie il suo requisito, senza tirare un filo (AC-2)
         if (isDrawingEdge && stessoPin && gerarchiaAttiva()) {
             cleanupEdgeDrawing();
             scegliDaCanvas(owner, req);
             return;
         }
-        if (isDrawingEdge && edgeStartData && !stessoPin) {
+        if (isDrawingEdge && inizio && !stessoPin) {
             const graph = getCurrentLevel().graph;
-            const a = { ...edgeStartData, req: trovaRequisito(edgeStartData.ownerId, edgeStartData.reqId, edgeStartData.ownerType) };
-            const b = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, req };
+            const a: Estremo = { ownerId: inizio.ownerId, reqId: inizio.reqId, ownerType: inizio.ownerType, req: trovaRequisito(inizio.ownerId, inizio.reqId, inizio.ownerType) };
+            const b: Estremo = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, req };
 
             const errore = verificaCollegamento(a, b, graph.edges);
             if (errore) {
@@ -800,41 +825,43 @@ window.addEventListener('mousemove', (e) => {
     tempEdgePath.setAttribute('d', `M ${start.x} ${start.y} L ${x} ${y}`);
 });
 
-export function cleanupEdgeDrawing() {
+export function cleanupEdgeDrawing(): void {
     isDrawingEdge = false; edgeStartData = null;
     if (tempEdgePath) { tempEdgePath.remove(); tempEdgePath = null; }
 }
 
 /* --- TRASCINAMENTI --- */
 
-function startResizeDrag(e, node) {
+// Collega il trascinamento a window finché il tasto non si rilascia
+function trascina(drag: (ev: MouseEvent) => void): void {
+    function endDrag(): void {
+        window.removeEventListener('mousemove', drag);
+        window.removeEventListener('mouseup', endDrag);
+    }
+    window.addEventListener('mousemove', drag);
+    window.addEventListener('mouseup', endDrag);
+}
+
+function startResizeDrag(e: MouseEvent, node: Nodo): void {
     e.stopPropagation();
     const startX = e.clientX;
     const startY = e.clientY;
     const initialW = node.width || appSettings.node.width;
     const initialH = node.height || appSettings.node.height;
 
-    function drag(ev) {
+    trascina((ev) => {
         const gridSize = appSettings.grid.size;
         node.width = Math.max(80, Math.round((initialW + (ev.clientX - startX) / zoomState.scale) / gridSize) * gridSize);
         node.height = Math.max(40, Math.round((initialH + (ev.clientY - startY) / zoomState.scale) / gridSize) * gridSize);
         render();
-    }
-
-    function endDrag() {
-        window.removeEventListener('mousemove', drag);
-        window.removeEventListener('mouseup', endDrag);
-    }
-
-    window.addEventListener('mousemove', drag);
-    window.addEventListener('mouseup', endDrag);
+    });
 }
 
-function startPinPerimeterDrag(e, node, reqId) {
+function startPinPerimeterDrag(node: Nodo, reqId: string): void {
     const nodeW = node.width || appSettings.node.width;
     const nodeH = node.height || appSettings.node.height;
 
-    function drag(ev) {
+    trascina((ev) => {
         const coords = getCanvasCoords(ev);
         const relX = coords.x - node.position.x;
         const relY = coords.y - node.position.y;
@@ -853,37 +880,20 @@ function startPinPerimeterDrag(e, node, reqId) {
         else node.pinPositions[reqId] = { side: 'right', ratio: Math.max(0, Math.min(1, relY / nodeH)) };
 
         render();
-    }
-
-    function endDrag() {
-        window.removeEventListener('mousemove', drag);
-        window.removeEventListener('mouseup', endDrag);
-    }
-
-    window.addEventListener('mousemove', drag);
-    window.addEventListener('mouseup', endDrag);
+    });
 }
 
-function startWaypointDrag(e, waypoint) {
+function startWaypointDrag(e: MouseEvent, waypoint: Punto): void {
     e.stopPropagation();
-
-    function drag(ev) {
+    trascina((ev) => {
         const coords = getCanvasCoords(ev);
         waypoint.x = coords.x;
         waypoint.y = coords.y;
         render();
-    }
-
-    function endDrag() {
-        window.removeEventListener('mousemove', drag);
-        window.removeEventListener('mouseup', endDrag);
-    }
-
-    window.addEventListener('mousemove', drag);
-    window.addEventListener('mouseup', endDrag);
+    });
 }
 
-function enterNode(node) {
+function enterNode(node: Nodo): void {
     if (!node.internal_graph) node.internal_graph = { nodes: [], edges: [] };
     pathStack.push({
         id: node.id,
@@ -896,21 +906,15 @@ function enterNode(node) {
     render();
 }
 
-function startDrag(e, node) {
+function startDrag(e: MouseEvent, node: Nodo): void {
     e.stopPropagation();
     const startCoords = getCanvasCoords(e);
     const offset = { x: startCoords.x - node.position.x, y: startCoords.y - node.position.y };
 
-    function drag(ev) {
+    trascina((ev) => {
         const coords = getCanvasCoords(ev);
         node.position.x = coords.x - offset.x;
         node.position.y = coords.y - offset.y;
         render();
-    }
-    function endDrag() {
-        window.removeEventListener('mousemove', drag);
-        window.removeEventListener('mouseup', endDrag);
-    }
-    window.addEventListener('mousemove', drag);
-    window.addEventListener('mouseup', endDrag);
+    });
 }

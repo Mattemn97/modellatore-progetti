@@ -1,7 +1,20 @@
 /* --- TESTI DELL'AIUTO: SUGGERIMENTI DELLE (i) E PASSI DEI TOUR (spec 0012) --- */
 
+export interface Suggerimento {
+    titolo: string;
+    testo: string;
+}
+
+// Un passo di un tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | scheda:<nome>
+export interface PassoTour {
+    area: string | null;
+    titolo: string;
+    testo: string;
+    prepara?: string;
+}
+
 // Ogni data-aiuto="chiave" dell'interfaccia ha qui la sua voce. Chiavi a punti per area.
-export const SUGGERIMENTI = {
+export const SUGGERIMENTI: Record<string, Suggerimento> = {
     // Header
     'header.annulla': { titolo: 'Annulla (Ctrl+Z)', testo: "Torna allo stato del progetto prima dell'ultima modifica salvata. Usa le copie che il server tiene in progetti/_versioni/." },
     'header.ripeti': { titolo: 'Ripeti (Ctrl+Y)', testo: "Rifà la modifica appena annullata. Si svuota appena fai una modifica nuova." },
@@ -136,7 +149,7 @@ export const SUGGERIMENTI = {
 };
 
 // Passi dei tour: area = selettore CSS (null = fumetto al centro); prepara = pannelloSinistro | pannelloDestro | scheda:<nome>
-export const TOUR = {
+export const TOUR: Record<string, PassoTour[]> = {
     principale: [
         { area: null, titolo: 'Benvenuto nel Modellatore', testo: "Qui disegni il sistema come blocchi annidati e colleghi i requisiti con dei fili, dai requisiti del cliente fino ai blocchi più piccoli. Questo giro ti mostra ogni area in pochi passi.\n\nUsa → o Invio per andare avanti, ← per tornare indietro, Esc per uscire." },
         { area: '#breadcrumb', titolo: 'Dove ti trovi', testo: "Il percorso dei livelli aperti. Con un doppio clic su un blocco entri al suo interno (come una matrioska): qui compare il suo nome. Clicca un livello del percorso, o Indietro, per risalire." },
