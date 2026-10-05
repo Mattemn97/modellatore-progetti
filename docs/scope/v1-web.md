@@ -1,34 +1,8 @@
-# Scope: Modellatore di Requisiti a Blocchi (MBSE)
+# Scope · Epic v1: editor web con server locale
 
-Editor web di sistemi a blocchi annidati, collegati da fili che rappresentano i requisiti. Parte dai requisiti cliente, li fa scendere fino ai blocchi che li coprono e genera i documenti formali MIL-STD-498 (SSS, SSDD, IRS, IDD…) con la matrice di tracciabilità. Un utente, in locale.
+La versione 1.x: editor nel browser servito da `start.py` (o `start.exe`) su localhost. Tutte le voci sono chiuse; la riscrittura desktop in TypeScript è in [v2-desktop.md](v2-desktop.md). Quadro generale, approccio e legenda in [index.md](index.md).
 
-**Build approach:** Tracer Bullet (ogni funzionalità completa e funzionante, dai dati al canvas al file, prima della successiva).
-**Workflow:** Alpha (dopo `/develop` si esegue `/check verify` sull'app vera). È il livello di rigore predefinito. `/architect` è la prima tappa consigliata per una funzionalità con una decisione da prendere, ma puoi saltarla se sai già come costruirla. Ogni funzionalità può avere un suo tag (es. `· Beta`) per fare di più o di meno.
-
-_Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti serve: se sai già come costruire una funzionalità, usa `/develop` e salta `/architect`. Decidi tu quando una funzionalità è `done`._
-
-## At a glance
-
-| # | Feature | Phase | Status |
-|---|---------|-------|--------|
-| A | Editor a blocchi annidati | Esistente | existing |
-| B | Modello dati interfaccia e capacità | Esistente | existing |
-| C | Import ed export JSON manuale | Esistente | existing |
-| 1 | Salvataggio automatico del progetto | Foundation | done |
-| 2 | Libreria su disco con changelog | Foundation | done |
-| 3 | Import requisiti cliente | Slice 1 | done |
-| 4 | Controllo di coerenza | Slice 2 | done |
-| 5 | Gerarchia dei requisiti | Slice 3 | done |
-| 6 | Matrice di tracciabilità | Slice 3 | done |
-| 7 | Export documenti MIL-STD-498 | Slice 3 | done |
-| 8 | Filtri avanzati | Slice 4 | done |
-| 9 | Ispettore dei collegamenti | Slice 4 | done |
-| 10 | Gestione completa della libreria | Slice 4 | done |
-| 11 | Rifiniture dell'editor | Slice 4 | done |
-| 12 | Tutorial e aiuto contestuale | Slice 5 | done |
-| 13 | Protezione dei dati negli aggiornamenti | Slice 6 | done |
-| 14 | Console del server più leggibile | Slice 6 | done |
-| 15 | Controllo e aggiornamento automatico | Slice 6 | done |
+Queste voci sono state costruite con il livello **Alpha** (dopo `/develop`, `/check verify`).
 
 ## Già presente
 
@@ -243,25 +217,3 @@ Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Coerenza dentro la gerarchia**: un segno sulle righe dell'albero con problemi di coerenza, invece di cambiare modalità, from spec 0005 · needs a decision
 - **Matrice per occorrenza**: righe per istanza con il percorso, accanto alla vista per id, from spec 0006 · needs a decision
 - **Lettura di `.xls` e date di Excel**: riaprire la scelta del lettore (SheetJS in `js/vendor/`), from spec 0003 · needs a decision
-
-## Legend
-
-**La casella di decisione.** Ogni funzionalità ne ha una, quella che finisce con `(spec)`. Il testo può variare, quindi le skill la trovano dal suffisso `(spec)`, mai dal testo esatto. Tutte le altre caselle sono di esecuzione e `/architect` non le spunta mai.
-
-**Ciclo di vita di una funzionalità**:
-
-| Stato | Chi lo imposta | Cosa mostra |
-|---|---|---|
-| `planned` · needs a decision | `/scope` | una casella: `Design it (spec): /architect <funzionalità>` |
-| `in-progress` (progettata) | `/architect` alla cattura della spec | `Design it` spuntata, spec collegata, `Build it: /develop <funzionalità>` con 2 a 5 tappe, poi `Verify it` (Alpha e oltre), `Test it` (Beta e oltre) |
-| `in-progress` (in costruzione) | `/develop` | le tappe si spuntano una alla volta, compare il puntatore al codice |
-| `in-progress` (verificata) | `/check verify` | `Build it` e `Verify it` spuntate |
-| `done` | tu, quando decidi; `/sync` riallinea | Alpha: dopo `/check verify`; Beta: dopo `/test` |
-
-- **Prossimo passo** = la prima casella non spuntata.
-- **needs a decision** = prima `/architect`, altrimenti direttamente `/develop`.
-- I compiti di dettaglio stanno nel `## Build plan` della spec, non qui.
-- **Status**: `planned` → `in-progress` → `done`, più `existing` (fatto prima di questo flusso) e `dropped` (tolto dal piano, tenuto per storia).
-- **Tag di livello** accanto al titolo (es. `· Beta`): più o meno rigore per quella sola funzionalità. Senza tag vale il predefinito (Alpha).
-- **Workflow**: Prototype = niente dopo `/develop`; Alpha = `/check verify`; Beta = `/check verify` poi `/test`; GA = aggiunge `/check review` e `/document`.
-- **Riga puntatore** (`spec <n> · code in <path>`): la spec la aggiunge `/architect`, il codice `/develop`.
