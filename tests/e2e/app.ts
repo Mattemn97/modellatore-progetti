@@ -146,3 +146,16 @@ export async function rispondiRichiesta(app: ElectronApplication, azione: () => 
     await fatto;
     return domanda;
 }
+
+// I download vanno in `cartella` senza la finestra Salva con nome; restituisce i nomi dei file scaricati
+export async function intercettaDownload(app: ElectronApplication, cartella: string): Promise<() => Promise<string[]>> {
+    await app.evaluate(({ session }, dest) => {
+        const g = globalThis as unknown as { __scaricati: string[] };
+        g.__scaricati = [];
+        session.defaultSession.on('will-download', (_e, item) => {
+            g.__scaricati.push(item.getFilename());
+            item.setSavePath(`${dest}/${item.getFilename()}`);
+        });
+    }, cartella);
+    return () => app.evaluate(() => (globalThis as unknown as { __scaricati: string[] }).__scaricati);
+}

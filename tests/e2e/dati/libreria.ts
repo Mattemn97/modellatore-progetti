@@ -53,3 +53,21 @@ export function progettoCollegato(nome = 'Sistema di prova'): Record<string, unk
         }
     };
 }
+
+// Come progettoCollegato, più due requisiti cliente: CLI-R1 deriva su ali_002, CLI-R2 non ha figli
+export function progettoTracciato(nome = 'Sistema tracciato'): Record<string, unknown> {
+    const base = progettoCollegato(nome) as { workspace: { edges: unknown[]; parentReqPositions?: unknown } };
+    base.workspace.edges.push({ id: 'edge_d', source: '__cliente__', sourceHandle: 'CLI-R1', sourceType: 'parent', target: 'node_a', targetHandle: 'ali_002', targetType: 'node', waypoints: [] });
+    base.workspace.parentReqPositions = { 'CLI-R1': { x: 120, y: 320 }, 'CLI-R2': { x: 320, y: 320 } };
+    const requisito = (idCliente: string, testo: string, titolo: string) => ({
+        id: `CLI-${idCliente}`, idCliente, testo, titolo, note: null, sezione: null, tipologia: null, stato: 'attivo', modificato: false, precedente: null
+    });
+    return {
+        ...base,
+        cliente: {
+            prefisso: 'CLI-',
+            requisiti: [requisito('R1', 'Il sistema è efficiente', 'Efficienza'), requisito('R2', 'Il sistema pesa poco', 'Peso')],
+            ultimoImport: null
+        }
+    };
+}

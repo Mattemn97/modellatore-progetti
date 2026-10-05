@@ -1,7 +1,7 @@
 # 0017. Rete di sicurezza end to end: contratto delle API e percorsi dell'interfaccia
 
 **Date**: 2026-10-05
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 
