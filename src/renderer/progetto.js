@@ -1,5 +1,6 @@
 /* --- PROGETTO SU DISCO: SALVATAGGIO AUTOMATICO, VERSIONI, ANNULLA E RIPETI, MENU PROGETTO --- */
 
+import { chiamaApi } from './api.js';
 import { appState, appSettings, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId } from './state.js';
 import { render } from './renderer.js';
 import { renderUI } from './app.js';
@@ -85,28 +86,8 @@ function urlProgetto(slug, suffisso = '') {
 }
 
 // Risponde sempre con { ok, stato, dati } oppure { ok: false, errore, messaggio }, mai con un'eccezione
-export async function chiamaApi(metodo, percorso, corpo) {
-    const opzioni = { method: metodo, headers: { 'Content-Type': 'application/json' } };
-    if (corpo !== undefined) opzioni.body = typeof corpo === 'string' ? corpo : JSON.stringify(corpo);
-    let risposta;
-    try {
-        risposta = await fetch(percorso, opzioni);
-    } catch {
-        return { ok: false, stato: 0, errore: 'rete', messaggio: 'Server non raggiungibile' };
-    }
-    let dati = null;
-    if (risposta.status !== 204) {
-        try { dati = await risposta.json(); } catch { dati = null; }
-    }
-    if (risposta.ok) return { ok: true, stato: risposta.status, dati };
-    return {
-        ok: false,
-        stato: risposta.status,
-        errore: dati?.errore || `http_${risposta.status}`,
-        messaggio: dati?.messaggio || `Errore del server (HTTP ${risposta.status})`,
-        dati
-    };
-}
+// Spostata in api.ts (tipata); riesportata per i moduli che la importano da qui
+export { chiamaApi };
 
 function slugDaNome(nome) {
     const slug = slugifyId(nome).slice(0, LUNGHEZZA_MAX_SLUG).replace(/_+$/, '');

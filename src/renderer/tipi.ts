@@ -184,3 +184,19 @@ declare global {
         desktop?: Desktop;
     }
 }
+
+/* --- Estremo di un filo del livello di adesso, descritto dal renderer per l'ispettore (spec 0009) --- */
+
+interface BaseEstremo {
+    ownerId: string;
+    reqId: string;
+    ownerType: TipoEstremo;
+}
+
+export type EstremoDescritto = BaseEstremo & (
+    | { mancante: true }
+    // Blocco tondo: requisito del padre del livello (cliente alla radice)
+    | { mancante?: false; req: Requisito; tondo: true; cliente: boolean; parentNode: Nodo | null }
+    // Pin di un nodo del livello
+    | { mancante?: false; req: RequisitoLibreria; tondo: false; cliente: false; nodo: Nodo; def: Blocco }
+);

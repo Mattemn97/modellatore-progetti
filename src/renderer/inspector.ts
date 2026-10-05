@@ -5,21 +5,41 @@ import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, to
 import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
-    isDerivazione, verificaCompatibilita, titoloRequisito
+    isDerivazione, isRequisitoCliente, verificaCompatibilita, titoloRequisito
 } from './model.js';
 import {
-    salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog, eliminaBloccoLibreria, rinominaBloccoLibreria
+    salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog, eliminaBloccoLibreria, rinominaBloccoLibreria,
+    type RispostaLibreria
 } from './libreria.js';
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
 import { iconaAiuto } from './aiuto.js';
+import type { EstremoDescritto, Filo, Nodo, RequisitoCliente, RequisitoLibreria } from './tipi.js';
 
-const propsContent = document.getElementById('propsContent');
+const propsContent = document.getElementById('propsContent') as HTMLElement;
 
 // Id requisito: lettere, cifre, underscore, trattino e punto, senza spazi
 const FORMATO_ID_REQUISITO = /^[A-Za-z0-9_.-]+$/;
 
-export function checkLibraryDuplicates(id, titolo, currentEditingId = null) {
+// Requisito nel form: l'id che aveva all'apertura serve a riconoscere le rinomine
+type RequisitoForm = RequisitoLibreria & { _idOriginale?: string };
+
+interface DatiForm {
+    isNew: boolean;
+    nodeId?: string | null;
+    blockId?: string;
+    titolo: string;
+    descrizione: string;
+    categoria: string;
+    sottocategoria: string;
+    requisiti: RequisitoForm[];
+}
+
+function campo<T extends HTMLElement = HTMLInputElement>(id: string): T {
+    return document.getElementById(id) as T;
+}
+
+export function checkLibraryDuplicates(id: string, titolo: string, currentEditingId: string | null = null): string | null {
     const cleanId = id.trim().toLowerCase();
     const cleanTitolo = titolo.trim().toLowerCase();
 
@@ -36,30 +56,30 @@ export function checkLibraryDuplicates(id, titolo, currentEditingId = null) {
     return null;
 }
 
-function copiaRequisiti(requisiti) {
-    return JSON.parse(JSON.stringify(requisiti)).map(r => ({ ...r, _idOriginale: r.id }));
+function copiaRequisiti(requisiti: RequisitoLibreria[]): RequisitoForm[] {
+    return (JSON.parse(JSON.stringify(requisiti)) as RequisitoLibreria[]).map((r) => ({ ...r, _idOriginale: r.id }));
 }
 
 // Un altro contenuto nel pannello toglie la selezione del filo (spec 0009, AC-1)
-function lasciaFilo() {
+function lasciaFilo(): void {
     if (togliSelezioneFilo()) render();
 }
 
-export function renderNewBlockForm() {
+export function renderNewBlockForm(): void {
     lasciaFilo();
     setActiveNodeId(null);
     renderEditorForm({
         isNew: true,
-        titolo: "",
-        descrizione: "",
-        categoria: "Generali",
-        sottocategoria: "",
+        titolo: '',
+        descrizione: '',
+        categoria: 'Generali',
+        sottocategoria: '',
         requisiti: []
     });
 }
 
 // Apre un blocco di libreria nell'ispettore; nodeId è l'istanza sul canvas, se c'è
-export function openLibraryBlock(blockId, nodeId = null) {
+export function openLibraryBlock(blockId: string, nodeId: string | null = null): void {
     const blockDef = appState.library[blockId];
     if (!blockDef) return;
     renderEditorForm({
@@ -74,7 +94,7 @@ export function openLibraryBlock(blockId, nodeId = null) {
     });
 }
 
-export function selectNode(node) {
+export function selectNode(node: Nodo): void {
     lasciaFilo();
     setActiveNodeId(node.id);
     if (appState.library[node.type]) {
@@ -85,18 +105,18 @@ export function selectNode(node) {
 }
 
 // <option> di una lista, mantenendo un valore attuale che non è più in elenco
-function opzioni(valori, selezionato, etichettaVuota) {
+function opzioni(valori: string[], selezionato: string | null, etichettaVuota?: string): string {
     const lista = [...valori];
     if (selezionato && !lista.includes(selezionato)) lista.push(selezionato);
     const vuota = etichettaVuota !== undefined
         ? `<option value="" ${!selezionato ? 'selected' : ''}>${escapeHtml(etichettaVuota)}</option>`
         : '';
-    return vuota + lista.map(v =>
+    return vuota + lista.map((v) =>
         `<option value="${escapeHtml(v)}" ${v === selezionato ? 'selected' : ''}>${escapeHtml(v)}</option>`
     ).join('');
 }
 
-function renderEditorForm(data) {
+function renderEditorForm(data: DatiForm): void {
     // Il form della libreria prende il posto del dettaglio di un requisito cliente
     impostaSelezioneCliente(null);
     evidenziaCliente(null);
@@ -192,24 +212,24 @@ function renderEditorForm(data) {
 
     document.getElementById('lnkStoria')?.addEventListener('click', (e) => {
         e.preventDefault();
-        mostraChangelog(data.blockId);
+        void mostraChangelog(data.blockId);
     });
 
-    const titoloInput = document.getElementById('edtBlockTitolo');
-    const idInput = document.getElementById('edtBlockId');
+    const titoloInput = campo('edtBlockTitolo');
+    const idInput = campo('edtBlockId');
 
     if (data.isNew) {
-        titoloInput.addEventListener('input', (e) => {
-            idInput.value = slugifyId(e.target.value);
+        titoloInput.addEventListener('input', () => {
+            idInput.value = slugifyId(titoloInput.value);
         });
     }
 
     const currentReqs = data.requisiti;
-    const reqsContainer = document.getElementById('reqsListContainer');
+    const reqsContainer = campo<HTMLElement>('reqsListContainer');
 
-    function renderReqRows() {
+    function renderReqRows(): void {
         if (currentReqs.length === 0) {
-            reqsContainer.innerHTML = `<div class="empty-props">Nessun requisito definito.</div>`;
+            reqsContainer.innerHTML = '<div class="empty-props">Nessun requisito definito.</div>';
             return;
         }
 
@@ -248,45 +268,50 @@ function renderEditorForm(data) {
 
     // Un solo ascoltatore per tutti i campi dei requisiti
     reqsContainer.addEventListener('input', (e) => {
-        const { idx, tidx, campo } = e.target.dataset;
-        if (idx === undefined || !campo) return;
-        const req = currentReqs[idx];
-        const valore = e.target.value;
-        switch (campo) {
+        const bersaglio = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        const { idx, tidx, campo: nomeCampo } = bersaglio.dataset;
+        if (idx === undefined || !nomeCampo) return;
+        const req = currentReqs[Number(idx)];
+        if (!req) return;
+        const valore = bersaglio.value;
+        const testo = tidx === undefined ? undefined : req.testiExport[Number(tidx)];
+        switch (nomeCampo) {
             case 'id': req.id = valore.trim(); break;
             case 'titolo': req.titolo = valore; break;
             case 'tipologia': req.tipologia = valore || null; break;
             case 'metodoVerifica': req.metodoVerifica = valore; break;
-            case 'documento': req.testiExport[tidx].documento = valore; break;
-            case 'testo': req.testiExport[tidx].testo = valore; break;
+            case 'documento': if (testo) testo.documento = valore; break;
+            case 'testo': if (testo) testo.testo = valore; break;
         }
     });
 
     reqsContainer.addEventListener('click', (e) => {
-        const bottone = e.target.closest('button[data-azione]');
+        const bottone = (e.target as Element).closest<HTMLElement>('button[data-azione]');
         if (!bottone) return;
         const { idx, tidx, azione } = bottone.dataset;
+        const i = Number(idx);
+        const req = currentReqs[i];
+        if (!req) return;
         if (azione === 'elimina-req') {
-            const req = currentReqs[idx];
             if (!confirm(`Eliminare il requisito "${req.id}"? I collegamenti che lo usano verranno rimossi al salvataggio.`)) return;
-            currentReqs.splice(idx, 1);
+            currentReqs.splice(i, 1);
         } else if (azione === 'aggiungi-testo') {
-            currentReqs[idx].testiExport.push({ testo: '', documento: '' });
+            req.testiExport.push({ testo: '', documento: '' });
         } else if (azione === 'elimina-testo') {
-            currentReqs[idx].testiExport.splice(tidx, 1);
+            req.testiExport.splice(Number(tidx), 1);
         }
         renderReqRows();
     });
 
     renderReqRows();
 
-    function baseIdRequisiti() {
+    function baseIdRequisiti(): string {
         return (data.isNew ? idInput.value : data.blockId) || slugifyId(titoloInput.value) || 'req';
     }
 
-    document.getElementById('btnAddReqRow').addEventListener('click', () => {
+    campo<HTMLButtonElement>('btnAddReqRow').addEventListener('click', () => {
         currentReqs.push({
-            id: idRequisitoLibero(appState.library, baseIdRequisiti(), currentReqs.map(r => r.id)),
+            id: idRequisitoLibero(appState.library, baseIdRequisiti(), currentReqs.map((r) => r.id)),
             titolo: '',
             tipologia: null,
             metodoVerifica: '',
@@ -295,58 +320,63 @@ function renderEditorForm(data) {
         renderReqRows();
     });
 
-    function leggiCampiBlocco() {
+    function leggiCampiBlocco(): { titolo: string; descrizione: string; categoria: string; sottocategoria: string } {
         return {
             titolo: titoloInput.value.trim(),
-            descrizione: document.getElementById('edtBlockDescrizione').value.trim(),
-            categoria: document.getElementById('edtBlockCategoria').value.trim() || 'Generali',
-            sottocategoria: document.getElementById('edtBlockSottocategoria').value.trim()
+            descrizione: campo<HTMLTextAreaElement>('edtBlockDescrizione').value.trim(),
+            categoria: campo('edtBlockCategoria').value.trim() || 'Generali',
+            sottocategoria: campo('edtBlockSottocategoria').value.trim()
         };
     }
 
-    // Prima il disco, poi la memoria: libreria, progetto e albero cambiano solo dopo la risposta positiva del server
-    document.getElementById('btnSaveBlockToLib').addEventListener('click', async () => {
-        const campi = leggiCampiBlocco();
-        const blockId = data.isNew ? slugifyId(campi.titolo) : data.blockId;
+    const opzioniVersione = () => ({
+        livello: document.querySelector<HTMLSelectElement>('#edtLivello')?.value || 'auto',
+        nota: (document.querySelector<HTMLInputElement>('#edtNotaModifica')?.value || '').trim()
+    });
 
-        if (!campi.titolo || !blockId) return alert("Inserisci un titolo valido per il blocco.");
+    // Prima il disco, poi la memoria: libreria, progetto e albero cambiano solo dopo la risposta positiva del server
+    campo<HTMLButtonElement>('btnSaveBlockToLib').addEventListener('click', async () => {
+        const campi = leggiCampiBlocco();
+        const blockId = data.isNew ? slugifyId(campi.titolo) : data.blockId ?? '';
+
+        if (!campi.titolo || !blockId) return alert('Inserisci un titolo valido per il blocco.');
         if (blockId === ID_CLIENTE) return alert(`L'ID "${ID_CLIENTE}" è riservato ai requisiti cliente: scegli un altro titolo.`);
 
         const dupErr = checkLibraryDuplicates(blockId, campi.titolo, data.isNew ? null : blockId);
         if (dupErr) return alert(dupErr);
 
-        const requisiti = currentReqs.map(({ _idOriginale, ...req }) => ({
+        const requisiti: RequisitoLibreria[] = currentReqs.map(({ _idOriginale: _ignorato, ...req }) => ({
             ...req,
             titolo: req.titolo.trim(),
             // I testi lasciati completamente vuoti non vengono salvati
             testiExport: req.testiExport
-                .map(t => ({ testo: t.testo.trim(), documento: t.documento }))
-                .filter(t => t.testo || t.documento)
+                .map((t) => ({ testo: t.testo.trim(), documento: t.documento }))
+                .filter((t) => t.testo || t.documento)
         }));
 
         const errore = validaRequisiti(requisiti, blockId);
         if (errore) return alert(errore);
 
-        const mappaRinomina = {};
+        const mappaRinomina: Record<string, string> = {};
         if (!data.isNew) {
-            currentReqs.forEach(r => {
+            currentReqs.forEach((r) => {
                 if (r._idOriginale && r._idOriginale !== r.id) mappaRinomina[r._idOriginale] = r.id;
             });
         }
 
         // Chiamata dopo che la libreria su disco è stata scritta e adottata in appState.library
-        const alSuccesso = (risposta) => {
+        const alSuccesso = (risposta: RispostaLibreria): void => {
             if (risposta.invariata) {
-                alert("Nessuna modifica da salvare");
+                alert('Nessuna modifica da salvare');
                 return;
             }
             let filiRimossi = 0;
             if (!data.isNew) {
-                filiRimossi = aggiornaRiferimentiRequisiti(pathStack[0].graph, appState.library, blockId, mappaRinomina);
+                filiRimossi = aggiornaRiferimentiRequisiti(pathStack[0]!.graph, appState.library, blockId, mappaRinomina);
                 // Prima di qualunque render(): la scelta della Gerarchia segue l'id rinominato
                 rinominaSceltaGerarchia(blockId, mappaRinomina);
                 if (data.nodeId) {
-                    const node = getCurrentLevel().graph.nodes.find(n => n.id === data.nodeId);
+                    const node = getCurrentLevel().graph.nodes.find((n) => n.id === data.nodeId);
                     if (node) node.label = campi.titolo;
                 }
             }
@@ -366,8 +396,7 @@ function renderEditorForm(data) {
             blocco: { id: blockId, ...campi, requisiti },
             nuovo: data.isNew,
             rinomine: mappaRinomina,
-            livello: document.getElementById('edtLivello')?.value || 'auto',
-            nota: (document.getElementById('edtNotaModifica')?.value || '').trim()
+            ...opzioniVersione()
         }, alSuccesso, { blockId: data.isNew ? null : blockId, nodeId: data.nodeId || null });
         // Rifiuto o errore: il form resta aperto con i dati inseriti; il conflitto si risolve dal banner
         if (!esito.ok && !esito.conflitto) alert(`Blocco non salvato: ${esito.messaggio}`);
@@ -375,11 +404,11 @@ function renderEditorForm(data) {
 
     document.getElementById('btnCreateCopy')?.addEventListener('click', () => {
         const campi = leggiCampiBlocco();
-        const titoloCopia = campi.titolo + " Copia";
+        const titoloCopia = campi.titolo + ' Copia';
         const baseCopia = slugifyId(titoloCopia) || 'req';
         // Gli id dei requisiti sono univoci in tutta la libreria: la copia ne riceve di nuovi
-        const nuoviId = [];
-        const requisitiCopia = JSON.parse(JSON.stringify(currentReqs)).map(({ _idOriginale, ...req }) => {
+        const nuoviId: string[] = [];
+        const requisitiCopia = (JSON.parse(JSON.stringify(currentReqs)) as RequisitoForm[]).map(({ _idOriginale: _ignorato, ...req }) => {
             const id = idRequisitoLibero(appState.library, baseCopia, nuoviId);
             nuoviId.push(id);
             return { ...req, id };
@@ -387,7 +416,7 @@ function renderEditorForm(data) {
 
         setActiveNodeId(null);
         renderEditorForm({ isNew: true, ...campi, titolo: titoloCopia, requisiti: requisitiCopia });
-        document.getElementById('edtBlockId').value = slugifyId(titoloCopia);
+        campo('edtBlockId').value = slugifyId(titoloCopia);
     });
 
     document.getElementById('btnDeleteNode')?.addEventListener('click', () => {
@@ -395,15 +424,13 @@ function renderEditorForm(data) {
     });
 
     // Gestione completa della libreria (spec 0010)
-    const opzioniVersione = () => ({
-        livello: document.getElementById('edtLivello')?.value || 'auto',
-        nota: (document.getElementById('edtNotaModifica')?.value || '').trim()
+    document.getElementById('btnEliminaBloccoLib')?.addEventListener('click', () => {
+        if (data.blockId) void eliminaBlocco(data.blockId, opzioniVersione());
     });
-    document.getElementById('btnEliminaBloccoLib')?.addEventListener('click', () => eliminaBlocco(data.blockId, opzioniVersione()));
     document.getElementById('lnkRinominaBlocco')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
-        rinominaBlocco(data.blockId, data.nodeId || null, opzioniVersione());
+        if ((e.currentTarget as HTMLElement).getAttribute('aria-disabled') === 'true' || !data.blockId) return;
+        void rinominaBlocco(data.blockId, data.nodeId || null, opzioniVersione());
     });
 }
 
@@ -413,26 +440,26 @@ const MAX_ISTANZE_ELENCATE = 20;
 const MSG_ID_NON_VALIDO = "L'ID può contenere solo lettere, cifre, underscore, trattino e punto (al massimo 200 caratteri).";
 
 // Ogni nodo del progetto con quel tipo, a qualsiasi livello, con il percorso di etichette dalla radice
-export function istanzeDelBlocco(idBlocco) {
-    const trovate = [];
-    function visita(graph, etichette) {
-        (graph?.nodes || []).forEach(nodo => {
+export function istanzeDelBlocco(idBlocco: string): Array<{ nodo: Nodo; percorso: string }> {
+    const trovate: Array<{ nodo: Nodo; percorso: string }> = [];
+    function visita(graph: { nodes?: Nodo[] } | undefined, etichette: string[]): void {
+        (graph?.nodes || []).forEach((nodo) => {
             const percorso = [...etichette, nodo.label || nodo.id];
             if (nodo.type === idBlocco) trovate.push({ nodo, percorso: percorso.join(' › ') });
             if (nodo.internal_graph) visita(nodo.internal_graph, percorso);
         });
     }
-    visita(pathStack[0].graph, [pathStack[0].label]);
+    visita(pathStack[0]!.graph, [pathStack[0]!.label]);
     return trovate;
 }
 
-async function eliminaBlocco(idBlocco, opzioni) {
+async function eliminaBlocco(idBlocco: string, opzioni: Record<string, unknown>): Promise<void> {
     const def = appState.library[idBlocco];
     if (!def) return;
     const titolo = def.titolo || idBlocco;
     const istanze = istanzeDelBlocco(idBlocco);
     if (istanze.length > 0) {
-        const righe = istanze.slice(0, MAX_ISTANZE_ELENCATE).map(i => `- ${i.percorso}`);
+        const righe = istanze.slice(0, MAX_ISTANZE_ELENCATE).map((i) => `- ${i.percorso}`);
         if (istanze.length > MAX_ISTANZE_ELENCATE) righe.push(`… e altre ${istanze.length - MAX_ISTANZE_ELENCATE}`);
         alert(`Il blocco "${titolo}" è usato in ${istanze.length} istanze nel progetto e non si può eliminare. Togli prima le istanze:\n${righe.join('\n')}`);
         return;
@@ -450,7 +477,7 @@ async function eliminaBlocco(idBlocco, opzioni) {
     if (!esito.ok && !esito.conflitto) alert(`Blocco non eliminato: ${esito.messaggio}`);
 }
 
-async function rinominaBlocco(idBlocco, nodeId, opzioni) {
+async function rinominaBlocco(idBlocco: string, nodeId: string | null, opzioni: Record<string, unknown>): Promise<void> {
     if (!appState.library[idBlocco]) return;
     const risposta = chiediTesto('Nuovo ID del blocco', idBlocco);
     if (risposta === null) return;
@@ -460,7 +487,7 @@ async function rinominaBlocco(idBlocco, nodeId, opzioni) {
         alert(MSG_ID_NON_VALIDO);
         return;
     }
-    if (Object.keys(appState.library).some(k => k !== idBlocco && k.toLowerCase() === nuovoId.toLowerCase())) {
+    if (Object.keys(appState.library).some((k) => k !== idBlocco && k.toLowerCase() === nuovoId.toLowerCase())) {
         alert(`Un blocco con ID "${nuovoId}" esiste già nella libreria.`);
         return;
     }
@@ -479,12 +506,12 @@ async function rinominaBlocco(idBlocco, nodeId, opzioni) {
 }
 
 // Restituisce il primo problema trovato nei requisiti, oppure null
-function validaRequisiti(requisiti, blockId) {
-    const idNelBlocco = new Set();
+function validaRequisiti(requisiti: RequisitoLibreria[], blockId: string): string | null {
+    const idNelBlocco = new Set<string>();
     const tipologie = getTipologie();
 
     for (const req of requisiti) {
-        if (!req.id) return "Ogni requisito deve avere un ID.";
+        if (!req.id) return 'Ogni requisito deve avere un ID.';
         if (!FORMATO_ID_REQUISITO.test(req.id)) {
             return `L'ID "${req.id}" non è valido: usa solo lettere, cifre, underscore, trattino e punto, senza spazi.`;
         }
@@ -493,7 +520,7 @@ function validaRequisiti(requisiti, blockId) {
 
         for (const [altroId, altro] of Object.entries(appState.library)) {
             if (altroId === blockId) continue;
-            if (altro.requisiti.some(r => r.id === req.id)) {
+            if (altro.requisiti.some((r) => r.id === req.id)) {
                 return `L'ID "${req.id}" è già usato dal blocco "${altro.titolo}". Gli ID dei requisiti devono essere univoci in tutta la libreria.`;
             }
         }
@@ -505,9 +532,9 @@ function validaRequisiti(requisiti, blockId) {
         if (req.tipologia && !tipologie.includes(req.tipologia)) {
             return `La tipologia "${req.tipologia}" del requisito "${req.id}" non è tra quelle di settings.json.`;
         }
-        const senzaDocumento = req.testiExport.find(t => !t.documento);
+        const senzaDocumento = req.testiExport.find((t) => !t.documento);
         if (senzaDocumento) return `Nel requisito "${req.id}" c'è un testo senza documento di riferimento.`;
-        const senzaTesto = req.testiExport.find(t => !t.testo);
+        const senzaTesto = req.testiExport.find((t) => !t.testo);
         if (senzaTesto) return `Nel requisito "${req.id}" c'è un documento (${senzaTesto.documento}) senza testo.`;
     }
     return null;
@@ -515,27 +542,29 @@ function validaRequisiti(requisiti, blockId) {
 
 /* --- DETTAGLIO DI UN REQUISITO CLIENTE (SOLA LETTURA) --- */
 
-function rigaDettaglio(etichetta, valore, stile = '', chiaveAiuto = '') {
+function rigaDettaglio(etichetta: string, valore: string | null | undefined, stile = '', chiaveAiuto = ''): string {
     return `<div class="prop-item"><strong>${etichetta}${chiaveAiuto ? iconaAiuto(chiaveAiuto) : ''}</strong><div style="white-space:pre-wrap;${stile}">${escapeHtml(valore ?? '—')}</div></div>`;
 }
 
 // Aperto dalla scheda Cliente o dal clic sul blocco tondo; se il requisito è sul canvas e sei alla radice, lo centra
-export function mostraDettaglioCliente(id) {
-    const req = trovaRequisitoCliente(id);
+export function mostraDettaglioCliente(id: string | null | undefined): void {
+    if (!id) return;
+    const req: RequisitoCliente | null = trovaRequisitoCliente(id);
     if (!req) return;
     lasciaFilo();
     setActiveNodeId(null);
     impostaSelezioneCliente(id);
 
     const fili = contaFiliCliente().get(id) || 0;
-    const posizione = pathStack[0].graph.parentReqPositions?.[id];
-    const prima = req.modificato && req.precedente ? `
+    const posizione = pathStack[0]!.graph.parentReqPositions?.[id];
+    const precedente = req.precedente;
+    const prima = req.modificato && precedente ? `
         <div class="prop-item dettaglio-modifica"><strong>Prima e dopo l'ultimo import</strong>
-            ${['testo', 'titolo', 'tipologia'].map(campo => {
-                const vecchio = req.precedente[campo] ?? null;
-                const nuovo = req[campo] ?? null;
+            ${(['testo', 'titolo', 'tipologia'] as const).map((nome) => {
+                const vecchio = precedente[nome] ?? null;
+                const nuovo = req[nome] ?? null;
                 if (vecchio === nuovo) return '';
-                return `<div><em>${campo}</em>: <del>${escapeHtml(vecchio ?? '(vuoto)')}</del> → <ins>${escapeHtml(nuovo ?? '(vuoto)')}</ins></div>`;
+                return `<div><em>${nome}</em>: <del>${escapeHtml(vecchio ?? '(vuoto)')}</del> → <ins>${escapeHtml(nuovo ?? '(vuoto)')}</ins></div>`;
             }).join('') || '<div>Tornato attivo dopo essere stato ritirato, senza cambi di testo, titolo o tipologia.</div>'}
         </div>` : '';
 
@@ -554,7 +583,7 @@ export function mostraDettaglioCliente(id) {
             ${prima}
             <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
                 <button id="btnGerarchiaCliente" class="pulsante-progetto" data-aiuto="cliente.dett.gerarchia">🌳 Mostra gerarchia</button>
-                ${req.modificato ? `<button id="btnVistoCliente" class="pulsante-progetto" data-aiuto="cliente.dett.visto">✔ Segna come visto</button>` : ''}
+                ${req.modificato ? '<button id="btnVistoCliente" class="pulsante-progetto" data-aiuto="cliente.dett.visto">✔ Segna come visto</button>' : ''}
                 <button id="btnTogliCliente" class="pulsante-progetto" data-aiuto="cliente.dett.togli" ${posizione && fili === 0 ? '' : 'disabled'}
                     data-titolo-nativo="${posizione ? (fili > 0 ? 'Togli prima i fili che lo usano' : '') : 'Non è sul canvas'}">Togli dal canvas</button>
             </div>
@@ -568,9 +597,9 @@ export function mostraDettaglioCliente(id) {
         mostraDettaglioCliente(id);
     });
     document.getElementById('btnTogliCliente')?.addEventListener('click', () => {
-        const radice = pathStack[0].graph;
+        const radice = pathStack[0]!.graph;
         if ((contaFiliCliente().get(id) || 0) > 0) return;
-        delete radice.parentReqPositions[id];
+        if (radice.parentReqPositions) delete radice.parentReqPositions[id];
         evidenziaCliente(null);
         render();
         mostraDettaglioCliente(id);
@@ -585,14 +614,14 @@ export function mostraDettaglioCliente(id) {
     render();
 }
 
-export function deleteNodeFromGraph(nodeId) {
-    if (!confirm("Sei sicuro di voler eliminare questo blocco e tutti i suoi collegamenti?")) return;
+export function deleteNodeFromGraph(nodeId: string): void {
+    if (!confirm('Sei sicuro di voler eliminare questo blocco e tutti i suoi collegamenti?')) return;
 
     const currentGraph = getCurrentLevel().graph;
-    currentGraph.nodes = currentGraph.nodes.filter(n => n.id !== nodeId);
-    currentGraph.edges = currentGraph.edges.filter(e => e.source !== nodeId && e.target !== nodeId);
+    currentGraph.nodes = currentGraph.nodes.filter((n) => n.id !== nodeId);
+    currentGraph.edges = currentGraph.edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
     setActiveNodeId(null);
-    propsContent.innerHTML = `<div class="empty-props">Seleziona un blocco...</div>`;
+    propsContent.innerHTML = '<div class="empty-props">Seleziona un blocco...</div>';
     render();
 }
 
@@ -600,45 +629,53 @@ export function deleteNodeFromGraph(nodeId) {
 
 const PANNELLO_VUOTO = '<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>';
 
-function bloccoEstremo(e) {
+type EstremoPresente = Exclude<EstremoDescritto, { mancante: true }>;
+
+function bloccoEstremo(e: EstremoPresente): string {
     if (e.cliente) return 'Cliente';
-    if (e.tondo) return `Blocco padre: ${e.parentNode.label || e.parentNode.id}`;
+    if (e.tondo) return `Blocco padre: ${e.parentNode?.label || e.parentNode?.id || ''}`;
     const etichetta = e.nodo.label || e.nodo.id;
     const titolo = e.def.titolo || e.def.id;
     return etichetta === titolo ? etichetta : `${etichetta} (${titolo})`;
 }
 
-function htmlTesti(e) {
-    const voci = e.cliente
-        ? (e.req.testo ? [e.req.testo] : [])
-        : (e.req.testiExport || []).filter(t => String(t.testo ?? '').trim()).map(t => `[${t.documento || '?'}] ${t.testo}`);
+function htmlTesti(e: EstremoPresente): string {
+    const req = e.req;
+    const voci = isRequisitoCliente(req)
+        ? (req.testo ? [req.testo] : [])
+        : (req.testiExport || []).filter((t) => String(t.testo ?? '').trim()).map((t) => `[${t.documento || '?'}] ${t.testo}`);
     const corpo = voci.length
-        ? `<ul class="testi-collegamento">${voci.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`
+        ? `<ul class="testi-collegamento">${voci.map((v) => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`
         : '<div>Nessun testo</div>';
     return `<div class="prop-item"><strong>Testi da esportare${iconaAiuto('coll.testi')}</strong>${corpo}</div>`;
 }
 
-function htmlLato(titolo, e) {
+function htmlLato(titolo: string, e: EstremoDescritto): string {
     if (e.mancante) {
         return `<h5 class="lato-collegamento">${titolo}</h5><div class="prop-item">Requisito non trovato: ${escapeHtml(e.reqId)}</div>`;
     }
+    const req = e.req;
     return `<h5 class="lato-collegamento">${titolo}</h5>
-        ${rigaDettaglio('ID', e.cliente ? e.req.idCliente : e.req.id, 'font-family:monospace;')}
-        ${rigaDettaglio('Titolo', titoloRequisito(e.req))}
+        ${rigaDettaglio('ID', isRequisitoCliente(req) ? req.idCliente : req.id, 'font-family:monospace;')}
+        ${rigaDettaglio('Titolo', titoloRequisito(req))}
         ${rigaDettaglio('Blocco', bloccoEstremo(e))}
-        ${rigaDettaglio('Classe', getClasseRequisito(e.req), '', 'coll.classe')}
-        ${e.cliente ? '' : rigaDettaglio('Metodo di verifica', e.req.metodoVerifica || 'non definito', '', 'coll.metodo')}
+        ${rigaDettaglio('Classe', getClasseRequisito(req), '', 'coll.classe')}
+        ${isRequisitoCliente(req) ? '' : rigaDettaglio('Metodo di verifica', req.metodoVerifica || 'non definito', '', 'coll.metodo')}
         ${htmlTesti(e)}`;
 }
 
 // Dettaglio del filo del livello di adesso; il contenitore porta data-filo per riconoscerlo dopo
-export function mostraDettaglioCollegamento(edge) {
+export function mostraDettaglioCollegamento(edge: Filo): void {
     impostaSelezioneCliente(null);
-    const a = descriviEstremo(edge.source, edge.sourceHandle, edge.sourceType);
-    const b = descriviEstremo(edge.target, edge.targetHandle, edge.targetType);
+    const a: EstremoDescritto = descriviEstremo(edge.source, edge.sourceHandle, edge.sourceType);
+    const b: EstremoDescritto = descriviEstremo(edge.target, edge.targetHandle, edge.targetType);
     const derivazione = isDerivazione(edge);
-    const lati = !derivazione ? [['Da', a], ['A', b]] : edge.sourceType === 'parent' ? [['Padre', a], ['Figlio', b]] : [['Padre', b], ['Figlio', a]];
-    const motivo = !a.mancante && !b.mancante ? verificaCompatibilita(a, b) : null;
+    const lati: Array<[string, EstremoDescritto]> = !derivazione ? [['Da', a], ['A', b]]
+        : edge.sourceType === 'parent' ? [['Padre', a], ['Figlio', b]] : [['Padre', b], ['Figlio', a]];
+    const motivo = !a.mancante && !b.mancante
+        ? verificaCompatibilita({ ownerId: a.ownerId, reqId: a.reqId, ownerType: a.ownerType, req: a.req },
+            { ownerId: b.ownerId, reqId: b.reqId, ownerType: b.ownerType, req: b.req })
+        : null;
 
     propsContent.innerHTML = `
         <div data-filo="${escapeHtml(edge.id)}" style="display:flex; flex-direction:column; gap:4px;">
@@ -656,15 +693,15 @@ export function mostraDettaglioCollegamento(edge) {
     });
 }
 
-function filoNelPannello() {
+function filoNelPannello(): string | null {
     return propsContent.querySelector('[data-filo]')?.getAttribute('data-filo') ?? null;
 }
 
 // Ridisegna il dettaglio solo se il pannello mostra ancora quel filo
-export function aggiornaDettaglioCollegamento(edge) {
+export function aggiornaDettaglioCollegamento(edge: Filo): void {
     if (filoNelPannello() === edge.id) mostraDettaglioCollegamento(edge);
 }
 
-export function chiudiDettaglioCollegamento(edgeId) {
+export function chiudiDettaglioCollegamento(edgeId: string): void {
     if (filoNelPannello() === edgeId) propsContent.innerHTML = PANNELLO_VUOTO;
 }

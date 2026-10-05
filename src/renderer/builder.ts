@@ -7,9 +7,10 @@ import { normalizzaLibreria, trovaIdRequisitiDuplicati } from './model.js';
 import { escapeHtml } from './utils.js';
 import { apriLibreria } from './libreria.js';
 import { riallineaFiltri } from './filtri.js';
+import type { Blocco } from './tipi.js';
 
 // Sostituisce la libreria corrente convertendola al formato attuale; segnala gli id requisito duplicati
-export function impostaLibreria(dati) {
+export function impostaLibreria(dati: unknown): void {
     appState.library = normalizzaLibreria(dati);
     const duplicati = trovaIdRequisitiDuplicati(appState.library);
     if (duplicati.length > 0) {
@@ -18,21 +19,21 @@ export function impostaLibreria(dati) {
     initLibrary();
 }
 
-// Passa per l'API delle librerie (js/libreria.js); restituisce { ok, messaggio }
-export async function loadLibraryFromPath(path) {
+// Passa per l'API delle librerie (libreria.ts); restituisce { ok, messaggio }
+export async function loadLibraryFromPath(path: string): Promise<{ ok: boolean; messaggio?: string }> {
     const esito = await apriLibreria(path);
     if (esito.ok) render();
     else console.warn(`Impossibile caricare la libreria da path '${path}': ${esito.messaggio}`);
     return esito;
 }
 
-function corrispondeRicerca(typeId, blockDef, query) {
+function corrispondeRicerca(typeId: string, blockDef: Blocco, query: string): boolean {
     if (!query) return true;
     return [typeId, blockDef.titolo, blockDef.descrizione, blockDef.categoria, blockDef.sottocategoria]
-        .some(v => (v || '').toLowerCase().includes(query));
+        .some((v) => (v || '').toLowerCase().includes(query));
 }
 
-export function initLibrary() {
+export function initLibrary(): void {
     const libraryContent = document.getElementById('libraryContent');
     if (!libraryContent) return;
 
@@ -40,19 +41,18 @@ export function initLibrary() {
     libraryContent.innerHTML = '';
 
     // categoria → sottocategoria → blocchi
-    const albero = {};
+    const albero: Record<string, Record<string, Array<{ typeId: string; blockDef: Blocco }>>> = {};
     Object.entries(appState.library).forEach(([typeId, blockDef]) => {
         if (!corrispondeRicerca(typeId, blockDef, query)) return;
-        const cat = blockDef.categoria || "Generali";
-        const sub = blockDef.sottocategoria || "";
-        albero[cat] ??= {};
-        albero[cat][sub] ??= [];
-        albero[cat][sub].push({ typeId, blockDef });
+        const cat = blockDef.categoria || 'Generali';
+        const sub = blockDef.sottocategoria || '';
+        const categoria = (albero[cat] ??= {});
+        (categoria[sub] ??= []).push({ typeId, blockDef });
     });
 
-    const ordina = (a, b) => a.localeCompare(b, 'it');
+    const ordina = (a: string, b: string) => a.localeCompare(b, 'it');
 
-    Object.keys(albero).sort(ordina).forEach(catName => {
+    Object.keys(albero).sort(ordina).forEach((catName) => {
         const catDiv = document.createElement('div');
         catDiv.className = 'tree-category';
         catDiv.textContent = `📁 ${catName}`;
@@ -60,8 +60,9 @@ export function initLibrary() {
 
         const catGroup = document.createElement('div');
         catGroup.className = 'tree-node';
+        const sottocategorie = albero[catName] ?? {};
 
-        Object.keys(albero[catName]).sort(ordina).forEach(subName => {
+        Object.keys(sottocategorie).sort(ordina).forEach((subName) => {
             let destinazione = catGroup;
             if (subName) {
                 const subDiv = document.createElement('div');
@@ -74,7 +75,7 @@ export function initLibrary() {
                 catGroup.appendChild(destinazione);
             }
 
-            albero[catName][subName]
+            (sottocategorie[subName] ?? [])
                 .sort((a, b) => ordina(a.blockDef.titolo, b.blockDef.titolo))
                 .forEach(({ typeId, blockDef }) => {
                     const div = document.createElement('div');
@@ -83,7 +84,7 @@ export function initLibrary() {
                     div.title = blockDef.descrizione || blockDef.titolo;
                     div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-count">${blockDef.requisiti.length}</span>`;
 
-                    div.addEventListener('dragstart', (e) => e.dataTransfer.setData('blockType', typeId));
+                    div.addEventListener('dragstart', (e) => e.dataTransfer?.setData('blockType', typeId));
                     div.addEventListener('click', () => openLibraryBlock(typeId));
                     destinazione.appendChild(div);
                 });
