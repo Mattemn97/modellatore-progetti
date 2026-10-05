@@ -25,13 +25,17 @@ test('una modifica arriva su disco con una versione; Annulla e Ripeti dai pulsan
         expect(fs.existsSync(path.join(cartella, 'progetti', '_versioni', 'nuovo_progetto.1.json'))).toBe(true);
         await expect(pagina.locator('#badgeSalvataggio')).toHaveText('Salvato');
 
+        // Ogni passo aspetta che il precedente sia finito (pulsante di nuovo attivo), come farebbe una persona
         await pagina.locator('#btnAnnulla').click();
         await expect.poll(nodi).toBe(1);
+        await expect(pagina.locator('#btnRipeti')).toBeEnabled();
         await pagina.locator('#btnRipeti').click();
         await expect.poll(nodi).toBe(2);
+        await expect(pagina.locator('#btnAnnulla')).toBeEnabled();
         await pagina.locator('#workspaceSvg').click({ position: { x: 40, y: 400 } });
         await pagina.keyboard.press('Control+z');
         await expect.poll(nodi).toBe(1);
+        await expect(pagina.locator('#btnRipeti')).toBeEnabled();
         await pagina.keyboard.press('Control+Shift+z');
         await expect.poll(nodi).toBe(2);
     } finally {

@@ -52,12 +52,18 @@ spec [0018](../specs/0018-api-nel-processo-principale/index.md) · code in `src/
 - [x] Verify it: suite e2e verde (53 test) con i progetti in TypeScript
 - [x] Test it: `tests/unit/file.test.ts` (impronte confrontate con Python)
 
-### 20. Libreria, changelog e import senza server
+### 20. Libreria, changelog e import senza server · done
 Apri, salva, elimina e rinomina della libreria, il calcolo delle differenze e il changelog versionato, le copie in `_versioni/` e la lettura di CSV ed Excel per l'import cliente passano dal Python al codice dell'app desktop. Alla fine `start.py` non serve più per far funzionare l'app.
 **Done when:** le funzionalità 2, 3 e 10 fanno esattamente quello che fanno oggi (stesse versioni, stesse voci di changelog, stessi conflitti e sola lettura) senza server, e i loro test end to end sono verdi.
-spec [0018](../specs/0018-api-nel-processo-principale/index.md)
+spec [0018](../specs/0018-api-nel-processo-principale/index.md) · code in `src/main/api/`
 - [x] Design it (spec): `/architect libreria, changelog e import senza server`
-- [ ] Build it: `/develop libreria, changelog e import senza server`
+- [x] Build it: `/develop libreria, changelog e import senza server`
+  - [x] Confronto dei blocchi e livello semver, 405 casi uguali all'oracolo Python (AC-2, AC-4)
+  - [x] `ArchivioLibrerie` e rotte della libreria (AC-2)
+  - [x] Lettura di CSV (porta di `csv.Sniffer`, 500 casi uguali all'oracolo) e xlsx con zip e XML propri (AC-3)
+  - [x] Ponte e Python tolti dall'app e dalla CI (AC-8)
+- [x] Verify it: suite e2e verde (53 test, circa 40 secondi) senza Python
+- [x] Test it: `tests/unit/confronto.test.ts`, `tests/unit/cliente.test.ts`
 
 ### 21. Impostazioni e cartelle di lavoro · needs a decision
 Una sezione Impostazioni dove indichi dove trovare librerie, progetti e gli altri dati. Se le cartelle indicate non esistono, l'app ti propone di crearle e ci prepara la struttura di base (come oggi `shared/libreria.json` con un blocco di esempio). Le impostazioni dell'utente vivono fuori dalla cartella del programma, così un aggiornamento non le tocca mai.

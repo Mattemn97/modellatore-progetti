@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const RADICE = path.resolve(__dirname, '..', '..');
-const FILE_APP = ['package.json', 'out', 'index.html', 'style.css', 'settings.json', 'js', 'start.py'];
+const FILE_APP = ['package.json', 'out', 'index.html', 'style.css', 'settings.json', 'js'];
 
 type Oggetto = Record<string, unknown>;
 
@@ -92,8 +92,8 @@ export async function apriApp(opzioni: OpzioniCopia & { env?: Record<string, str
         app,
         pagina,
         chiudi: async () => {
-            // Una modifica ancora in volo farebbe chiedere "Chiudi comunque": nei test si chiude e basta
-            await app.evaluate(({ dialog }) => { dialog.showMessageBoxSync = () => 0; }).catch(() => {});
+            // Una modifica ancora in volo farebbe partire il beforeunload: destroy() lo salta, nei test si chiude e basta
+            await app.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) w.destroy(); }).catch(() => {});
             await app.close().catch(() => {});
             // Solo la cartella creata da preparaCopia (mkdtemp), mai altro
             const base = path.dirname(copia.cartella);

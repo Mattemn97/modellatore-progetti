@@ -1,7 +1,7 @@
 # 0018. API dei file nel processo principale, al posto di start.py
 
 **Date**: 2026-10-05
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

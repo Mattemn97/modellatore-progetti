@@ -10,7 +10,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 ## Epic
 
 - [v1-web.md](v1-web.md): editor web con server locale (1.x). 18 voci, tutte `done` o `existing`.
-- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 15 voci; prossima la 20.
+- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 15 voci; prossima la 21.
 
 ## At a glance
 
@@ -38,7 +38,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 17 | Standard, strumenti e CI su develop | v2 | Foundation | done |
 | 18 | Rete di sicurezza end to end | v2 | Foundation | done |
 | 19 | Progetti su disco senza server | v2 | Slice 1 | done |
-| 20 | Libreria, changelog e import senza server | v2 | Slice 1 | in-progress |
+| 20 | Libreria, changelog e import senza server | v2 | Slice 1 | done |
 | 21 | Impostazioni e cartelle di lavoro | v2 | Slice 1 | planned |
 | 22 | Import dei dati dalla versione 1 | v2 | Slice 1 | planned |
 | 23 | Passaggio del codice a TypeScript | v2 | Slice 2 | planned |

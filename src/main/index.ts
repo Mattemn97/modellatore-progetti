@@ -2,18 +2,17 @@
 import { app, type BrowserWindow } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ArchivioProgetti } from './api/progetti.js';
 import { leggiImpostazioniApi } from './api/impostazioni.js';
+import { ArchivioLibrerie } from './api/librerie.js';
+import { ArchivioProgetti } from './api/progetti.js';
 import { creaRouter } from './api/router.js';
 import { creaFinestraPrincipale } from './finestra.js';
-import { urlPaginaErrore } from './pagina-errore.js';
-import { ErrorePonte, PontePython } from './ponte-python.js';
-import { installaRichiestaTesto } from './richiesta-testo.js';
 import { installaProtocollo, registraSchema, URL_INIZIALE } from './protocollo.js';
+import { installaRichiestaTesto } from './richiesta-testo.js';
 
 // out/main/index.mjs → out/
 const cartellaOut = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-// Radice dell'app: index.html, style.css, settings.json, js/ (e start.py finché serve il ponte)
+// Radice dell'app: index.html, style.css, settings.json, js/
 const radice = app.getAppPath();
 const sviluppo = process.argv.includes('--dev');
 
@@ -23,7 +22,6 @@ if (process.env.MODELLATORE_DATI_UTENTE) app.setPath('userData', process.env.MOD
 registraSchema();
 
 let finestra: BrowserWindow | null = null;
-const ponte = new PontePython(radice);
 
 function mostraFinestra(): void {
     if (!finestra) return;
@@ -38,30 +36,17 @@ async function avvia(): Promise<void> {
     const impostazioni = leggiImpostazioniApi(cartellaDati);
     const progetti = new ArchivioProgetti(cartellaDati, impostazioni.versioniProgetti);
     progetti.prepara();
-    const router = creaRouter({
+    const librerie = new ArchivioLibrerie(cartellaDati, impostazioni.versioniLibreria);
+    librerie.prepara();
+    installaProtocollo(radice, creaRouter({
         progetti,
+        librerie,
         versione: app.getVersion(),
-        maxFileClienteMb: impostazioni.maxFileClienteMb,
-        inoltra: (richiesta, url, corpo) => ponte.inoltra(richiesta, url, corpo)
-    });
-    installaProtocollo(radice, router);
+        maxFileClienteMb: impostazioni.maxFileClienteMb
+    }));
     installaRichiestaTesto(cartellaOut);
     finestra = creaFinestraPrincipale(cartellaOut, sviluppo);
     finestra.on('closed', () => { finestra = null; });
-    try {
-        await ponte.avvia();
-    } catch (e) {
-        const motivo = e instanceof Error ? e.message : String(e);
-        const dettagli = e instanceof ErrorePonte ? e.dettagli : '';
-        await finestra.loadURL(urlPaginaErrore(
-            'Il servizio dei file non è partito',
-            `In questa versione di sviluppo il programma usa ancora start.py per leggere e scrivere i file. ${motivo}`,
-            dettagli,
-            'Controlla che Python 3.11 sia installato e nel PATH (oppure indica il suo percorso nella variabile <code>MODELLATORE_PYTHON</code>), poi riapri il programma. Per provare a mano: <code>python start.py --solo-api --porta 8090</code>.'
-        ));
-        finestra.show();
-        return;
-    }
     await finestra.loadURL(URL_INIZIALE);
 }
 
@@ -75,7 +60,4 @@ if (!app.requestSingleInstanceLock()) {
         app.quit();
     });
     app.on('window-all-closed', () => app.quit());
-    // Il processo figlio va chiuso sempre, anche dopo un errore
-    app.on('will-quit', () => ponte.ferma());
-    process.on('exit', () => ponte.ferma());
 }
