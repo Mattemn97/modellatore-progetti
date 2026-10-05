@@ -17,7 +17,7 @@ interface Apertura {
     impronta: string; scrivibile: boolean; formato: number; vociAggiunte: Voce[]; versione: string | null; avviso?: string;
 }
 interface Blocco { id: string; titolo: string; requisiti: Array<Record<string, unknown>>; [k: string]: unknown }
-interface Salvataggio { libreria: Apertura['libreria']; impronta: string; versione: string; voce: Voce | null; invariata?: boolean; vociAggiunte: Voce[] }
+interface Salvataggio { libreria: Apertura['libreria']; impronta: string; versione: string; voce: Voce | null; invariata?: boolean; vociAggiunte: Voce[]; formato?: number; errore?: string }
 
 const copia = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 

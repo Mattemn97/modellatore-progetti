@@ -20,7 +20,7 @@ export async function api<T = Record<string, unknown>>(
         }
         const risposta = await fetch(percorso, opzioni);
         const testo = await risposta.text();
-        let dati: unknown = null;
+        let dati: unknown;
         try { dati = testo ? JSON.parse(testo) : null; } catch { dati = testo; }
         return { stato: risposta.status, corpo: dati as T };
     }, { metodo, percorso, corpo, tipo });
