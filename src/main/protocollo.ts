@@ -23,8 +23,8 @@ function nonTrovato(): Response {
 
 export const URL_BENVENUTO = `${SCHEMA}://${HOST}/benvenuto.html`;
 
-// settingsUtente: il settings.json della cartella di lavoro, se c'è (spec 0019); altrimenti quello del programma
-export function installaProtocollo(radice: string, api: GestoreApi, settingsUtente: () => string | null): void {
+// radice: out/renderer (spec 0020). settings.json: quello della cartella di lavoro se c'è (spec 0019), altrimenti i predefiniti
+export function installaProtocollo(radice: string, api: GestoreApi, settings: () => string): void {
     protocol.handle(SCHEMA, async (richiesta) => {
         const url = new URL(richiesta.url);
         if (url.host !== HOST) return nonTrovato();
@@ -32,7 +32,7 @@ export function installaProtocollo(radice: string, api: GestoreApi, settingsUten
         if (richiesta.method !== 'GET' && richiesta.method !== 'HEAD') {
             return new Response('Metodo non consentito', { status: 405 });
         }
-        const file = url.pathname === '/settings.json' ? (settingsUtente() ?? risolviFile(radice, url.pathname)) : risolviFile(radice, url.pathname);
+        const file = url.pathname === '/settings.json' ? settings() : risolviFile(radice, url.pathname);
         if (!file) return nonTrovato();
         try {
             // net.fetch su file:// sceglie il Content-Type giusto (text/javascript per i moduli)

@@ -86,6 +86,6 @@ Declined: vanilla JS / SVG, Python http.server, PyInstaller, rich, Electron, esb
 
 ## Context files
 
-- [js/AGENTS.md](js/AGENTS.md): editor modules, data model (library, graph, hierarchy), file formats and the render loop
+- [src/renderer/AGENTS.md](src/renderer/AGENTS.md): editor modules, data model (library, graph, hierarchy), file formats and the render loop
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

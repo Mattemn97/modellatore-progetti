@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const RADICE = path.resolve(__dirname, '..', '..');
-const FILE_APP = ['package.json', 'out', 'index.html', 'benvenuto.html', 'style.css', 'settings.json', 'js'];
+const FILE_APP = ['package.json', 'out', 'settings.json'];
 
 type Oggetto = Record<string, unknown>;
 

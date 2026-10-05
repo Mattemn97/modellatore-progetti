@@ -10,7 +10,7 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs && electron . --dev",
     "start": "electron .",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "node scripts/build.mjs && playwright test",

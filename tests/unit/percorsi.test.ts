@@ -1,35 +1,28 @@
-/* --- TEST: PERCORSI SERVITI DAL PROTOCOLLO --- */
+/* --- TEST: PERCORSI SERVITI DAL PROTOCOLLO (solo dentro out/renderer) --- */
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { risolviFile } from '../../src/main/percorsi';
 
-const radice = path.resolve('/app');
+const radice = path.resolve('/app/out/renderer');
 
 describe('risolviFile', () => {
-    it('serve i file ammessi della radice', () => {
+    it('serve i file della cartella dell\'interfaccia', () => {
         expect(risolviFile(radice, '/index.html')).toBe(path.join(radice, 'index.html'));
-        expect(risolviFile(radice, '/js/app.js')).toBe(path.join(radice, 'js', 'app.js'));
-        expect(risolviFile(radice, '/settings.json')).toBe(path.join(radice, 'settings.json'));
+        expect(risolviFile(radice, '/app.js')).toBe(path.join(radice, 'app.js'));
+        expect(risolviFile(radice, '/app.js.map')).toBe(path.join(radice, 'app.js.map'));
     });
 
     it('la radice vuota diventa index.html', () => {
         expect(risolviFile(radice, '/')).toBe(path.join(radice, 'index.html'));
     });
 
-    it('rifiuta i percorsi che escono dalla radice', () => {
-        expect(risolviFile(radice, '/js/%2e%2e/start.py')).toBeNull();
-        expect(risolviFile(radice, '/js/../../segreto.txt')).toBeNull();
-        expect(risolviFile(radice, '/%2e%2e%2fsegreto.txt')).toBeNull();
-    });
-
-    it('rifiuta i file della radice che la pagina non deve leggere', () => {
-        expect(risolviFile(radice, '/start.py')).toBeNull();
-        expect(risolviFile(radice, '/progetti/_ultimo.json')).toBeNull();
-        expect(risolviFile(radice, '/shared/libreria.json')).toBeNull();
-        expect(risolviFile(radice, '/package.json')).toBeNull();
+    it('rifiuta i percorsi che escono dalla cartella', () => {
+        expect(risolviFile(radice, '/%2e%2e/package.json')).toBeNull();
+        expect(risolviFile(radice, '/../../segreto.txt')).toBeNull();
+        expect(risolviFile(radice, '/%2e%2e%2f%2e%2e%2fsegreto.txt')).toBeNull();
     });
 
     it('rifiuta una codifica non valida', () => {
-        expect(risolviFile(radice, '/js/%E0%A4%A')).toBeNull();
+        expect(risolviFile(radice, '/%E0%A4%A')).toBeNull();
     });
 });

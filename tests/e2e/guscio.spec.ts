@@ -21,7 +21,8 @@ test("apre l'editor nella finestra desktop da app://, con la libreria e le API",
         });
         expect(prefs).toEqual({ ci: true, ni: false, sb: true });
         const stati = await pagina.evaluate(async () => {
-            const percorsi = ['/api/progetti', '/js/app.js', '/settings.json', '/start.py', '/js/%2e%2e/start.py', '/progetti/_ultimo.json'];
+            // Fuori da out/renderer non si raggiunge niente: né il pacchetto né i dati
+            const percorsi = ['/api/progetti', '/app.js', '/settings.json', '/package.json', '/%2e%2e/package.json', '/progetti/_ultimo.json'];
             return Promise.all(percorsi.map(async (p) => (await fetch(p)).status));
         });
         expect(stati).toEqual([200, 200, 200, 404, 404, 404]);
