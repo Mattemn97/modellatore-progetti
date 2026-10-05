@@ -1,6 +1,7 @@
 /* --- E2E INTERFACCIA: PANNELLI AGGANCIABILI, MENU FINESTRA E LAYOUT SALVATO (spec 0021) --- */
 import { expect, test, type Page } from '@playwright/test';
 import { apriApp, pronta } from '../app';
+import { LIBRERIA_PROVA, progettoTracciato } from '../dati/libreria';
 
 const scheda = (pagina: Page, id: string) => pagina.locator(`.dv-tab[data-tab-panel-id="${id}"]`);
 const voce = (pagina: Page, id: string) => pagina.locator(`#menuFinestra [data-pannello="${id}"]`);
@@ -67,6 +68,33 @@ test('il pannello Coerenza segue la modalità e la ✕ la spegne', async () => {
         // Il Canvas non ha la ✕ (AC-2)
         await expect(scheda(pagina, 'canvas').locator('.dv-default-tab-action')).toBeHidden();
         await expect(scheda(pagina, 'canvas')).toHaveCount(1);
+    } finally {
+        await chiudi();
+    }
+});
+
+test('la Matrice si stacca in una finestra, resta allineata e si riaggancia (spec 0023)', async () => {
+    const { app, pagina, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progettoTracciato() }, ultimo: 'sistema' });
+    try {
+        await pronta(pagina);
+        await pagina.locator('#btnReqMatrix').click();
+        await expect(pagina.locator('#matriceContenuto')).toContainText('ali_002');
+        const gruppo = pagina.locator('.dv-groupview', { has: pagina.locator('.dv-tab[data-tab-panel-id="matrice"]') });
+        const nuova = app.waitForEvent('window');
+        await gruppo.locator('.pulsante-stacca').click();
+        const staccata = await nuova;
+        await expect(staccata.locator('#pannelloMatrice')).toBeVisible();
+        await expect(pagina.locator('#pannelloMatrice')).toHaveCount(0);
+
+        // Un filtro cambiato nella finestra staccata ricalcola la tabella lì (lo stesso codice della principale)
+        await staccata.locator('#matriceDocumento').selectOption('IDD');
+        await expect(staccata.locator('#matriceContenuto')).not.toContainText('ali_002');
+        await staccata.locator('#matriceDocumento').selectOption({ index: 0 });
+        await expect(staccata.locator('#matriceContenuto')).toContainText('ali_002');
+
+        await staccata.locator('.pulsante-stacca').click();
+        await expect(pagina.locator('#pannelloMatrice')).toBeVisible();
+        await expect.poll(() => staccata.isClosed()).toBe(true);
     } finally {
         await chiudi();
     }

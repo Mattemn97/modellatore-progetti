@@ -1,10 +1,12 @@
-/* --- PANNELLI AGGANCIABILI: LAYOUT DOCKVIEW, MENU FINESTRA E SALVATAGGIO (spec 0021) --- */
+/* --- PANNELLI AGGANCIABILI: LAYOUT DOCKVIEW, MENU FINESTRA, FINESTRE STACCATE E SALVATAGGIO (spec 0021, 0023) --- */
 // I contenitori di index.html restano gli stessi: quando un pannello si vede il suo nodo entra nel pannello,
 // altrimenti torna in #pannelliParcheggiati (nascosto). Così getElementById li trova sempre.
 import {
     createDockview, themeLight,
-    type DockviewApi, type IContentRenderer, type IDockviewPanel, type AddPanelPositionOptions
+    type DockviewApi, type IContentRenderer, type IDockviewPanel, type AddPanelPositionOptions,
+    type DockviewGroupPanel, type IHeaderActionsRenderer
 } from 'dockview-core';
+import { installaRicercaNelleStaccate, aggiungiStaccata, togliStaccata } from './staccate.js';
 
 export const PANNELLI = ['libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore', 'matrice', 'documenti', 'changelog'] as const;
 export type IdPannello = typeof PANNELLI[number];
@@ -34,6 +36,7 @@ const VERSIONE_LAYOUT = 1;
 const LARGHEZZA_MINIMA_LATERALE = 180;
 const LARGHEZZA_MINIMA_CANVAS = 300;
 const QUOTA_LATERALE = 0.2;
+const URL_STACCATA = '/popout.html';
 
 let api: DockviewApi | null = null;
 let chiusuraDaCodice = false;
@@ -119,8 +122,14 @@ function creaContenuto(id: IdPannello): IContentRenderer {
                 console.error(`Pannello ${id}: aggiornamento non riuscito`, e);
             }
         };
+        // In una finestra staccata appena aperta il nodo arriva quando la pagina ha finito di caricare
+        let tentativi = 0;
+        const quandoAttaccato = () => {
+            if (n.isConnected) avvisa();
+            else if (n.parentElement === element && tentativi++ < 40) setTimeout(quandoAttaccato, 50);
+        };
         if (n.isConnected) avvisa();
-        else requestAnimationFrame(avvisa);
+        else requestAnimationFrame(quandoAttaccato);
     };
     const esce = () => {
         const n = nodo(id);
@@ -179,6 +188,9 @@ export function mostraPannello(id: IdPannello): void {
     if (!api) return;
     const pannello = api.getPanel(id) ?? aggiungi(id, posizioneDi(id));
     pannello?.api.setActive();
+    // Un pannello in una finestra staccata: la finestra viene davanti (spec 0023, AC-5)
+    const posto = pannello?.group.api.location;
+    if (posto?.type === 'popout') posto.getWindow().focus();
 }
 
 // Chiusura chiesta dal codice: non richiama allaChiusura (chi chiude sa già perché)
@@ -309,7 +321,87 @@ export function aperturaDalMenu(id: IdPannello, funzione: () => void): void {
     apertureDalMenu.set(id, funzione);
 }
 
+/* --- FINESTRE STACCATE (spec 0023) --- */
+
+const aggiornaAzioni = new Set<() => void>();
+
+function gruppoConCanvas(gruppo: DockviewGroupPanel | undefined): boolean {
+    return !!gruppo?.panels.some((p) => p.id === 'canvas');
+}
+
+function stacca(gruppo: DockviewGroupPanel): void {
+    if (!api || gruppoConCanvas(gruppo)) return;
+    void api.addPopoutGroup(gruppo, { popoutUrl: URL_STACCATA });
+}
+
+// Torna nella finestra principale, a destra del Canvas
+function riaggancia(gruppo: DockviewGroupPanel): void {
+    const canvas = api?.getPanel('canvas')?.group;
+    if (!canvas) return;
+    gruppo.api.moveTo({ group: canvas, position: 'right' });
+}
+
+// Pulsante ⧉ (stacca) o ⤓ (riaggancia) a destra delle schede di ogni gruppo, tranne quello del Canvas
+function creaAzioniGruppo(gruppo: DockviewGroupPanel): IHeaderActionsRenderer {
+    const element = document.createElement('div');
+    element.className = 'azioni-gruppo';
+    const pulsante = document.createElement('button');
+    pulsante.className = 'pulsante-stacca';
+    element.appendChild(pulsante);
+    const aggiorna = () => {
+        const staccato = gruppo.api.location.type === 'popout';
+        pulsante.hidden = !staccato && gruppoConCanvas(gruppo);
+        pulsante.textContent = staccato ? '⤓' : '⧉';
+        pulsante.title = staccato ? 'Riaggancia alla finestra principale' : 'Stacca in una finestra';
+        pulsante.setAttribute('aria-label', pulsante.title);
+    };
+    pulsante.addEventListener('click', () => {
+        if (gruppo.api.location.type === 'popout') riaggancia(gruppo);
+        else stacca(gruppo);
+    });
+    aggiornaAzioni.add(aggiorna);
+    const cambioPosto = gruppo.api.onDidLocationChange(aggiorna);
+    return {
+        element,
+        init: aggiorna,
+        dispose: () => {
+            aggiornaAzioni.delete(aggiorna);
+            cambioPosto.dispose();
+        }
+    };
+}
+
+function installaStaccate(): void {
+    if (!api) return;
+    const dv = api;
+    dv.onDidAddPopoutGroup((p) => aggiungiStaccata(p.window));
+    dv.onDidRemovePopoutGroup((p) => togliStaccata(p.window));
+    const aggiornaTutte = () => aggiornaAzioni.forEach((f) => f());
+    dv.onDidAddPanel(aggiornaTutte);
+    dv.onDidRemovePanel(aggiornaTutte);
+    dv.onDidMovePanel(aggiornaTutte);
+    // Il Canvas non va mai in una finestra staccata (AC-1)
+    dv.onWillDrop((e) => {
+        if (e.group?.api.location.type !== 'popout') return;
+        const dati = e.getData();
+        if (!dati) return;
+        const conCanvas = dati.panelId === 'canvas'
+            || (dati.panelId === null && gruppoConCanvas(dv.groups.find((g) => g.id === dati.groupId)));
+        if (conCanvas) e.preventDefault();
+    });
+    dv.onDidPopoutGroupPositionChange(programmaSalvataggio);
+    dv.onDidPopoutGroupSizeChange(programmaSalvataggio);
+}
+
 /* --- AVVIO --- */
+
+let inChiusura = false;
+
+function programmaSalvataggio(): void {
+    if (inChiusura) return;
+    clearTimeout(timerSalvataggio);
+    timerSalvataggio = setTimeout(scriviLayout, 300);
+}
 
 export function avviaPannelli(): void {
     const area = document.getElementById('areaPannelli');
@@ -318,11 +410,23 @@ export function avviaPannelli(): void {
         const el = document.getElementById(NODI[id]);
         if (el) nodi.set(id, el);
     });
+    installaRicercaNelleStaccate();
+    // Prima del beforeunload di dockview, che riaggancia le finestre staccate: il layout salvato le tiene (AC-4).
+    // Se la chiusura viene annullata il timeout riparte e si torna a salvare
+    window.addEventListener('beforeunload', () => {
+        clearTimeout(timerSalvataggio);
+        scriviLayout();
+        inChiusura = true;
+        setTimeout(() => { inChiusura = false; });
+    });
     api = createDockview(area, {
         theme: themeLight,
         disableFloatingGroups: true,
-        createComponent: ({ name }) => creaContenuto(eIdPannello(name) ? name : 'canvas')
+        popoutUrl: URL_STACCATA,
+        createComponent: ({ name }) => creaContenuto(eIdPannello(name) ? name : 'canvas'),
+        createRightHeaderActionComponent: creaAzioniGruppo
     });
+    installaStaccate();
     caricaLayout();
 
     api.onDidRemovePanel((pannello) => {
@@ -333,9 +437,6 @@ export function avviaPannelli(): void {
     api.onDidRemovePanel((pannello) => {
         if (pannello.id === 'canvas' && !chiusuraDaCodice) setTimeout(() => mostraPannello('canvas'));
     });
-    api.onDidLayoutChange(() => {
-        clearTimeout(timerSalvataggio);
-        timerSalvataggio = setTimeout(scriviLayout, 300);
-    });
+    api.onDidLayoutChange(programmaSalvataggio);
     initMenuFinestra();
 }

@@ -26,6 +26,11 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahom
     --dv-paneview-header-border-color: #ddd;
 }
 .area-pannelli .dv-tab[data-tab-panel-id="canvas"] .dv-default-tab-action { display: none; }
+/* Pulsante ⧉ / ⤓ a destra delle schede: stacca o riaggancia il gruppo (spec 0023) */
+.azioni-gruppo { display: flex; align-items: center; height: 100%; padding: 0 6px; }
+.pulsante-stacca { border: none; background: none; cursor: pointer; font-size: 14px; color: #555; padding: 2px 6px; border-radius: 3px; }
+.pulsante-stacca:hover { background: #e1e9f1; color: #0078d4; }
+.pulsante-stacca[hidden] { display: none; }
 .contenuto-pannello { height: 100%; overflow: auto; background: white; box-sizing: border-box; }
 .contenuto-pannello[data-pannello="canvas"], .contenuto-pannello[data-pannello="matrice"], .contenuto-pannello[data-pannello="documenti"], .contenuto-pannello[data-pannello="changelog"] { overflow: hidden; }
 .contenuto-scheda, .contenuto-ispettore { padding: 15px; box-sizing: border-box; }

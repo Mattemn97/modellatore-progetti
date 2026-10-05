@@ -35,6 +35,6 @@ await Promise.all([
     build({ ...nodo, entryPoints: ['src/preload/index.ts'], outfile: 'out/preload/index.cjs', format: 'cjs' }),
     build(interfaccia)
 ]);
-for (const file of ['index.html', 'benvenuto.html', 'style.css']) {
+for (const file of ['index.html', 'benvenuto.html', 'popout.html', 'style.css']) {
     fs.copyFileSync(path.join('src/renderer', file), path.join('out/renderer', file));
 }
