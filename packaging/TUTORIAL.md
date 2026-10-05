@@ -52,11 +52,18 @@ L'app non si installa: è una cartella che estrai e usi. Non servono diritti di 
 
 ## Parte 3. Conoscere la finestra
 
-Prenditi un minuto per guardare le tre colonne:
+Prenditi un minuto per guardare la disposizione di partenza:
 
-* **A sinistra**: le schede **Libreria** (il catalogo dei blocchi) e **Cliente** (i requisiti del cliente).
-* **Al centro**: la barra degli strumenti e il **canvas**, dove disegni il modello.
-* **A destra**: l'**ispettore**, dove vedi e modifichi quello che hai selezionato.
+* **A sinistra**: i pannelli **Libreria** (il catalogo dei blocchi) e **Cliente** (i requisiti del cliente), impilati a schede.
+* **Al centro**: il pannello **Canvas**, con la barra degli strumenti, dove disegni il modello.
+* **A destra**: l'**Ispettore**, dove vedi e modifichi quello che hai selezionato.
+
+**I pannelli si spostano come in un IDE:**
+
+* **Trascina la scheda** di un pannello sopra un altro gruppo per impilarlo lì, oppure verso un bordo per metterlo di fianco, sopra o sotto. Tira i bordi tra i gruppi per ridimensionarli.
+* La **✕** sulla scheda chiude un pannello (il Canvas no). Lo riapri dal menu **`🪟 Finestra`** in alto, che segna con ✓ i pannelli aperti.
+* Il pulsante **`⧉`** a destra delle schede apre quel gruppo in una **finestra separata**, comoda su un secondo monitor; nella finestra staccata **`⤓`** lo rimette a posto (anche chiuderla lo riaggancia). Quello che fai in una finestra si vede subito nelle altre.
+* La disposizione si salva da sola e la ritrovi al prossimo avvio. **`🪟 Finestra` → Ripristina layout** torna a quella di partenza.
 
 Per muoverti sul canvas:
 
@@ -68,7 +75,7 @@ Per muoverti sul canvas:
 
 * Accanto a quasi ogni campo c'è una piccola **(i)** blu: passaci sopra con il mouse (o arrivaci con Tab) e ti dice cosa rappresenta quel campo. Anche i pulsanti spiegano cosa fanno se ti fermi sopra.
 * Il menu **`❓ Aiuto`** in alto a destra rilancia il **Tour guidato** e con **Mostra le (i)** nasconde o rimette le icone.
-* Matrice, Documenti, Import cliente e Filtri hanno un pulsante **`❓ Guida`** con un breve tour di quella finestra.
+* Matrice, Documenti, Import cliente e Filtri hanno un pulsante **`❓ Guida`** con un breve tour di quel pannello o di quella finestra.
 
 ---
 
@@ -91,7 +98,7 @@ Due requisiti si possono collegare solo se sono della stessa classe: Elettrica c
 
 ### 5.1 Il blocco Centralina
 
-1. In cima alla colonna destra premi **`+ Nuovo Blocco`**.
+1. In cima all'Ispettore premi **`+ Nuovo Blocco`**.
 2. **Titolo Blocco**: `Centralina`. L'ID si genera da solo.
 3. **Categoria**: `Controllo` (facoltativa, serve a ordinare la libreria).
 4. Premi **`+ Requisito`** e compila:
@@ -105,7 +112,7 @@ Due requisiti si possono collegare solo se sono della stessa classe: Elettrica c
 6. Facoltativo: nel secondo requisito premi **`+ Testo da esportare`**, scegli il documento `SSS` e scrivi `La centralina deve comandare l'accensione e lo spegnimento della pompa.` Questo testo finirà nel documento SSS che genererai nella Parte 11.
 7. Premi **`💾 Salva in Libreria`**.
 
-Il blocco compare nella scheda **Libreria**, sotto "Controllo".
+Il blocco compare nel pannello **Libreria**, sotto "Controllo".
 
 ### 5.2 Il blocco Pompa
 
@@ -125,7 +132,7 @@ Premi **`💾 Salva in Libreria`**.
 
 Di solito il cliente ti manda i requisiti in un foglio Excel. Per il tutorial usiamo il file di esempio incluso.
 
-1. Nella colonna sinistra apri la scheda **`Cliente`** e premi **`Importa…`**.
+1. Apri la scheda **`Cliente`** (a sinistra, accanto a Libreria) e premi **`Importa…`**.
 2. Vai nella cartella `ModellatoreMBSE\esempi` e scegli `requisiti_cliente_esempio.csv`.
 3. Nella finestra **Importa requisiti cliente** controlla le scelte:
    * **Foglio**: quello proposto;
@@ -138,7 +145,7 @@ Di solito il cliente ti manda i requisiti in un foglio Excel. Per il tutorial us
 4. Nell'anteprima devi vedere **2 nuovi** e nessuno scartato.
 5. Premi **`Conferma import`**.
 
-Nella scheda Cliente ora ci sono `SSS-001` (capacità, perché non ha tipologia) e `SSS-002` (Elettrica).
+Nel pannello Cliente ora ci sono `SSS-001` (capacità, perché non ha tipologia) e `SSS-002` (Elettrica).
 
 > Con un tuo file Excel il procedimento è lo stesso: scegli quali colonne contengono ID e testo, le altre sono facoltative. Quando il cliente manda una revisione, reimporta il file nuovo: l'app aggiorna i requisiti esistenti invece di duplicarli.
 
@@ -148,7 +155,7 @@ Nella scheda Cliente ora ci sono `SSS-001` (capacità, perché non ha tipologia)
 
 Sei alla **radice**, il livello più alto del modello.
 
-1. **Posa la Centralina**: trascina `Centralina` dalla scheda Libreria al centro del canvas.
+1. **Posa la Centralina**: trascina `Centralina` dal pannello Libreria al centro del canvas.
 2. **Posa i requisiti cliente**: torna alla scheda **Cliente** e trascina le righe `SSS-001` e `SSS-002` sul canvas, a sinistra della Centralina. Diventano due **cerchi** (blocchi tondi).
 3. **Tira il primo filo**: premi sul pin del cerchio `SSS-001` e, tenendo premuto, trascina fino al pin quadrato viola **"Gestire la pompa"** della Centralina. Rilascia: compare il filo.
 4. **Tira il secondo filo**: dal cerchio `SSS-002` alla porta rossa **"Alimentazione 24 V"** sul bordo della Centralina.
@@ -182,10 +189,10 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 ## Parte 9. Controlla cosa manca
 
 1. Nella barra del canvas premi **`⚠️ Verifica Coerenza`**.
-2. A sinistra si apre la scheda **Coerenza**. Se hai seguito tutti i passi, non ci sono problemi.
-3. Per vedere come funziona, elimina il filo tra `SSS-001` e la Centralina (clic destro sul filo). La scheda Coerenza mostra subito "Cliente senza figli" e "Requisiti senza padre".
+2. Si apre il pannello **Coerenza**, accanto a Libreria. Se hai seguito tutti i passi, non ci sono problemi.
+3. Per vedere come funziona, elimina il filo tra `SSS-001` e la Centralina (clic destro sul filo). Il pannello Coerenza mostra subito "Cliente senza figli" e "Requisiti senza padre".
 4. Premi **`↶ Annulla`** in alto (oppure `Ctrl+Z`): il filo torna e i problemi spariscono.
-5. Premi di nuovo **`⚠️ Verifica Coerenza`** per spegnere la modalità.
+5. Premi di nuovo **`⚠️ Verifica Coerenza`** (oppure chiudi il pannello Coerenza con la sua ✕) per spegnere la modalità.
 
 > Annulla torna indietro fino a 3 passi, anche dopo aver chiuso e riaperto l'app.
 
@@ -196,20 +203,20 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 **Gerarchia**
 
 1. Premi **`🌳 Gerarchia`** nella barra del canvas.
-2. Fai un clic (senza trascinare) sul cerchio `SSS-001`. Nella scheda **Gerarchia** a sinistra vedi tutti i suoi discendenti, fino al requisito della Pompa dentro la Centralina.
+2. Fai un clic (senza trascinare) sul cerchio `SSS-001`. Nel pannello **Gerarchia** vedi tutti i suoi discendenti, fino al requisito della Pompa dentro la Centralina.
 3. Prova anche con un clic sul pin viola della Centralina: vedi i suoi antenati (il cliente) e i suoi discendenti (la Pompa).
 4. Premi di nuovo **`🌳 Gerarchia`** per uscire.
 
 **Matrice di tracciabilità**
 
-1. Premi **`📊 Matrice Requisiti`**: si apre la tabella di tutte le coppie padre e figlio.
+1. Premi **`📊 Matrice Requisiti`**: sotto il canvas si apre il pannello con la tabella di tutte le coppie padre e figlio. Puoi tenerlo aperto mentre modelli: si aggiorna da solo a ogni modifica.
 2. Con **`⬇ Esporta .md`** la scarichi come file Markdown, da allegare a un documento o aprire in un editor.
 
 ---
 
 ## Parte 11. Genera un documento
 
-1. Premi **`📄 Documenti`**.
+1. Premi **`📄 Documenti`**: si apre il pannello, accanto alla Matrice. Anche lui si aggiorna mentre modelli.
 2. Nel selettore **Documento** scegli **SSS**.
 3. Guarda l'anteprima: se nella Parte 5 hai scritto il testo da esportare, lo trovi nel capitolo delle capacità. I capitoli che il modello non può riempire restano con la scritta `_Da completare._`, da scrivere a mano.
 4. Premi **`⬇ Esporta .md`** per scaricare il documento.

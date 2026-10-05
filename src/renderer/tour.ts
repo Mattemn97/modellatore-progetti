@@ -1,6 +1,6 @@
 /* --- TOUR GUIDATO: RIFLETTORE, FUMETTO, TASTIERA E RIPRISTINO DELLA VISTA (spec 0012) --- */
 import { TOUR, type PassoTour } from './aiuto-testi.js';
-import { mostraPannello, chiudiPannello, pannelloAperto, pannelloVisibile, eIdPannello, type IdPannello } from './pannelli.js';
+import { mostraPannello, chiudiPannello, pannelloAperto, pannelloVisibile, pannelloStaccato, eIdPannello, type IdPannello } from './pannelli.js';
 
 const CHIAVE_TOUR_VISTO = 'modellatore.tourVisto';
 const MARGINE_RIFLETTORE = 6;
@@ -96,11 +96,12 @@ function creaElementi(): ElementiTour {
 
 /* --- AREE E PREPARAZIONE --- */
 
-// Un'area c'è se esiste e ha una dimensione sullo schermo
+// Un'area c'è se esiste in questa finestra e ha una dimensione sullo schermo.
+// Quella di un pannello staccato sta in un'altra finestra: il fumetto va al centro (spec 0023)
 function trovaArea(selettore: string | null | undefined): Element | null {
     if (!selettore) return null;
     const el = document.querySelector(selettore);
-    if (!el) return null;
+    if (!el || el.ownerDocument !== document) return null;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 ? el : null;
 }
@@ -116,7 +117,8 @@ function statoVista(): StatoVista {
 function prepara(nome: string | undefined): boolean {
     if (!nome) return false;
     const apri = (id: IdPannello): boolean => {
-        if (pannelloVisibile(id)) return false;
+        // Un pannello staccato resta nella sua finestra: portarla davanti coprirebbe il tour
+        if (pannelloVisibile(id) || pannelloStaccato(id)) return false;
         mostraPannello(id);
         return true;
     };
@@ -192,7 +194,10 @@ function mostraPasso(): void {
     const { conteggio, titolo, testo, indietro, avanti } = elementi;
     conteggio.textContent = `Passo ${tour.indice + 1} di ${tour.passi.length}`;
     titolo.textContent = passo.titolo;
-    testo.textContent = passo.testo;
+    const altrove = passo.area ? document.querySelector(passo.area) : null;
+    testo.textContent = altrove && altrove.ownerDocument !== document
+        ? `${passo.testo}\n\nQuesta parte ora sta in una finestra staccata: la trovi lì.`
+        : passo.testo;
     indietro.disabled = tour.indice === 0;
     avanti.textContent = tour.indice === tour.passi.length - 1 ? 'Fine' : 'Avanti';
 

@@ -180,6 +180,10 @@ export function pannelloAperto(id: IdPannello): boolean {
     return !!api?.getPanel(id);
 }
 
+export function pannelloStaccato(id: IdPannello): boolean {
+    return api?.getPanel(id)?.group.api.location.type === 'popout';
+}
+
 export function pannelloVisibile(id: IdPannello): boolean {
     return !!api?.getPanel(id)?.api.isVisible;
 }
@@ -347,6 +351,7 @@ function creaAzioniGruppo(gruppo: DockviewGroupPanel): IHeaderActionsRenderer {
     element.className = 'azioni-gruppo';
     const pulsante = document.createElement('button');
     pulsante.className = 'pulsante-stacca';
+    pulsante.dataset.aiuto = 'pannelli.stacca';
     element.appendChild(pulsante);
     const aggiorna = () => {
         const staccato = gruppo.api.location.type === 'popout';

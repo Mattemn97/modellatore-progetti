@@ -68,6 +68,18 @@ test('il pannello Coerenza segue la modalità e la ✕ la spegne', async () => {
         // Il Canvas non ha la ✕ (AC-2)
         await expect(scheda(pagina, 'canvas').locator('.dv-default-tab-action')).toBeHidden();
         await expect(scheda(pagina, 'canvas')).toHaveCount(1);
+
+        // Canvas dietro la scheda Cliente: il tour lo porta davanti e alla fine torna come prima (spec 0021, AC-7)
+        await pagina.dragAndDrop('.dv-tab[data-tab-panel-id="cliente"]', '.contenuto-pannello[data-pannello="canvas"]');
+        await expect(pagina.locator('#schedaCliente')).toBeVisible();
+        await expect(pagina.locator('#workspaceSvg')).toBeHidden();
+        await pagina.locator('#btnMenuAiuto').click();
+        await pagina.locator('[data-aiuto-azione="tour"]').click();
+        for (let i = 0; i < 8; i++) await pagina.keyboard.press('ArrowRight');
+        await expect(pagina.getByText('Il canvas', { exact: true })).toBeVisible();
+        await expect(pagina.locator('#workspaceSvg')).toBeVisible();
+        await pagina.keyboard.press('Escape');
+        await expect(pagina.locator('#schedaCliente')).toBeVisible();
     } finally {
         await chiudi();
     }
