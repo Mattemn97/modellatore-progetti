@@ -14,13 +14,16 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "node scripts/build.mjs && playwright test",
-    "verifica": "npm run typecheck && npm run lint && npm run test && npm run test:e2e"
+    "verifica": "npm run typecheck && npm run lint && npm run test && npm run test:e2e",
+    "dist": "node scripts/build.mjs && electron-builder --win --publish never"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.19.1",
+    "dockview-core": "^8.4.0",
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
     "globals": "^17.13.0",
@@ -31,9 +34,46 @@
   },
   "allowScripts": {
     "electron@44.5.1": true,
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "electron-winstaller@5.4.0": false
   },
-  "dependencies": {
-    "dockview-core": "^8.4.0"
+  "build": {
+    "appId": "io.github.mattemn97.modellatore-mbse",
+    "productName": "Modellatore MBSE",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "!out/**/*.map",
+      "settings.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Modellatore MBSE",
+      "uninstallDisplayName": "Modellatore MBSE",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Modellatore-MBSE-Setup-${version}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "packaging/esempi",
+        "to": "esempi"
+      }
+    ]
   }
 }

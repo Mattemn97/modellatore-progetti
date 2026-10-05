@@ -139,10 +139,14 @@ code in `src/renderer/tour.ts`, `src/renderer/aiuto-testi.ts`, `packaging/TUTORI
 
 ## Slice 4: Distribuzione Windows
 
-### 28. Installabile Windows per utente · needs a decision
+### 28. Installabile Windows per utente · done
 Un setup che installa per il solo utente senza permessi di amministratore (niente UAC), crea i collegamenti nel menu Start e sul desktop, si disinstalla da Impostazioni di Windows e non tocca mai le cartelle di lavoro.
 **Done when:** il setup si installa su un Windows pulito senza richiesta UAC, l'app parte dal menu Start, la disinstallazione toglie il programma ma lascia progetti, librerie e impostazioni, e reinstallando ritrovi tutto.
-- [ ] Design it (spec): `/architect installabile Windows per utente`
+spec [0024](../specs/0024-installabile-windows.md) · code in `package.json` (`build`), `.github/workflows/ci.yml` (job `setup`), `tests/e2e/installato.spec.ts`
+- [x] Design it (spec): `/architect installabile Windows per utente` (electron-builder, NSIS one click per utente)
+- [x] Build it: `/develop installabile Windows per utente` (setup in `release/`, esempi in `resources/esempi`, tutorial su installazione e primo avvio)
+- [x] Verify it: setup costruito in locale, programma impacchettato avviato con Playwright; installazione, avvio e disinstallazione silenziose nel job `setup` della CI
+- [x] Test it: `tests/e2e/installato.spec.ts`
 
 ### 29. Aggiornamento automatico della versione desktop · needs a decision
 Il controllo della funzionalità 15 portato nell'app desktop: all'avvio guarda l'ultima Release di GitHub, ti mostra le novità, e con un clic scarica il nuovo setup, ne verifica l'impronta, si aggiorna e riparte, sempre senza toccare i dati.
