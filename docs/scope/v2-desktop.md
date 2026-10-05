@@ -25,10 +25,19 @@ code in `AGENTS.md`, `package.json`, `eslint.config.mjs`, `vitest.config.ts`, `p
 - [x] Install the tooling: typecheck, lint, Vitest, Playwright su Electron, CI su `develop`
 - [x] Check it runs clean: `npm run verifica` in locale e CI verde
 
-### 18. Rete di sicurezza end to end · needs a decision
+### 18. Rete di sicurezza end to end · done
 Prima di toccare il codice, una suite di test end to end fissa il comportamento di oggi nei percorsi principali (blocchi, fili, gerarchia di livelli, libreria e changelog, import cliente, coerenza, gerarchia, matrice, documenti, filtri, Annulla e Ripeti), così ogni passo successivo dimostra di non aver rotto niente.
 **Done when:** la suite copre i percorsi principali delle funzionalità da 1 a 15, gira contro l'app desktop sia in locale sia in CI, ed è verde sul codice di partenza.
-- [ ] Design it (spec): `/architect rete di sicurezza end to end`
+spec [0017](../specs/0017-rete-sicurezza-e2e/index.md) · code in `tests/e2e/`
+- [x] Design it (spec): `/architect rete di sicurezza end to end`
+- [x] Build it: `/develop rete di sicurezza end to end`
+  - [x] Copia isolata con dati di prova, helper `api()`, dialoghi, richiesta di testo e download (AC-5)
+  - [x] Contratto delle API: progetti, libreria, import cliente con xlsx di riferimento (AC-1, AC-2, AC-3)
+  - [x] Percorsi dell'interfaccia delle funzionalità da 1 a 12 (AC-4)
+  - [x] Suite verde in locale (53 test e2e, circa 1 minuto) e in CI (AC-6, AC-7)
+- [x] Verify it: `/check verify rete di sicurezza end to end`
+- [x] Test it: la voce è la suite stessa
+- Trovato e corretto: `window.prompt` non esiste in Electron (Nuovo, Rinomina, Salva una copia, Rinomina ID), sostituito da `chiediTesto()` (spec 0016, AC-8)
 
 ## Slice 1: Niente server, file diretti
 

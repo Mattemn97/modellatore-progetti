@@ -5,7 +5,7 @@ import { render } from './renderer.js';
 import { renderUI } from './app.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { leggiFileJson, downloadJsonFile } from './storage.js';
-import { escapeHtml, slugifyId } from './utils.js';
+import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import { ricaricaLibreria, sovrascriviLibreria, aggiornaPulsantiLibreria } from './libreria.js';
 import {
     problemaCliente, completaCliente, controllaClienteAllApertura, aggiornaPulsantiCliente,
@@ -415,7 +415,7 @@ async function apriProgetto(slug, { silenzioso404 = false } = {}) {
 async function chiediNomeECrea(domanda, proposta, costruisci) {
     let testo = proposta;
     for (;;) {
-        const risposta = prompt(domanda, testo);
+        const risposta = chiediTesto(domanda, testo);
         if (risposta === null) return null;
         testo = risposta;
         const nome = risposta.trim();
@@ -556,7 +556,7 @@ async function rinomina() {
     if (!await svuota()) return;
     let testo = progetto.nome;
     for (;;) {
-        const risposta = prompt('Nuovo nome del progetto:', testo);
+        const risposta = chiediTesto('Nuovo nome del progetto:', testo);
         if (risposta === null) return;
         testo = risposta;
         const nome = risposta.trim();

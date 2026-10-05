@@ -1,4 +1,4 @@
-/* --- UTILITÀ COMUNI: ID UNIVOCI, SLUG, DATA ED ESCAPE HTML --- */
+/* --- UTILITÀ COMUNI: ID UNIVOCI, SLUG, DATA, ESCAPE HTML E RICHIESTA DI UN TESTO --- */
 
 // Id interno difficile da far collidere anche in modelli grandi (nodi, fili)
 export function generaId(prefisso) {
@@ -26,4 +26,10 @@ export function dataOggi() {
 export function escapeHtml(valore) {
     const sostituzioni = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
     return String(valore ?? '').replace(/[&<>"']/g, c => sostituzioni[c]);
+}
+
+// Chiede un testo all'utente. L'app desktop non ha prompt(): usa la sua finestra (preload, spec 0016)
+export function chiediTesto(messaggio, predefinito = '') {
+    const desktop = window.desktop;
+    return desktop?.chiediTesto ? desktop.chiediTesto(String(messaggio), String(predefinito ?? '')) : prompt(messaggio, predefinito);
 }
