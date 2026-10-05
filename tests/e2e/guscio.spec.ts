@@ -1,6 +1,6 @@
 /* --- E2E: GUSCIO DESKTOP (spec 0016) --- */
 import { expect, test } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ambienteElectron, apriApp, chiudiTour, eseguibileElectron, preparaCopia } from './app';
@@ -74,11 +74,20 @@ test('un secondo avvio esce subito e lascia la finestra già aperta', async () =
     }
 });
 
-test('senza Python mostra la pagina di errore in italiano', async () => {
-    const { pagina, chiudi } = await apriApp({ env: { MODELLATORE_PYTHON: path.join('C:', 'non', 'esiste', 'python.exe') } });
+test('nessun processo Python parte: le API sono nel processo principale', async () => {
+    const { pagina, chiudi } = await apriApp();
     try {
-        await expect(pagina.getByText('Il servizio dei file non è partito')).toBeVisible({ timeout: 20_000 });
+        await expect(pagina.getByText('Centralina Condivisa')).toBeVisible({ timeout: 20_000 });
+        expect(processiDellaProva().filter((nome) => /python|^py\.exe$/i.test(nome))).toEqual([]);
     } finally {
         await chiudi();
     }
 });
+
+// Nomi dei processi lanciati sulle copie dei test (Electron e i suoi figli)
+function processiDellaProva(): string[] {
+    if (process.platform !== 'win32') return [];
+    const comando = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*modellatore-e2e-*' } | ForEach-Object { $_.Name }";
+    const uscita = execSync(`powershell -NoProfile -Command "${comando}"`).toString();
+    return uscita.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
+}

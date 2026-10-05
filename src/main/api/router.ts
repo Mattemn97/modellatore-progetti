@@ -1,6 +1,8 @@
 /* --- ROUTER DELLE API: DA Request A Response, STESSI CONTROLLI E CODICI DI start.py (spec 0018) --- */
+import { leggiFileCliente } from './cliente.js';
 import { ErroreApi, nonConsentito, nonTrovatoApi } from './errori.js';
 import { decodificaUtf8, eOggetto } from './file.js';
+import type { ArchivioLibrerie } from './librerie.js';
 import { controllaSlug, type ArchivioProgetti } from './progetti.js';
 
 const MAX_CORPO = 50 * 1024 * 1024;
@@ -10,10 +12,9 @@ type Esito = [number, unknown];
 
 export interface ServiziApi {
     progetti: ArchivioProgetti;
+    librerie: ArchivioLibrerie;
     versione: string;
     maxFileClienteMb: number;
-    // Rotte non ancora portate in TypeScript (solo durante la voce 19)
-    inoltra?: (richiesta: Request, url: URL, corpo: ArrayBuffer | null) => Promise<Response>;
 }
 
 function rispostaJson(stato: number, dati: unknown): Response {
@@ -62,6 +63,25 @@ function statoAggiornamento(versione: string): Oggetto {
         stato: 'disattivato', attuale: versione, nuova: null, note: '', pagina: null, installabile: false,
         motivo: "L'aggiornamento automatico della versione desktop arriva con la voce 29."
     };
+}
+
+function instradaLibreria(librerie: ArchivioLibrerie, metodo: string, segmenti: string[], corpo: Oggetto, url: URL): Esito | null {
+    if (segmenti[0] !== 'libreria' || segmenti.length !== 2) return null;
+    const conPost = (azione: () => unknown): Esito => {
+        if (metodo !== 'POST') throw nonConsentito();
+        return [200, azione()];
+    };
+    switch (segmenti[1]) {
+        case 'apri': return conPost(() => librerie.apri(corpo.percorso));
+        case 'salva': return conPost(() => librerie.salva(corpo));
+        case 'elimina': return conPost(() => librerie.elimina(corpo));
+        case 'rinomina': return conPost(() => librerie.rinominaBlocco(corpo));
+        case 'changelog':
+            if (metodo !== 'GET') throw nonConsentito();
+            // parse_qs di Python ignora i valori vuoti
+            return [200, librerie.leggiVoci(url.searchParams.get('percorso') || null)];
+        default: return null;
+    }
 }
 
 function instradaProgetti(progetti: ArchivioProgetti, metodo: string, segmenti: string[], corpo: Oggetto): Esito | null {
@@ -127,11 +147,15 @@ export function creaRouter(servizi: ServiziApi): (richiesta: Request, url: URL) 
                 throw nonTrovatoApi();
             }
 
-            const daInoltrare = segmenti[0] === 'libreria' || (segmenti[0] === 'cliente' && segmenti[1] === 'leggi');
-            if (daInoltrare && servizi.inoltra) return await servizi.inoltra(richiesta, url, dati);
+            if (segmenti.length === 2 && segmenti[0] === 'cliente' && segmenti[1] === 'leggi') {
+                // Non tocca il disco: lavora solo sui byte ricevuti
+                if (metodo !== 'POST') throw nonConsentito();
+                return rispostaJson(200, leggiFileCliente(leggiCorpo(dati, true, servizi.maxFileClienteMb), servizi.maxFileClienteMb));
+            }
 
             const corpo = metodo === 'POST' || metodo === 'PUT' ? leggiCorpo(dati, false, servizi.maxFileClienteMb) : {};
-            const esito = instradaProgetti(servizi.progetti, metodo, segmenti, corpo);
+            const esito = instradaProgetti(servizi.progetti, metodo, segmenti, corpo)
+                ?? instradaLibreria(servizi.librerie, metodo, segmenti, corpo, url);
             if (!esito) throw nonTrovatoApi();
             return rispostaJson(esito[0], esito[1]);
         } catch (e) {

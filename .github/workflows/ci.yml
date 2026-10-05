@@ -26,11 +26,6 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Il ponte verso start.py serve finché le voci 19 e 20 non lo sostituiscono
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Dipendenze
         run: npm ci
 
