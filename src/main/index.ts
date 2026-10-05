@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { creaFinestraPrincipale } from './finestra.js';
 import { urlPaginaErrore } from './pagina-errore.js';
 import { ErrorePonte, PontePython } from './ponte-python.js';
+import { installaRichiestaTesto } from './richiesta-testo.js';
 import { installaProtocollo, registraSchema, URL_INIZIALE } from './protocollo.js';
 
 // out/main/index.mjs → out/
@@ -30,6 +31,7 @@ function mostraFinestra(): void {
 
 async function avvia(): Promise<void> {
     installaProtocollo(radice, (richiesta, url) => ponte.inoltra(richiesta, url));
+    installaRichiestaTesto(cartellaOut);
     finestra = creaFinestraPrincipale(cartellaOut, sviluppo);
     finestra.on('closed', () => { finestra = null; });
     try {

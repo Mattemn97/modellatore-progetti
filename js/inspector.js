@@ -2,7 +2,7 @@
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
 import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo } from './renderer.js';
-import { escapeHtml, slugifyId } from './utils.js';
+import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
     isDerivazione, verificaCompatibilita, titoloRequisito
@@ -452,7 +452,7 @@ async function eliminaBlocco(idBlocco, opzioni) {
 
 async function rinominaBlocco(idBlocco, nodeId, opzioni) {
     if (!appState.library[idBlocco]) return;
-    const risposta = prompt('Nuovo ID del blocco', idBlocco);
+    const risposta = chiediTesto('Nuovo ID del blocco', idBlocco);
     if (risposta === null) return;
     const nuovoId = risposta.trim();
     if (!nuovoId || nuovoId === idBlocco) return;
