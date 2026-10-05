@@ -18,6 +18,33 @@ function esterno(url: string): boolean {
     return /^https?:\/\//i.test(url);
 }
 
+// Pagina vuota delle finestre staccate (spec 0023): la principale ci sposta dentro i pannelli
+const URL_STACCATA = `${SCHEMA}://${HOST}/popout.html`;
+
+const SICUREZZA = { contextIsolation: true, nodeIntegration: false, sandbox: true } as const;
+
+// Link esterni nel browser di sistema, navigazione solo dentro app://
+function proteggiNavigazione(contenuti: Electron.WebContents, permetti: (url: string) => boolean): void {
+    contenuti.setWindowOpenHandler(({ url }) => {
+        if (permetti(url)) {
+            return {
+                action: 'allow',
+                overrideBrowserWindowOptions: {
+                    title: TITOLO, autoHideMenuBar: true, minWidth: 320, minHeight: 240,
+                    webPreferences: { ...SICUREZZA }
+                }
+            };
+        }
+        if (esterno(url)) void shell.openExternal(url);
+        return { action: 'deny' };
+    });
+    contenuti.on('will-navigate', (e, url) => {
+        if (interno(url)) return;
+        e.preventDefault();
+        if (esterno(url)) void shell.openExternal(url);
+    });
+}
+
 export function creaFinestraPrincipale(cartellaOut: string, sviluppo: boolean): BrowserWindow {
     const finestra = new BrowserWindow({
         width: 1400,
@@ -29,9 +56,7 @@ export function creaFinestraPrincipale(cartellaOut: string, sviluppo: boolean): 
         autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(cartellaOut, 'preload', 'index.cjs'),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true
+            ...SICUREZZA
         }
     });
     finestra.removeMenu();
@@ -42,16 +67,19 @@ export function creaFinestraPrincipale(cartellaOut: string, sviluppo: boolean): 
 
     const contenuti = finestra.webContents;
 
-    // Link verso l'esterno: nel browser di sistema, mai in una finestra del programma
-    contenuti.setWindowOpenHandler(({ url }) => {
-        if (esterno(url)) void shell.openExternal(url);
-        return { action: 'deny' };
+    // Link verso l'esterno: nel browser di sistema; l'unica finestra del programma che si apre è quella staccata
+    proteggiNavigazione(contenuti, (url) => url === URL_STACCATA);
+    const staccate = new Set<BrowserWindow>();
+    contenuti.on('did-create-window', (staccata) => {
+        staccate.add(staccata);
+        staccata.removeMenu();
+        staccata.on('page-title-updated', (e) => e.preventDefault());
+        staccata.on('closed', () => staccate.delete(staccata));
+        // Dentro una finestra staccata non si apre altro
+        proteggiNavigazione(staccata.webContents, () => false);
     });
-    contenuti.on('will-navigate', (e, url) => {
-        if (interno(url)) return;
-        e.preventDefault();
-        if (esterno(url)) void shell.openExternal(url);
-    });
+    // Le finestre staccate si chiudono con la principale (spec 0023, AC-4)
+    finestra.on('closed', () => staccate.forEach((f) => { if (!f.isDestroyed()) f.close(); }));
 
     // In Electron un beforeunload che blocca chiude in silenzio niente: si chiede come farebbe il browser
     contenuti.on('will-prevent-unload', (e) => {

@@ -560,6 +560,8 @@ function applicaRicercaInSospeso(): void {
 // Filtri e scorrimento restano: serve anche per l'aggiornamento dopo una modifica al modello
 function ricalcola(): void {
     daAggiornare = false;
+    // Aperta da un layout salvato senza passare da apriMatrice()
+    if (gruppiMostrati <= 0) gruppiMostrati = appSettings.matrice.gruppiVisibili;
     applicaRicercaInSospeso();
     const indice = calcolaGerarchia(pathStack[0]!.graph, appState.library, appState.cliente);
     const matrice = calcolaMatrice(indice, appState.library, appState.cliente, pathStack[0]!.label);

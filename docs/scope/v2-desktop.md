@@ -120,10 +120,14 @@ spec [0022](../specs/0022-finestre-come-pannelli.md) · code in `src/renderer/ma
 - [x] Verify it: suite end to end verde; Matrice e Changelog aperti insieme sotto il canvas controllati a schermo
 - [x] Test it: `tests/e2e/ui/tracciabilita.spec.ts` (Matrice aggiornata dopo una modifica e con Ctrl+Z), `tests/e2e/ui/libreria.spec.ts`
 
-### 26. Pannelli in finestre staccate · needs a decision
+### 26. Pannelli in finestre staccate · done
 Puoi staccare un pannello in una finestra separata di Windows (per esempio la Matrice sul secondo monitor) e riagganciarlo; le finestre staccate restano sincronizzate con il progetto aperto.
 **Done when:** stacchi e riagganci qualunque pannello tranne il Canvas principale, una modifica in una finestra si vede subito nelle altre, chiudendo l'app le finestre staccate si chiudono con lei, e alla riapertura il layout (comprese le finestre staccate e il loro monitor) torna com'era.
-- [ ] Design it (spec): `/architect pannelli in finestre staccate`
+spec [0023](../specs/0023-pannelli-staccati.md) · code in `src/renderer/pannelli.ts`, `src/renderer/staccate.ts`, `src/renderer/popout.html`, `src/main/finestra.ts`
+- [x] Design it (spec): `/architect pannelli in finestre staccate` (finestre popout di dockview: stesso codice e stesso stato, niente sincronizzazione)
+- [x] Build it: `/develop pannelli in finestre staccate`
+- [x] Verify it: stacca, filtro nella finestra staccata, riaggancia; chiusura dell'app e riapertura con la finestra staccata al suo posto provate a mano
+- [x] Test it: `tests/e2e/ui/pannelli.spec.ts`
 
 ### 27. Tour, aiuto e tutorial sui pannelli
 Il tour guidato, le (i) e il tutorial utente seguono la nuova interfaccia: un passo del tour apre o mette in primo piano il pannello che spiega, anche se l'hai chiuso o spostato.
