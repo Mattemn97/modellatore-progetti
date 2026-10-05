@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const RADICE = path.resolve(__dirname, '..', '..');
-const FILE_APP = ['package.json', 'out', 'index.html', 'style.css', 'settings.json', 'js'];
+const FILE_APP = ['package.json', 'out', 'index.html', 'benvenuto.html', 'style.css', 'settings.json', 'js'];
 
 type Oggetto = Record<string, unknown>;
 
@@ -70,20 +70,31 @@ export function preparaCopia(opzioni: OpzioniCopia = {}): Copia {
     return { cartella, datiUtente: path.join(base, 'dati-utente') };
 }
 
-export function ambienteElectron(datiUtente: string, extra: Record<string, string> = {}): Record<string, string> {
+// La copia fa da cartella di lavoro (senza configurazione salvata); Documenti in una cartella temporanea
+export function ambienteElectron(copia: Copia, extra: Record<string, string> = {}, conCartella = true): Record<string, string> {
     const env: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
     // Il terminale di VS Code lo imposta e farebbe partire Electron come semplice Node
     delete env.ELECTRON_RUN_AS_NODE;
-    return { ...env, MODELLATORE_DATI_UTENTE: datiUtente, ...extra };
+    delete env.MODELLATORE_CARTELLA_LAVORO;
+    delete env.MODELLATORE_CARTELLA_LIBRERIE;
+    const base = path.dirname(copia.cartella);
+    return {
+        ...env,
+        MODELLATORE_DATI_UTENTE: copia.datiUtente,
+        MODELLATORE_DOCUMENTI: path.join(base, 'documenti'),
+        ...(conCartella ? { MODELLATORE_CARTELLA_LAVORO: copia.cartella } : {}),
+        ...extra
+    };
 }
 
-export async function apriApp(opzioni: OpzioniCopia & { env?: Record<string, string>; copia?: Copia } = {}): Promise<AppDiProva> {
+// senzaCartella: niente cartella di lavoro dalle variabili, come un primo avvio (pagina di benvenuto)
+export async function apriApp(opzioni: OpzioniCopia & { env?: Record<string, string>; copia?: Copia; senzaCartella?: boolean } = {}): Promise<AppDiProva> {
     const copia = opzioni.copia ?? preparaCopia(opzioni);
     const app = await _electron.launch({
         executablePath: eseguibileElectron(),
         args: [copia.cartella],
-        env: ambienteElectron(copia.datiUtente, opzioni.env)
+        env: ambienteElectron(copia, opzioni.env, !opzioni.senzaCartella)
     });
     const pagina = await app.firstWindow();
     await pagina.waitForLoadState('domcontentloaded');
