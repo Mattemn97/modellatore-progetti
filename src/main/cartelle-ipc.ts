@@ -3,6 +3,7 @@ import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from '
 import path from 'node:path';
 import { CANALI } from './canali.js';
 import { daPreparare, preparaCartelle, problemaCartelle, statoCartelle, type Cartelle } from './configurazione.js';
+import { analizza, ErroreImport, esegui } from './import-v1.js';
 import { HOST, SCHEMA } from './protocollo.js';
 
 export interface StatoCartelleApp {
@@ -25,6 +26,8 @@ export interface GestoreCartelle {
     stato(): StatoCartelleApp;
     // Salva la configurazione e rimette in piedi le API sulle cartelle nuove
     usa(cartelle: Cartelle): void;
+    // Rimette in piedi le API sulle stesse cartelle e ricarica la pagina (dopo un import)
+    ricarica(): void;
     impostazioniPredefinite: string;
 }
 
@@ -81,6 +84,37 @@ export function installaCanaliCartelle(gestore: GestoreCartelle): void {
             return { esito: 'errore', messaggio: `Impossibile usare le cartelle: ${messaggio}` };
         }
         return { esito: 'ok' };
+    });
+
+    // Import dalla 1.x (voce 22): prima l'anteprima, poi la copia con la scelta sui file diversi
+    const analisiDi = (cartellaV1: unknown) => {
+        const cartelle = gestore.stato().cartelle;
+        if (!cartelle) throw new ErroreImport('Scegli prima la cartella di lavoro.');
+        const sorgente = testo(cartellaV1);
+        if (!sorgente) throw new ErroreImport('Scegli la cartella della vecchia installazione.');
+        return analizza(sorgente, cartelle);
+    };
+    const messaggioDi = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+    ipcMain.handle(CANALI.importaV1Analizza, (evento, cartellaV1: unknown) => {
+        if (!daPaginaInterna(evento)) return { errore: 'Richiesta non ammessa.' };
+        try {
+            const a = analisiDi(cartellaV1);
+            return { nuovi: a.nuovi.length, uguali: a.uguali.length, diversi: a.diversi.map((f) => f.relativo) };
+        } catch (e) {
+            return { errore: messaggioDi(e) };
+        }
+    });
+
+    ipcMain.handle(CANALI.importaV1Esegui, (evento, cartellaV1: unknown, sovrascrivi: unknown) => {
+        if (!daPaginaInterna(evento)) return { errore: 'Richiesta non ammessa.' };
+        try {
+            const esito = esegui(analisiDi(cartellaV1), sovrascrivi === true);
+            gestore.ricarica();
+            return esito;
+        } catch (e) {
+            return { errore: `Import non completato: ${messaggioDi(e)}` };
+        }
     });
 
     ipcMain.handle(CANALI.apriPercorso, async (evento, percorso: unknown) => {

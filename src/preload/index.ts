@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('desktop', {
         scegli: (titolo: string, iniziale: string) => ipcRenderer.invoke(CANALI.cartelleScegli, String(titolo), String(iniziale ?? '')),
         applica: (cartelle: { lavoro: string; librerie: string | null }, crea: boolean) =>
             ipcRenderer.invoke(CANALI.cartelleApplica, { lavoro: String(cartelle?.lavoro ?? ''), librerie: cartelle?.librerie ? String(cartelle.librerie) : null }, crea === true),
-        apri: (percorso: string) => ipcRenderer.invoke(CANALI.apriPercorso, String(percorso))
+        apri: (percorso: string) => ipcRenderer.invoke(CANALI.apriPercorso, String(percorso)),
+        // Import dei dati di una installazione 1.x (voce 22)
+        analizzaV1: (cartella: string) => ipcRenderer.invoke(CANALI.importaV1Analizza, String(cartella)),
+        importaV1: (cartella: string, sovrascrivi: boolean) => ipcRenderer.invoke(CANALI.importaV1Esegui, String(cartella), sovrascrivi === true)
     }
 });

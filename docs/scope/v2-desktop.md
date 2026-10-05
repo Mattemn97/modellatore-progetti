@@ -77,10 +77,12 @@ spec [0019](../specs/0019-impostazioni-cartelle-lavoro/index.md) · code in `src
 - [x] Verify it: `tests/e2e/ui/impostazioni.spec.ts` (primo avvio, cartella sparita, librerie spostate, settings.json)
 - [x] Test it: `tests/unit/configurazione.test.ts`
 
-### 22. Import dei dati dalla versione 1
+### 22. Import dei dati dalla versione 1 · done
 Dalle Impostazioni indichi la cartella di una vecchia installazione 1.x e l'app copia (senza spostare né cancellare) progetti, librerie, changelog, versioni, cestino e impostazioni personali nelle cartelle di lavoro nuove.
 **Done when:** puntando a una cartella 1.x piena di dati ritrovi nell'app nuova gli stessi progetti e librerie con versioni e changelog; la cartella vecchia resta identica; un file che esiste già nella destinazione non viene sovrascritto senza chiedertelo.
-- [ ] Build it: `/develop import dei dati dalla versione 1`
+code in `src/main/import-v1.ts`, `src/main/cartelle-ipc.ts`, `js/impostazioni.js`
+- [x] Build it: `/develop import dei dati dalla versione 1` (copia con anteprima, file diversi sostituiti solo su conferma, editor ricaricato)
+- [x] Verify it: `tests/e2e/ui/import-v1.spec.ts` (sostituisci, lascia, cartella sbagliata; la cartella 1.x resta identica)
 
 ## Slice 2: TypeScript
 

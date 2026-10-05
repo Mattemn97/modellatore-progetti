@@ -18,6 +18,8 @@ export const SUGGERIMENTI = {
     'impostazioni.apri': { titolo: 'Apri in Esplora risorse', testo: 'Apre la cartella in Esplora risorse di Windows.' },
     'impostazioni.predefinita': { titolo: 'Cartella predefinita', testo: 'Rimette le librerie nella cartella shared dentro la cartella di lavoro.' },
     'impostazioni.apriSettings': { titolo: 'Apri settings.json', testo: "Apre settings.json con il programma associato ai file .json. Salva il file e riavvia il modellatore per vedere le modifiche." },
+    'impostazioni.importaV1': { titolo: 'Dati della versione 1', testo: "Se usavi la versione 1 (start.exe), qui copi i suoi progetti e le sue librerie nelle cartelle di questa versione, con versioni, cestino, changelog e settings.json." },
+    'impostazioni.importaV1Pulsante': { titolo: 'Importa dalla versione 1', testo: "Scegli la cartella dove c'era start.exe: ti mostro quanti file copio e ti chiedo cosa fare con quelli che esistono già. La cartella vecchia resta com'è." },
     'impostazioni.applica': { titolo: 'Applica', testo: "Salva il progetto aperto, prepara le cartelle nuove se servono e riapre l'editor su di esse." },
 
     // Banner dell'aggiornamento (spec 0015)

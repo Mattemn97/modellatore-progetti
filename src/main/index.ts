@@ -89,6 +89,12 @@ async function avvia(): Promise<void> {
             attivaApi(nuove);
             // La pagina si ricarica sulle cartelle nuove appena la risposta è partita
             setImmediate(() => { void finestra?.loadURL(URL_INIZIALE); });
+        },
+        ricarica: () => {
+            if (!cartelle) return;
+            // Impostazioni delle API (versioni, limiti) rilette: un import può aver portato un settings.json nuovo
+            attivaApi(cartelle);
+            setImmediate(() => { void finestra?.loadURL(URL_INIZIALE); });
         }
     });
 
