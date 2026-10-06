@@ -144,7 +144,13 @@ export interface Impostazioni {
     requirements: { radius: number; capabilityColor: string; typeColors: Record<string, string> };
     metodiVerifica: string[];
     documenti: string[];
+    // Documenti ammessi per classe del requisito (spec 0027)
+    documentiPerClasse: DocumentiPerClasse;
 }
+
+export type ClasseDocumenti = 'interfaccia' | 'capacita';
+
+export type DocumentiPerClasse = Record<ClasseDocumenti, string[]>;
 
 /* --- Ponte con il processo principale (preload, spec 0016 e 0019) --- */
 

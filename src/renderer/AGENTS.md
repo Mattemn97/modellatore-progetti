@@ -13,7 +13,7 @@ All app logic, in TypeScript `strict` (spec 0020), bundled by esbuild into `out/
 | `api.ts` | `chiamaApi<T>()` for `/api/*`, returning `EsitoApi<T>` (`{ ok: true, dati }` or `{ ok: false, stato, messaggio }`) |
 | `app.ts` | `initApp()`, wires every toolbar button, canvas drop, breadcrumb (`renderUI`) |
 | `state.ts` | `appState` (library, workspace, cliente), `pathStack`, `activeNodeId`, `loadSettings()` merged over `DEFAULT_SETTINGS` |
-| `model.ts` | Data model rules: interface vs capability, link rules (`verificaCollegamento`), migration of old formats (`normalizzaLibreria`), updating references after a block edit (`aggiornaRiferimentiRequisiti`) |
+| `model.ts` | Data model rules: interface vs capability, documents allowed per requirement class (`classeDocumenti`, `documentiDellaClasse`, `motivoNonAmmesso`, `testiNonAmmessi`, spec 0027), link rules (`verificaCollegamento`), migration of old formats (`normalizzaLibreria`), updating references after a block edit (`aggiornaRiferimentiRequisiti`) |
 | `utils.ts` | `generaId`, `slugifyId`, `dataOggi`, `escapeHtml` |
 | `renderer.ts` | `render()`, zoom and pan, node drag and resize, pin drag, edge drawing, waypoints, round parent blocks, entering a block |
 | `inspector.ts` | Right panel form: create, edit, copy a library block, its requirements and export texts; delete a node; client requirement detail; connection detail (spec 0009, `mostraDettaglioCollegamento()`, wrapper with `data-filo`) |
@@ -61,6 +61,7 @@ All app logic, in TypeScript `strict` (spec 0020), bundled by esbuild into `out/
 - Canvas coordinates go through `getCanvasCoords()`, which undoes zoom and pan and snaps to `appSettings.grid.size`.
 - New internal ids come from `generaId(prefix)` (`edge_`, `node_`). Block ids come from `slugifyId(titolo)`; new requirement ids from `idRequisitoLibero()` (`<block>_001`), editable by the user.
 - Tipologie, their colors, the capability color, verification methods and documents come from `settings.json`; the filter panel and the inspector selects are built from it.
+- Which document a text may go to depends on the requirement class (`documentiPerClasse`, spec 0027): Inspector menu, library tree `⚠`, Documenti selector and generator all ask `motivoNonAmmesso()`. Matrice and Filtri deliberately ignore the rule (they show the library as written).
 - What the canvas dims or hides is decided once per `render()` by `calcolaInclusi()` (`renderer.ts`) from the rules in `filtri.ts`; a Gerarchia chain overrides it (chain elements always drawn, dimming by `fuori-catena`). Use the `.fuori-filtro` class, never inline opacity.
 - Escape every user text interpolated into `innerHTML` with `escapeHtml()`.
 - User feedback uses `alert()` and `confirm()`, in Italian.

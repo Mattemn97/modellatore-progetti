@@ -209,7 +209,7 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 3. Guarda l'anteprima: se nella Parte 5 hai scritto il testo da esportare, lo trovi nel capitolo delle capacità. I capitoli che il modello non può riempire restano con la scritta `_Da completare._`, da scrivere a mano.
 4. Premi **`⬇ Esporta .md`** per scaricare il documento.
 
-I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni testo da esportare finisce nel documento che hai scelto per lui.
+I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni testo da esportare finisce nel documento che hai scelto per lui, e l'ispettore propone solo quelli giusti per il tipo del requisito: le interfacce vanno in IRS e IDD, le capacità in SSS, SSDD, SRS e SDD.
 
 ---
 

@@ -34,7 +34,7 @@ Ogni requisito è una scheda con:
 | **Titolo** | Il nome breve del requisito |
 | **Tipologia** | Una tipologia (Elettrica, Segnale, Meccanica, Fluidica…) lo rende un requisito di interfaccia, con una porta sul bordo. `Capacità (nessuna tipologia)` lo rende un requisito di capacità, con un pin quadrato interno. |
 | **Metodo di verifica** | Ispezione, Analisi, Dimostrazione o Test (l'elenco viene da `settings.json`). Finisce nella matrice e nelle disposizioni di qualifica dei documenti. |
-| **Testi da esportare** | Con `+ Testo da esportare` aggiungi un paragrafo e scegli il documento di destinazione (SSS, SSDD, IRS, IDD, SRS, SDD). Puoi averne più di uno, anche per documenti diversi. |
+| **Testi da esportare** | Con `+ Testo da esportare` aggiungi un paragrafo e scegli il documento di destinazione. Il menu propone solo i documenti ammessi per il tipo del requisito: IRS e IDD per un'interfaccia, SSS, SSDD, SRS e SDD per una capacità (regola `documentiPerClasse` di `settings.json`). Puoi averne più di uno, anche per documenti diversi. Un testo su un documento non ammesso è in rosso con il motivo e blocca il salvataggio; un blocco della libreria con testi così ha il segno ⚠ nell'albero. |
 
 La `✕` accanto al titolo elimina il requisito (con conferma); la `✕` accanto a un testo elimina quel testo. I testi lasciati del tutto vuoti non vengono salvati.
 

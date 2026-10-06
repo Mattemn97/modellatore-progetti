@@ -15,10 +15,21 @@ Per esempio, un requisito "Alimentazione 24V" può avere:
 
 I requisiti cliente non entrano mai nei documenti: compaiono solo come padri nel capitolo di tracciabilità.
 
+## Quale documento per quale requisito
+
+Il documento di un testo dipende dal tipo del requisito. Con le impostazioni predefinite:
+
+* un requisito di **interfaccia** (con una tipologia) va solo in **IRS** e **IDD**;
+* un requisito di **capacità** (senza tipologia) va solo in **SSS**, **SSDD**, **SRS** e **SDD**.
+
+La regola sta nella chiave `documentiPerClasse` di `settings.json` (vedi [Impostazioni e file](12-impostazioni-e-file.md)). Nell'ispettore il menu Documento propone solo i documenti ammessi; se cambi la tipologia di un requisito che ha già testi su documenti non più ammessi, il menu diventa rosso con il motivo e il blocco non si salva finché non scegli un documento giusto.
+
+Una libreria scritta prima di questa regola si apre senza perdere nulla. I blocchi con testi sbagliati hanno il segno **⚠** nell'albero della libreria, e quei testi non entrano in nessun documento generato.
+
 ## Generare un documento
 
 1. Premi **`📄 Documenti`** nella barra del canvas.
-2. Nel selettore **Documento** scegli quale generare. Trovi le voci di `settings.json` (SSS, SSDD, IRS, IDD, SRS, SDD) e poi gli eventuali altri documenti usati nei testi della libreria.
+2. Nel selettore **Documento** scegli quale generare. Trovi i documenti ammessi per almeno un tipo di requisito (con le impostazioni predefinite SSS, SSDD, IRS, IDD, SRS, SDD).
 3. Guarda il riepilogo e l'anteprima.
 4. Premi **`⬇ Esporta .md`**.
 
@@ -30,11 +41,14 @@ La finestra lavora su una fotografia del modello presa quando la apri; si chiude
 
 Sotto il selettore vedi una riga come questa:
 
-`Requisiti: 24 (capacità 15, interfacce 9) · Testi: 31 · Senza metodo: 2 · Senza padre: 1 · Non usati nel progetto: 3`
+`Requisiti: 24 (capacità 15, interfacce 9) · Testi: 31 · Senza metodo: 2 · Senza padre: 1 · Non usati nel progetto: 3 · Esclusi: 0`
 
 * **Senza metodo**: requisiti del documento senza metodo di verifica.
 * **Senza padre**: requisiti del documento che in qualche istanza non derivano da nulla.
 * **Non usati nel progetto**: requisiti della libreria che hanno un testo per questo documento ma non compaiono in nessun punto del modello. Non entrano nel documento. Se ti aspettavi di vederli, trascina il loro blocco nel progetto.
+* **Esclusi**: testi per questo documento che il tipo del loro requisito non ammette. Non entrano nel file.
+
+Se la libreria ha testi su documenti non ammessi, sotto il riepilogo compare l'elenco chiuso **Testi su documenti non ammessi: N**. Aprilo: ogni riga dice requisito, blocco, documento e motivo, e un clic apre quel blocco nell'ispettore per correggerlo.
 
 Sotto c'è l'anteprima del file. Se è molto lunga si tronca a 200.000 caratteri (`documentiExport.anteprimaCaratteri`) con un avviso; il file scaricato contiene comunque tutto. Se nessun requisito ha testi per quel documento, l'app te lo dice e il file avrà solo i capitoli.
 
@@ -45,7 +59,7 @@ In testa trovi il titolo `# <documento> · <titolo del DID> · <nome del progett
 Capitoli comuni a tutti i documenti:
 
 * **1 Scopo**: 1.1 Identificazione (scritto dall'app: documento, progetto, libreria, data), 1.2 Panoramica e 1.3 Panoramica del documento (da completare).
-* **2 Documenti di riferimento**: l'elenco dei documenti dei requisiti padre, con `Cliente` per primo.
+* **2 Documenti di riferimento**: l'elenco dei documenti dei requisiti padre (solo quelli ammessi per il padre), con `Cliente` per primo.
 * **Tracciabilità dei requisiti**: una tabella con ID, titolo, sezione del documento, requisiti padre, documenti dei padri e note (senza padre, padre cliente ritirato).
 * **Note**: un sottocapitolo Acronimi e glossario da completare, e in fondo la riga che ricorda che i capitoli "Da completare" non sono coperti dal modello.
 
@@ -53,15 +67,17 @@ Capitoli comuni a tutti i documenti:
 
 | Documento | Titolo del DID | Dove vanno i requisiti |
 |---|---|---|
-| **SSS** | Specifica del sistema/sottosistema | 3.2 capacità, 3.3 interfacce esterne; 4 Disposizioni di qualifica; 5 Tracciabilità; 6 Note. Da 3.4 a 3.18 i capitoli del DID da completare. |
+| **SSS** | Specifica del sistema/sottosistema | 3.2 capacità, 3.3 interfacce esterne (con le impostazioni predefinite rimanda a IRS e IDD); 4 Disposizioni di qualifica; 5 Tracciabilità; 6 Note. Da 3.4 a 3.18 i capitoli del DID da completare. |
 | **SRS** | Specifica dei requisiti software | Come SSS, riferito al CSCI (il componente software) invece che al sistema |
-| **IRS** | Specifica dei requisiti di interfaccia | 3.1 Identificazione delle interfacce, poi un capitolo per tipologia, poi "Altri requisiti" per le capacità (solo se ce ne sono); 4 Qualifica; 5 Tracciabilità; 6 Note |
-| **SSDD** | Descrizione del progetto del sistema/sottosistema | 4.1 Componenti del sistema (capacità raggruppate per blocco), 4.3 Progetto delle interfacce; 5 Tracciabilità; 6 Note |
+| **IRS** | Specifica dei requisiti di interfaccia | 3.1 Identificazione delle interfacce, poi un capitolo per tipologia, poi "Altri requisiti" per le capacità (solo se il documento ammette capacità); 4 Qualifica; 5 Tracciabilità; 6 Note |
+| **SSDD** | Descrizione del progetto del sistema/sottosistema | 4.1 Componenti del sistema (capacità raggruppate per blocco), 4.3 Progetto delle interfacce (rimanda a IRS e IDD); 5 Tracciabilità; 6 Note |
 | **SDD** | Descrizione del progetto software | Come SSDD riferito al CSCI, più 5 Progetto di dettaglio (da completare); 6 Tracciabilità; 7 Note |
 | **IDD** | Descrizione del progetto delle interfacce | 3.1 Identificazione, un capitolo per tipologia, "Altri requisiti"; 4 Tracciabilità; 5 Note |
 | altro | Documento di requisiti | 3.1 capacità, 3.2 interfacce; 4 Qualifica; 5 Tracciabilità; 6 Note |
 
 ### Le interfacce
+
+Un capitolo destinato a un tipo di requisito che il documento non ammette non ha sottocapitoli: dice dove sono quei requisiti, per esempio `I requisiti di interfaccia sono nei documenti IRS, IDD.`
 
 Ogni capitolo di interfacce si apre con **Identificazione delle interfacce e diagrammi**: una tabella con una riga per tipologia (quanti requisiti, quali blocchi) e la riga `_Diagrammi da completare._`. Poi c'è un sottocapitolo `Interfaccia <tipologia>` per ogni tipologia presente, con i suoi requisiti.
 
@@ -88,7 +104,7 @@ Una regola pratica, se lo standard è nuovo per te:
 * **IRS** per i requisiti delle interfacce, **IDD** per il loro progetto;
 * **SRS** e **SDD** sono l'equivalente di SSS e SSDD per un componente software.
 
-Puoi aggiungere altri documenti in `settings.json` (chiave `documenti`): l'app li tratta con la struttura generica "Documento di requisiti".
+Puoi aggiungere altri documenti in `settings.json`: mettili nella lista del tipo di requisito giusto in `documentiPerClasse` (e, se vuoi, in `documenti` per l'ordine). L'app li tratta con la struttura generica "Documento di requisiti".
 
 ## Limiti
 

@@ -1,6 +1,6 @@
 /* --- GESTIONE STATO GLOBALE --- */
 
-import type { Cliente, Grafo, Impostazioni, Libreria, Livello } from './tipi.js';
+import type { Cliente, DocumentiPerClasse, Grafo, Impostazioni, Libreria, Livello } from './tipi.js';
 
 // Impostate da loadSettings() prima di ogni altro init: dopo l'avvio non sono mai null
 export let appSettings: Impostazioni = null as unknown as Impostazioni;
@@ -25,7 +25,8 @@ const DEFAULT_SETTINGS: Impostazioni = {
         typeColors: { Elettrica: '#e74c3c', Segnale: '#2ecc71', Meccanica: '#f39c12', Fluidica: '#3498db' }
     },
     metodiVerifica: ['Ispezione', 'Analisi', 'Dimostrazione', 'Test'],
-    documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD']
+    documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD'],
+    documentiPerClasse: { interfaccia: ['IRS', 'IDD'], capacita: ['SSS', 'SSDD', 'SRS', 'SDD'] }
 };
 
 export const appState: { librarySearchQuery: string; library: Libreria; workspace: Grafo; cliente: Cliente | null } = {
@@ -99,6 +100,20 @@ export async function loadSettings(): Promise<void> {
         grid: { ...DEFAULT_SETTINGS.grid, ...caricate.grid },
         node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
         parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },
-        requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements }
+        requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements },
+        documentiPerClasse: unisciDocumentiPerClasse(caricate.documentiPerClasse)
     };
+}
+
+// Per ciascuna classe vince una lista di stringhe, altrimenti il predefinito (spec 0027, AC-1):
+// un refuso in settings.json non deve far sparire tutti i documenti dal menu
+export function unisciDocumentiPerClasse(caricata: unknown): DocumentiPerClasse {
+    const esito: DocumentiPerClasse = { ...DEFAULT_SETTINGS.documentiPerClasse };
+    if (!caricata || typeof caricata !== 'object') return esito;
+    for (const classe of ['interfaccia', 'capacita'] as const) {
+        const lista = (caricata as Record<string, unknown>)[classe];
+        if (!Array.isArray(lista) || !lista.every(v => typeof v === 'string')) continue;
+        esito[classe] = [...new Set((lista as string[]).map(v => v.trim()).filter(v => v && v !== 'Cliente'))];
+    }
+    return esito;
 }

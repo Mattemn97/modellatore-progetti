@@ -10,7 +10,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 ## Epic
 
 - [v1-web.md](v1-web.md): editor web con server locale (1.x). 18 voci, tutte `done` o `existing`.
-- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 16 voci, 15 `done`, 1 `planned`.
+- [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 16 voci, tutte `done`.
 - **futuro** (voci 32–56, ancora senza file di epic): idee dopo la 2.0.0 divise in sei blocchi di rilascio, dalla 2.1.0 alla 2.6.0, descritte in "Idee future" qui sotto. Tutte `planned`.
 
 ## At a glance
@@ -50,7 +50,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 28 | Installabile Windows per utente | v2 | Slice 4 | done |
 | 29 | Aggiornamento automatico della versione desktop | v2 | Slice 4 | done |
 | 30 | Rilascio 2.0.0 e passaggio dalla 1.x | v2 | Slice 4 | done |
-| 31 | Documenti di export legati al tipo di requisito | v2 | Slice 5 · Blocco A (2.1.0) | planned |
+| 31 | Documenti di export legati al tipo di requisito | v2 | Slice 5 · Blocco A (2.1.0) | done |
 | 32 | Export Word e PDF dei documenti | futuro | Blocco A (2.1.0) | planned |
 | 33 | Immagini dei diagrammi | futuro | Blocco A (2.1.0) | planned |
 | 34 | Rilascio 2.1.0 | futuro | Blocco A (2.1.0) | planned |

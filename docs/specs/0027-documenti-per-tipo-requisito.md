@@ -1,7 +1,7 @@
 # 0027. Documenti di export ammessi per classe del requisito, regola in settings.json
 
 **Date**: 2026-10-06
-**Status**: Proposed
+**Status**: Done
 
 ## Summary
 
