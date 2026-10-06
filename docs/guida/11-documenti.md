@@ -58,7 +58,7 @@ Il Markdown resta senza figure. Nel PDF i diagrammi sono vettoriali; nel Word so
 
 ### Il registro delle revisioni
 
-Sotto il riepilogo apri **Revisioni di <documento>**: ogni documento ha la sua tabella. **`+ Revisione`** aggiunge una riga con la revisione successiva (dopo `A` viene `B`, dopo `3` viene `4`), la data di oggi e l'autore del modello; scrivi la descrizione della modifica e poi esporta. L'ultima riga è la revisione corrente. Le revisioni si salvano nel progetto, con Annulla e Ripeti come ogni altra modifica.
+Sotto il riepilogo apri **Revisioni di …** (per esempio **Revisioni di SSS**): ogni documento ha la sua tabella. **`+ Revisione`** aggiunge una riga con la revisione successiva (dopo `A` viene `B`, dopo `3` viene `4`), la data di oggi e l'autore del modello; scrivi la descrizione della modifica e poi esporta. L'ultima riga è la revisione corrente. Le revisioni si salvano nel progetto, con Annulla e Ripeti come ogni altra modifica.
 
 La finestra lavora su una fotografia del modello presa quando la apri; si chiude con `✕`. Aprirla e scaricare non cambia il progetto. La prossima volta che la apri trovi selezionato il documento dell'ultima volta.
 

@@ -11,7 +11,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 
 - [v1-web.md](v1-web.md): editor web con server locale (1.x). 18 voci, tutte `done` o `existing`.
 - [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 16 voci, tutte `done`.
-- **futuro** (voci 32–56, ancora senza file di epic): idee dopo la 2.0.0 divise in sei blocchi di rilascio, dalla 2.1.0 alla 2.6.0, descritte in "Idee future" qui sotto. Tutte `planned`.
+- **futuro** (voci 32–56, ancora senza file di epic): idee dopo la 2.0.0 divise in sei blocchi di rilascio, dalla 2.1.0 alla 2.6.0, descritte in "Idee future" qui sotto. Blocco A (32–34, 2.1.0) `done`, le altre `planned`.
 
 ## At a glance
 
@@ -53,7 +53,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 31 | Documenti di export legati al tipo di requisito | v2 | Slice 5 · Blocco A (2.1.0) | done |
 | 32 | Export Word e PDF dei documenti | futuro | Blocco A (2.1.0) | done |
 | 33 | Immagini dei diagrammi | futuro | Blocco A (2.1.0) | done |
-| 34 | Rilascio 2.1.0 | futuro | Blocco A (2.1.0) | planned |
+| 34 | Rilascio 2.1.0 | futuro | Blocco A (2.1.0) | done |
 | 35 | Ricerca globale | futuro | Blocco B (2.2.0) | planned |
 | 36 | Minimappa e panoramica dei livelli | futuro | Blocco B (2.2.0) | planned |
 | 37 | Selezione multipla e allineamento | futuro | Blocco B (2.2.0) | planned |
@@ -99,7 +99,7 @@ Le voci 31–56 della tabella, raggruppate per area. Ogni area è un **blocco**:
 - **31. Documenti di export legati al tipo di requisito**: già nel piano (epic v2). Viene per prima perché le altre voci del blocco lavorano sugli stessi documenti.
 - **32. Export Word e PDF dei documenti**: oltre al Markdown, i documenti MIL-STD-498 in `.docx` e PDF con un modello aziendale (intestazione, logo, tabella delle revisioni). `done` · spec [0028](../specs/0028-export-word-pdf.md) · code in `src/main/documenti/`, `src/renderer/documenti.ts`
 - **33. Immagini dei diagrammi**: esportare un livello del canvas in SVG o PNG e inserirlo in automatico nel capitolo del documento che descrive quel blocco. `done` · spec [0029](../specs/0029-immagini-diagrammi.md) · code in `src/renderer/diagramma.ts`
-- **34. Rilascio 2.1.0**
+- **34. Rilascio 2.1.0**: `done` · `version` 2.1.0, note in `packaging/note/2.1.0.md`, merge di `develop` in `main`
 
 ### Blocco B · Navigazione e modifica del canvas → 2.2.0
 - **35. Ricerca globale**: Ctrl+F su blocchi, requisiti e testi di export di tutto il progetto, a ogni livello, con salto diretto al blocco o al filo trovato.
