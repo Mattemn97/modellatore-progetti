@@ -2,6 +2,7 @@
 
 **Date**: 2026-10-02
 **Status**: Accepted
+**Modificata da**: [0027](../0027-documenti-per-tipo-requisito.md) (documenti ammessi per classe del requisito: selettore, testi che entrano, capitoli interfacce e capacità, riferimenti, riepilogo)
 
 ## Summary
 

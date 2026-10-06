@@ -165,6 +165,17 @@ spec [0026](../specs/0026-rilascio-2-0-0.md) · code in `.github/workflows/rilas
 - [x] Build it: `/develop rilascio 2.0.0 e passaggio dalla 1.x` (server Python e zip tolti, README, AGENTS.md e guida sulla versione desktop)
 - [x] Verify it: Release v2.0.0 pubblicata dal workflow su `main` con setup, `latest.yml`, tutorial ed esempio
 
+## Slice 5: Dopo la 2.0.0
+
+### 31. Documenti di export legati al tipo di requisito
+Il documento di un testo da esportare dipende dal tipo di requisito: un requisito di interfaccia (con tipologia) può andare solo in IRS e IDD, uno di capacità solo negli altri (SSS, SSDD, SRS, SDD…). Così non metti per sbaglio un'interfaccia in un documento di capacità o il contrario.
+**Done when:** nell'Ispettore il menu Documento propone solo i documenti ammessi per il tipo del requisito; quale documento vale per quale tipo sta in `settings.json`; se cambi la tipologia di un requisito che ha già testi su documenti non più ammessi te lo dice; le librerie esistenti con abbinamenti sbagliati si aprono comunque e l'errore si vede (per esempio in Coerenza o nei Documenti), senza perdere testi.
+spec [0027](../specs/0027-documenti-per-tipo-requisito.md) · code in `src/renderer/model.ts`, `inspector.ts`, `builder.ts`, `documenti.ts`
+- [x] Design it (spec): `/architect documenti di export legati al tipo di requisito`
+- [x] Build it: `/develop documenti di export legati al tipo di requisito` (regola in `model.ts`, menu e avvisi nell'Ispettore, ⚠ nell'albero, esclusione e rinvio nei Documenti)
+- [x] Verify it: `tests/e2e/ui/documenti-per-tipo.spec.ts`
+- [x] Test it: `tests/unit/regole.test.ts` (documenti ammessi per classe)
+
 ## Deferred
 Fuori da questo giro, tenuti qui perché il piano resti onesto.
 - **Firma del codice del setup**: certificato per evitare l'avviso di SmartScreen al primo download · needs a decision

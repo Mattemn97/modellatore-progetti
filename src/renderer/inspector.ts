@@ -5,7 +5,8 @@ import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, to
 import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
-    isDerivazione, isRequisitoCliente, verificaCompatibilita, titoloRequisito
+    isDerivazione, isRequisitoCliente, verificaCompatibilita, titoloRequisito, classeDocumenti, documentiDellaClasse,
+    motivoNonAmmesso
 } from './model.js';
 import {
     salvaBloccoLibreria, aggiornaPulsantiLibreria, mostraChangelog, eliminaBloccoLibreria, rinominaBloccoLibreria,
@@ -114,6 +115,19 @@ function opzioni(valori: string[], selezionato: string | null, etichettaVuota?: 
     return vuota + lista.map((v) =>
         `<option value="${escapeHtml(v)}" ${v === selezionato ? 'selected' : ''}>${escapeHtml(v)}</option>`
     ).join('');
+}
+
+// Menu Documento (spec 0027): solo i documenti ammessi per la classe del requisito nel form;
+// un documento già scelto e non ammesso resta in fondo, marcato, così non si perde al ridisegno
+function opzioniDocumento(req: RequisitoLibreria, documento: string): string {
+    const scelto = (documento || '').trim();
+    const ammessi = documentiDellaClasse(classeDocumenti(req));
+    const vuota = `<option value="" ${!scelto ? 'selected' : ''}>Documento...</option>`;
+    const voci = ammessi.map((v) => `<option value="${escapeHtml(v)}" ${v === scelto ? 'selected' : ''}>${escapeHtml(v)}</option>`);
+    if (scelto && !ammessi.includes(scelto)) {
+        voci.push(`<option value="${escapeHtml(scelto)}" selected>${escapeHtml(scelto)} (non ammesso)</option>`);
+    }
+    return vuota + voci.join('');
 }
 
 function renderEditorForm(data: DatiForm): void {
@@ -249,17 +263,21 @@ function renderEditorForm(data: DatiForm): void {
                     </select>
                 </div>
                 <div class="req-testi">
-                    ${req.testiExport.map((t, tidx) => `
+                    ${req.testiExport.map((t, tidx) => {
+                        const motivo = motivoNonAmmesso(req, t.documento);
+                        return `
                         <div class="req-testo">
                             <div style="display:flex; gap:4px; align-items:center;">
-                                <select data-idx="${idx}" data-tidx="${tidx}" data-campo="documento" title="Documento in cui esportare il testo" style="flex:1; min-width:0; padding:3px; font-size:11px;">
-                                    ${opzioni(appSettings.documenti, t.documento, 'Documento...')}
+                                <select data-idx="${idx}" data-tidx="${tidx}" data-campo="documento" title="Documento in cui esportare il testo" class="${motivo ? 'documento-non-ammesso' : ''}" style="flex:1; min-width:0; padding:3px; font-size:11px;">
+                                    ${opzioniDocumento(req, t.documento)}
                                 </select>
                                 <button data-idx="${idx}" data-tidx="${tidx}" data-azione="elimina-testo" title="Elimina testo" style="color:#c0392b; border:none; background:none; cursor:pointer;">✕</button>
                             </div>
+                            ${motivo ? `<div class="motivo-non-ammesso">Documento non ammesso: ${escapeHtml(motivo)}</div>` : ''}
                             <textarea data-idx="${idx}" data-tidx="${tidx}" data-campo="testo" rows="2" placeholder="Testo da esportare nel documento..." style="width:100%; box-sizing:border-box; padding:4px; font-size:11px; resize:vertical; border:1px solid #ccc; border-radius:3px; font-family:inherit;">${escapeHtml(t.testo)}</textarea>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                     <button data-idx="${idx}" data-azione="aggiungi-testo" style="align-self:flex-start; background:none; border:1px dashed #0078d4; color:#0078d4; padding:2px 6px; border-radius:3px; cursor:pointer; font-size:10px;">+ Testo da esportare</button>
                 </div>
             </div>
@@ -283,6 +301,17 @@ function renderEditorForm(data: DatiForm): void {
             case 'documento': if (testo) testo.documento = valore; break;
             case 'testo': if (testo) testo.testo = valore; break;
         }
+    });
+
+    // Tipologia e documento cambiano i menu e gli avvisi dei testi (spec 0027): si ridisegna su change,
+    // non su input, poi il fuoco torna sul menu appena cambiato
+    reqsContainer.addEventListener('change', (e) => {
+        const bersaglio = e.target as HTMLElement;
+        const { idx, tidx, campo: nomeCampo } = bersaglio.dataset;
+        if (nomeCampo !== 'tipologia' && nomeCampo !== 'documento') return;
+        renderReqRows();
+        const selettore = `[data-idx="${idx}"][data-campo="${nomeCampo}"]${tidx === undefined ? '' : `[data-tidx="${tidx}"]`}`;
+        reqsContainer.querySelector<HTMLElement>(selettore)?.focus();
     });
 
     reqsContainer.addEventListener('click', (e) => {
@@ -350,7 +379,7 @@ function renderEditorForm(data: DatiForm): void {
             titolo: req.titolo.trim(),
             // I testi lasciati completamente vuoti non vengono salvati
             testiExport: req.testiExport
-                .map((t) => ({ testo: t.testo.trim(), documento: t.documento }))
+                .map((t) => ({ testo: t.testo.trim(), documento: t.documento.trim() }))
                 .filter((t) => t.testo || t.documento)
         }));
 
@@ -536,6 +565,13 @@ function validaRequisiti(requisiti: RequisitoLibreria[], blockId: string): strin
         if (senzaDocumento) return `Nel requisito "${req.id}" c'è un testo senza documento di riferimento.`;
         const senzaTesto = req.testiExport.find((t) => !t.testo);
         if (senzaTesto) return `Nel requisito "${req.id}" c'è un documento (${senzaTesto.documento}) senza testo.`;
+    }
+    // Documenti ammessi per classe (spec 0027, AC-5): dopo gli altri controlli
+    for (const req of requisiti) {
+        for (const t of req.testiExport) {
+            const motivo = motivoNonAmmesso(req, t.documento);
+            if (motivo) return `Nel requisito "${req.id}" il testo per ${t.documento.trim()} non è ammesso: ${motivo}.`;
+        }
     }
     return null;
 }

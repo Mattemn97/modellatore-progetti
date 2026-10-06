@@ -212,6 +212,10 @@
                 <button id="btnEsportaDocumento" class="pulsante-progetto" data-aiuto="documenti.esporta" disabled>⬇ Esporta .md</button>
             </div>
             <div id="documentiRiepilogo" class="import-conteggi"></div>
+            <details id="elencoNonAmmessi" class="elenco-non-ammessi" hidden>
+                <summary>Testi su documenti non ammessi: <span id="conteggioNonAmmessi">0</span><span class="icona-aiuto" data-aiuto="documenti.nonAmmessi" tabindex="0" role="button" aria-label="Informazioni">i</span></summary>
+                <ul id="righeNonAmmessi"></ul>
+            </details>
             <div id="documentiMessaggio" class="empty-props" hidden></div>
             <pre id="anteprimaDocumento" class="anteprima-documento"></pre>
         </div>

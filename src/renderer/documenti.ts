@@ -10,13 +10,14 @@ import { calcolaMatrice, tabellaMd, type Matrice, type VoceMatrice } from './mat
 import { infoProgetto } from './progetto.js';
 import { infoLibreria } from './libreria.js';
 import { scaricaFileTesto } from './storage.js';
-import { CAPACITA, getTipologie } from './model.js';
+import { CAPACITA, getTipologie, documentiDellaClasse, motivoNonAmmesso, testiNonAmmessi } from './model.js';
 import { escapeHtml, slugifyId, dataOggi } from './utils.js';
+import { openLibraryBlock } from './inspector.js';
 import { mostraPannello, pannelloAperto, pannelloVisibile, allaVista, allaChiusura } from './pannelli.js';
-import type { Blocco, Libreria, RequisitoLibreria, TestoExport } from './tipi.js';
+import type { Blocco, ClasseDocumenti, Libreria, RequisitoLibreria, TestoExport } from './tipi.js';
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: i documenti si generano quando la carichi';
-const MSG_NESSUN_DOCUMENTO = 'Nessun documento disponibile: aggiungi documenti in settings.json o nei testi da esportare';
+const MSG_NESSUN_DOCUMENTO = 'Nessun documento disponibile: aggiungi documenti a documentiPerClasse in settings.json';
 const DA_COMPLETARE = '_Da completare._';
 const NESSUN_REQUISITO = 'Nessun requisito in questo documento.';
 const DOC_CLIENTE = 'Cliente';
@@ -161,7 +162,6 @@ export interface DatiDocumenti {
     matrice: Matrice;
     perId: Map<string, { req: RequisitoLibreria; def: Blocco }>;
     padriDi: Map<string, VoceMatrice[]>;
-    documentiLibreria: string[];
 }
 
 const testoDocumento = (t: TestoExport | null | undefined): string => String(t?.documento ?? '').trim();
@@ -182,20 +182,22 @@ export function preparaDatiDocumenti(matrice: Matrice, libreria: Libreria): Dati
         }
         padri.push(gruppo.padre);
     }));
-    const documentiLibreria = new Set<string>();
-    perId.forEach(({ req }) => (req.testiExport || []).forEach((t) => {
-        const doc = testoDocumento(t);
-        if (doc) documentiLibreria.add(doc);
-    }));
-    return { matrice, perId, padriDi, documentiLibreria: [...documentiLibreria] };
+    return { matrice, perId, padriDi };
 }
 
-// Voci del selettore: settings, poi i documenti dei testi assenti da settings in ordine alfabetico; mai Cliente (AC-2)
-export function vociDocumento(dati: DatiDocumenti): string[] {
-    const daSettings = (appSettings.documenti || []).map((d) => String(d).trim()).filter(Boolean);
-    const noti = new Set(daSettings);
-    const extra = dati.documentiLibreria.filter((d) => !noti.has(d)).sort((a, b) => a.localeCompare(b, 'it'));
-    return [...new Set([...daSettings, ...extra])].filter((d) => d !== DOC_CLIENTE);
+// Voci del selettore: solo i documenti ammessi per almeno una classe (spec 0027, AC-8): prima quelli di settings
+// nel loro ordine, poi quelli di documentiPerClasse (interfaccia, poi capacità); mai Cliente
+export function vociDocumento(): string[] {
+    const classificati = [...documentiDellaClasse('interfaccia'), ...documentiDellaClasse('capacita')];
+    const daSettings = (appSettings.documenti || []).map((d) => String(d).trim()).filter((d) => classificati.includes(d));
+    return [...new Set([...daSettings, ...classificati])].filter((d) => d !== DOC_CLIENTE);
+}
+
+// Classe a cui è destinato un capitolo del DID (spec 0027, AC-9)
+function classeCapitolo(tipo: TipoCapitolo): ClasseDocumenti | null {
+    if (tipo === 'capacita' || tipo === 'componenti') return 'capacita';
+    if (tipo === 'interfacce') return 'interfaccia';
+    return null;
 }
 
 /* --- GENERAZIONE (AC-3 … AC-11) --- */
@@ -227,7 +229,7 @@ export interface IntestazioneDocumento {
 
 export interface DocumentoGenerato {
     testo: string;
-    riepilogo: { requisiti: number; capacita: number; interfacce: number; testi: number; senzaMetodo: number; senzaPadre: number; nonUsati: number };
+    riepilogo: { requisiti: number; capacita: number; interfacce: number; testi: number; senzaMetodo: number; senzaPadre: number; nonUsati: number; esclusi: number };
 }
 
 const unaRiga = (valore: unknown): string => String(valore ?? '').replace(/\s+/g, ' ').trim();
@@ -242,7 +244,7 @@ function ordinaDocumenti(insieme: Set<string>, voci: string[]): string[] {
 // Funzione pura: dati, documento scelto e intestazione → testo del file e riepilogo
 export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, data, libreria }: IntestazioneDocumento): DocumentoGenerato {
     const modello = DID[documento] || (DID.ALTRO as Did);
-    const voci = vociDocumento(dati);
+    const voci = vociDocumento();
     const metodi = (appSettings.metodiVerifica || []).map((m) => String(m).trim());
     const vociMatrice = new Set<string>();
 
@@ -253,6 +255,8 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
         vociMatrice.add(voce.id);
         const trovato = dati.perId.get(voce.id);
         if (!trovato) return;
+        // Entra solo un testo ammesso per la classe del requisito (spec 0027, AC-9)
+        if (motivoNonAmmesso(trovato.req, documento) !== null) return;
         const testi = (trovato.req.testiExport || [])
             .filter((t) => testoDocumento(t) === documento && String(t.testo ?? '').trim())
             .map((t) => String(t.testo).trim());
@@ -260,10 +264,25 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
         requisiti.push({ voce, req: trovato.req, def: trovato.def, testi, padri: dati.padriDi.get(voce.id) || [], sezione: '' });
     });
     let nonUsati = 0;
+    let esclusi = 0;
     dati.perId.forEach(({ req }, id) => {
-        if (vociMatrice.has(id)) return;
-        if ((req.testiExport || []).some((t) => testoDocumento(t) === documento && String(t.testo ?? '').trim())) nonUsati++;
+        const conTesto = (req.testiExport || []).filter((t) => testoDocumento(t) === documento && String(t.testo ?? '').trim());
+        if (motivoNonAmmesso(req, documento) !== null) {
+            esclusi += conTesto.length;
+            return;
+        }
+        if (!vociMatrice.has(id) && conTesto.length) nonUsati++;
     });
+
+    // Documenti di un padre: Cliente, oppure i documenti ammessi dei testi non vuoti del suo requisito (AC-10)
+    function documentiPadre(p: VoceMatrice): string[] {
+        if (p.cliente) return [DOC_CLIENTE];
+        const trovato = dati.perId.get(p.id);
+        if (!trovato) return [];
+        return (trovato.req.testiExport || [])
+            .filter((t) => String(t.testo ?? '').trim() && testoDocumento(t) && motivoNonAmmesso(trovato.req, testoDocumento(t)) === null)
+            .map(testoDocumento);
+    }
     const capacita = requisiti.filter((r) => r.voce.classe === CAPACITA);
     const interfacce = requisiti.filter((r) => r.voce.classe !== CAPACITA);
 
@@ -330,7 +349,7 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
     const versione = libreria.versione ? ` v${libreria.versione}` : '';
     const identificazione = `Questo documento (${documento}) riguarda il progetto ${nome}. È generato dal modello con la libreria ${libreria.nomeFile}${versione} il ${data}.`;
     const documentiPadri = new Set<string>();
-    requisiti.forEach((r) => r.padri.forEach((p) => p.documenti.forEach((d) => documentiPadri.add(d))));
+    requisiti.forEach((r) => r.padri.forEach((p) => documentiPadre(p).forEach((d) => documentiPadri.add(d))));
     documentiPadri.delete(documento);
     const riferimenti = ordinaDocumenti(documentiPadri, voci);
 
@@ -350,7 +369,7 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
         const righe = ordineFile.map((r) => {
             const padri = r.padri.map((p) => `${p.idMostrato} ${p.titolo}`.trim()).join('; ') || '—';
             const docs = new Set<string>();
-            r.padri.forEach((p) => p.documenti.forEach((d) => docs.add(d)));
+            r.padri.forEach((p) => documentiPadre(p).forEach((d) => docs.add(d)));
             const note = [r.voce.notaSenzaPadre, ...r.padri.filter((p) => p.ritirato).map((p) => `Padre ritirato: ${p.idMostrato}`)]
                 .filter(Boolean).join('; ');
             return [r.voce.idMostrato, r.voce.titolo, r.sezione, padri, ordinaDocumenti(docs, voci).join(', '), note];
@@ -360,6 +379,14 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
 
     // Tipo del DID → capitoli concreti; un array vuoto toglie il capitolo
     function espandi(c: CapitoloDid): Capitolo[] {
+        // Capitolo di una classe che il documento non ammette: rinvio ai documenti giusti (spec 0027, AC-9)
+        const classe = classeCapitolo(c.tipo);
+        if (classe && !documentiDellaClasse(classe).includes(documento)) {
+            const ammessi = documentiDellaClasse(classe);
+            const nomeClasse = classe === 'interfaccia' ? 'interfaccia' : 'capacità';
+            const corpo = [ammessi.length ? `I requisiti di ${nomeClasse} sono nei documenti ${ammessi.join(', ')}.` : NESSUN_REQUISITO];
+            return [{ titolo: c.inline ? 'Identificazione delle interfacce e diagrammi' : c.titolo, corpo }];
+        }
         switch (c.tipo) {
             case 'fisso':
                 return [{ titolo: c.titolo, corpo: [DA_COMPLETARE] }];
@@ -443,7 +470,8 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
             testi: requisiti.reduce((n, r) => n + r.testi.length, 0),
             senzaMetodo: requisiti.filter((r) => !String(r.voce.metodo ?? '').trim()).length,
             senzaPadre: requisiti.filter((r) => r.voce.notaSenzaPadre).length,
-            nonUsati
+            nonUsati,
+            esclusi
         }
     };
 }
@@ -489,7 +517,7 @@ function aggiorna(): void {
 
     riepilogo.hidden = false;
     riepilogo.innerHTML = escapeHtml(`Requisiti: ${r.requisiti} (capacità ${r.capacita}, interfacce ${r.interfacce}) · Testi: ${r.testi} · `
-        + `Senza metodo: ${r.senzaMetodo} · Senza padre: ${r.senzaPadre} · Non usati nel progetto: ${r.nonUsati}`);
+        + `Senza metodo: ${r.senzaMetodo} · Senza padre: ${r.senzaPadre} · Non usati nel progetto: ${r.nonUsati} · Esclusi: ${r.esclusi}`);
     if (r.requisiti === 0) {
         messaggio.textContent = `Nessun requisito ha testi per ${documentoScelto}: il file avrà solo i capitoli.`;
         messaggio.hidden = false;
@@ -520,7 +548,8 @@ function ricalcola(): void {
         return;
     }
     ultimiDati = preparaDatiDocumenti(matrice, appState.library);
-    const voci = vociDocumento(ultimiDati);
+    aggiornaElencoNonAmmessi();
+    const voci = vociDocumento();
     const selettore = campo<HTMLSelectElement>('documentiScelta');
     selettore.innerHTML = voci.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
     if (!voci.length) {
@@ -532,6 +561,23 @@ function ricalcola(): void {
     campo('documentiBarra').hidden = false;
     aggiorna();
     anteprima.scrollTop = scorrimento;
+}
+
+// Testi della libreria su documenti non ammessi (spec 0027, AC-11): elenco richiudibile sotto il riepilogo
+function aggiornaElencoNonAmmessi(): void {
+    const elenco = campo<HTMLDetailsElement>('elencoNonAmmessi');
+    const righe = testiNonAmmessi(appState.library);
+    elenco.hidden = !righe.length;
+    campo('conteggioNonAmmessi').textContent = String(righe.length);
+    campo('righeNonAmmessi').replaceChildren(...righe.map((t) => {
+        const li = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = '#';
+        link.dataset.blocco = t.blockId;
+        link.textContent = `${t.reqId} · ${t.titoloBlocco} · ${t.documento} · ${t.motivo}`;
+        li.appendChild(link);
+        return li;
+    }));
 }
 
 // Il calcolo lo fa allaVista, quando il pannello compare
@@ -574,6 +620,14 @@ export function initDocumenti(): void {
     allaVista('documenti', () => { if (daAggiornare || !ultimiDati) ricalcola(); });
     allaChiusura('documenti', allaChiusuraDocumenti);
     document.getElementById('btnEsportaDocumento')?.addEventListener('click', esporta);
+    // Sull'elemento, non su document: funziona anche a pannello staccato (spec 0023)
+    document.getElementById('elencoNonAmmessi')?.addEventListener('click', (e) => {
+        const link = (e.target as Element).closest<HTMLElement>('[data-blocco]');
+        if (!link) return;
+        e.preventDefault();
+        openLibraryBlock(link.dataset.blocco ?? '');
+        mostraPannello('ispettore');
+    });
     document.getElementById('documentiScelta')?.addEventListener('change', (e) => {
         if (!ultimiDati) return;
         documentoScelto = (e.target as HTMLSelectElement).value;
