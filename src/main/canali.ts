@@ -7,5 +7,7 @@ export const CANALI = {
     cartelleApplica: 'modellatore:cartelle-applica',
     apriPercorso: 'modellatore:apri-percorso',
     importaV1Analizza: 'modellatore:importa-v1-analizza',
-    importaV1Esegui: 'modellatore:importa-v1-esegui'
+    importaV1Esegui: 'modellatore:importa-v1-esegui',
+    // Export Word e PDF dei documenti (spec 0028)
+    esportaDocumento: 'modellatore:esporta-documento'
 } as const;

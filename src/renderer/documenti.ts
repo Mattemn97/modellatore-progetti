@@ -14,7 +14,8 @@ import { CAPACITA, getTipologie, documentiDellaClasse, motivoNonAmmesso, testiNo
 import { escapeHtml, slugifyId, dataOggi } from './utils.js';
 import { openLibraryBlock } from './inspector.js';
 import { mostraPannello, pannelloAperto, pannelloVisibile, allaVista, allaChiusura } from './pannelli.js';
-import type { Blocco, ClasseDocumenti, Libreria, RequisitoLibreria, TestoExport } from './tipi.js';
+import { render } from './renderer.js';
+import type { Blocco, ClasseDocumenti, Libreria, RequisitoLibreria, RevisioneDocumento, TestoExport } from './tipi.js';
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: i documenti si generano quando la carichi';
 const MSG_NESSUN_DOCUMENTO = 'Nessun documento disponibile: aggiungi documenti a documentiPerClasse in settings.json';
@@ -155,6 +156,11 @@ const DID: Record<string, Did> = {
         ]
     }
 };
+
+// Titolo del DID di un documento, per il frontespizio di Word e PDF (spec 0028)
+export function titoloDid(documento: string): string {
+    return (DID[documento] || (DID.ALTRO as Did)).titolo;
+}
 
 /* --- DATI (calcolati una volta all'apertura) --- */
 
@@ -502,7 +508,15 @@ function mostraMessaggio(testo: string): void {
     campo('documentiBarra').hidden = !ultimiDati;
     campo('documentiRiepilogo').hidden = true;
     campo('anteprimaDocumento').hidden = true;
-    campo<HTMLButtonElement>('btnEsportaDocumento').disabled = true;
+    campo('revisioniDocumento').hidden = true;
+    abilitaExport(false);
+}
+
+const PULSANTI_EXPORT = ['btnEsportaDocumento', 'btnEsportaWord', 'btnEsportaPdf'];
+let exportInCorso = false;
+
+function abilitaExport(attivi: boolean): void {
+    PULSANTI_EXPORT.forEach((id) => { campo<HTMLButtonElement>(id).disabled = !attivi || exportInCorso; });
 }
 
 function aggiorna(): void {
@@ -530,7 +544,112 @@ function aggiorna(): void {
         ? `${testo.slice(0, limite)}\n… anteprima troncata: il file scaricato contiene tutto il documento`
         : testo;
     anteprima.scrollTop = 0;
-    campo<HTMLButtonElement>('btnEsportaDocumento').disabled = false;
+    abilitaExport(true);
+    aggiornaRevisioni();
+}
+
+/* --- REGISTRO DELLE REVISIONI (spec 0028, AC-6): nel progetto, una lista per documento --- */
+
+// Dopo A viene B, dopo 3 viene 4; la prima è A; altrimenti vuota
+export function revisioneSuccessiva(precedente: string | undefined): string {
+    const p = (precedente ?? '').trim();
+    if (!p) return 'A';
+    if (/^\d+$/.test(p)) return String(Number(p) + 1);
+    if (/^[A-Ya-y]$/.test(p)) return String.fromCharCode(p.charCodeAt(0) + 1);
+    return '';
+}
+
+function revisioniDi(documento: string): RevisioneDocumento[] {
+    return appState.revisioniDocumenti[documento] ?? [];
+}
+
+function aggiornaRevisioni(): void {
+    const elenco = campo<HTMLDetailsElement>('revisioniDocumento');
+    if (!documentoScelto) {
+        elenco.hidden = true;
+        return;
+    }
+    elenco.hidden = false;
+    // Mentre scrivi in una riga la tabella non si ridisegna (il ricalcolo dopo render() toglierebbe il fuoco)
+    if (elenco.contains(elenco.ownerDocument.activeElement)) return;
+    const righe = revisioniDi(documentoScelto);
+    campo('revisioniNomeDocumento').textContent = documentoScelto;
+    campo('revisioniConteggio').textContent = String(righe.length);
+    const campoRiga = (i: number, nome: keyof RevisioneDocumento, valore: string, etichetta: string): string =>
+        `<td><input type="text" data-idx="${i}" data-campo="${nome}" value="${escapeHtml(valore)}" aria-label="${etichetta}"></td>`;
+    campo('righeRevisioni').innerHTML = righe.map((r, i) => `<tr>${campoRiga(i, 'revisione', r.revisione, 'Revisione')}`
+        + `${campoRiga(i, 'data', r.data, 'Data')}${campoRiga(i, 'descrizione', r.descrizione, 'Descrizione')}${campoRiga(i, 'autore', r.autore, 'Autore')}`
+        + `<td><button data-togli="${i}" title="Togli la revisione" aria-label="Togli la revisione" class="pulsante-togli-revisione">✕</button></td></tr>`).join('');
+}
+
+// Ogni modifica passa da render(): salvataggio automatico, Annulla e Ripeti come il resto del modello
+function modificaRevisioni(cambia: (righe: RevisioneDocumento[]) => void): void {
+    if (!documentoScelto) return;
+    const righe = [...revisioniDi(documentoScelto)];
+    cambia(righe);
+    if (righe.length) appState.revisioniDocumenti[documentoScelto] = righe;
+    else delete appState.revisioniDocumenti[documentoScelto];
+    render();
+}
+
+function nuovaRevisione(): void {
+    modificaRevisioni((righe) => righe.push({
+        revisione: revisioneSuccessiva(righe.at(-1)?.revisione),
+        data: dataOggi(),
+        descrizione: '',
+        autore: appSettings.documentiExport.modello.autore
+    }));
+    campo<HTMLDetailsElement>('revisioniDocumento').open = true;
+    (campo('revisioniDocumento').ownerDocument.activeElement as HTMLElement | null)?.blur();
+    aggiornaRevisioni();
+}
+
+/* --- WORD E PDF (spec 0028): il processo principale scrive il file dal Markdown --- */
+
+async function esportaFormato(formato: 'docx' | 'pdf'): Promise<void> {
+    if (!ultimiDati || !documentoScelto || exportInCorso) return;
+    const desktop = window.desktop;
+    if (!desktop?.documenti) {
+        alert('Documento non esportato: Word e PDF si creano solo nella versione desktop.');
+        return;
+    }
+    const documento = documentoScelto;
+    const intest = intestazione();
+    const pulsante = campo<HTMLButtonElement>(formato === 'docx' ? 'btnEsportaWord' : 'btnEsportaPdf');
+    const etichetta = pulsante.textContent;
+    exportInCorso = true;
+    abilitaExport(false);
+    pulsante.textContent = '…';
+    const avviso = campo('documentiAvviso');
+    avviso.hidden = true;
+    try {
+        const markdown = generaDocumento(ultimiDati, documento, intest).testo;
+        const versione = intest.libreria.versione ? ` v${intest.libreria.versione}` : '';
+        const esito = await desktop.documenti.esporta({
+            formato,
+            markdown,
+            intestazione: { documento, titolo: titoloDid(documento), progetto: intest.nome, data: intest.data, libreria: `${intest.libreria.nomeFile}${versione}` },
+            modello: { ...appSettings.documentiExport.modello },
+            revisioni: revisioniDi(documento).map((r) => ({ ...r })),
+            immagini: {}
+        });
+        if (!esito.ok) {
+            alert(`Documento non esportato: ${esito.messaggio}`);
+            return;
+        }
+        if (esito.avviso) {
+            avviso.textContent = esito.avviso;
+            avviso.hidden = false;
+        }
+        const tipo = formato === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
+        scaricaFileTesto(esito.dati as Uint8Array<ArrayBuffer>, `${nomeBaseFile(documento)}.${formato}`, tipo);
+    } catch (e) {
+        alert(`Documento non esportato: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+        exportInCorso = false;
+        pulsante.textContent = etichetta;
+        abilitaExport(!!ultimiDati);
+    }
 }
 
 // Calcola indice e matrice una volta; cambiare documento rigenera solo il testo dalla stessa fotografia (AC-1).
@@ -604,13 +723,17 @@ function allaChiusuraDocumenti(): void {
     campo('anteprimaDocumento').textContent = '';
 }
 
-function esporta(): void {
-    if (!ultimiDati || ultimoTesto === null || !documentoScelto) return;
+// <progetto>-<documento>, senza estensione
+function nomeBaseFile(documento: string): string {
     const info = infoProgetto();
     const nome: string = info.slug ? info.nome : pathStack[0]!.label;
     const slug = info.slug || slugifyId(nome) || 'documento';
-    const nomeFile = `${slug}-${slugifyId(documentoScelto) || 'documento'}.md`;
-    scaricaFileTesto(ultimoTesto, nomeFile, 'text/markdown;charset=utf-8');
+    return `${slug}-${slugifyId(documento) || 'documento'}`;
+}
+
+function esporta(): void {
+    if (!ultimiDati || ultimoTesto === null || !documentoScelto) return;
+    scaricaFileTesto(ultimoTesto, `${nomeBaseFile(documentoScelto)}.md`, 'text/markdown;charset=utf-8');
 }
 
 /* --- INIZIALIZZAZIONE --- */
@@ -620,6 +743,28 @@ export function initDocumenti(): void {
     allaVista('documenti', () => { if (daAggiornare || !ultimiDati) ricalcola(); });
     allaChiusura('documenti', allaChiusuraDocumenti);
     document.getElementById('btnEsportaDocumento')?.addEventListener('click', esporta);
+    document.getElementById('btnEsportaWord')?.addEventListener('click', () => { void esportaFormato('docx'); });
+    document.getElementById('btnEsportaPdf')?.addEventListener('click', () => { void esportaFormato('pdf'); });
+    document.getElementById('btnNuovaRevisione')?.addEventListener('click', nuovaRevisione);
+    const righeRevisioni = document.getElementById('righeRevisioni');
+    righeRevisioni?.addEventListener('change', (e) => {
+        const input = e.target as HTMLInputElement;
+        const idx = Number(input.dataset.idx);
+        const nome = input.dataset.campo as keyof RevisioneDocumento | undefined;
+        if (!nome || Number.isNaN(idx)) return;
+        modificaRevisioni((righe) => {
+            const riga = righe[idx];
+            if (riga) righe[idx] = { ...riga, [nome]: input.value };
+        });
+    });
+    righeRevisioni?.addEventListener('click', (e) => {
+        const bottone = (e.target as Element).closest<HTMLElement>('[data-togli]');
+        if (!bottone) return;
+        const idx = Number(bottone.dataset.togli);
+        modificaRevisioni((righe) => { righe.splice(idx, 1); });
+        bottone.blur();
+        aggiornaRevisioni();
+    });
     // Sull'elemento, non su document: funziona anche a pannello staccato (spec 0023)
     document.getElementById('elencoNonAmmessi')?.addEventListener('click', (e) => {
         const link = (e.target as Element).closest<HTMLElement>('[data-blocco]');

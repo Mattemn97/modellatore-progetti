@@ -77,6 +77,18 @@ select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b
 .elenco-non-ammessi summary { cursor: pointer; }
 .elenco-non-ammessi ul { margin: 4px 0; padding-left: 18px; max-height: 160px; overflow: auto; }
 .elenco-non-ammessi a { color: #c0392b; }
+/* Registro delle revisioni dei documenti (spec 0028) */
+.revisioni-documento { font-size: 12px; margin: 4px 0; }
+.revisioni-documento summary { cursor: pointer; }
+.tabella-revisioni { border-collapse: collapse; margin: 4px 0; width: 100%; max-width: 760px; }
+.tabella-revisioni th { text-align: left; font-weight: normal; color: #555; padding: 2px 4px; }
+.tabella-revisioni td { padding: 1px 2px; }
+.tabella-revisioni input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 2px 4px; }
+.tabella-revisioni td:nth-child(1) { width: 70px; }
+.tabella-revisioni td:nth-child(2) { width: 100px; }
+.tabella-revisioni td:nth-child(4) { width: 140px; }
+.tabella-revisioni td:nth-child(5) { width: 24px; }
+.avviso-documenti { font-size: 12px; color: #b9770e; margin: 4px 0; }
 
 /* Ispettore: requisiti e testi da esportare */
 .req-card { display: flex; flex-direction: column; gap: 4px; background: #f0f4f8; padding: 6px; border-radius: 4px; border: 1px solid #d0d7de; }

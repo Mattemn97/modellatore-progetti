@@ -31,9 +31,25 @@ Una libreria scritta prima di questa regola si apre senza perdere nulla. I blocc
 1. Premi **`📄 Documenti`** nella barra del canvas.
 2. Nel selettore **Documento** scegli quale generare. Trovi i documenti ammessi per almeno un tipo di requisito (con le impostazioni predefinite SSS, SSDD, IRS, IDD, SRS, SDD).
 3. Guarda il riepilogo e l'anteprima.
-4. Premi **`⬇ Esporta .md`**.
+4. Premi **`⬇ .md`** per il Markdown, **`⬇ Word`** per un `.docx` o **`⬇ PDF`** per un PDF.
 
-Il file si chiama `<progetto>-<documento>.md`, per esempio `impianto-sss.md`, e contiene sempre il documento completo.
+Il file si chiama `<progetto>-<documento>` con l'estensione del formato, per esempio `impianto-sss.docx`, e contiene sempre il documento completo.
+
+## Word e PDF con il modello aziendale
+
+Word e PDF hanno lo stesso contenuto del Markdown, con in più il modello aziendale:
+
+* un **frontespizio** con il logo, il nome dell'azienda, il titolo del documento, il progetto, la data, la libreria, la revisione corrente e la classificazione;
+* il **registro delle revisioni**, una tabella con revisione, data, descrizione e autore;
+* un'**intestazione** su ogni pagina (`azienda · documento · Rev. <revisione>`) e un **piè di pagina** con il testo del modello e `Pagina N di M`.
+
+Nel Word i titoli usano gli stili Titolo 1, Titolo 2… di Word: il riquadro di spostamento funziona e puoi inserire un indice con *Riferimenti › Sommario*.
+
+Il modello si regola nella chiave `documentiExport.modello` di `settings.json` (vedi [Impostazioni e file](12-impostazioni-e-file.md)). Il logo è un file PNG o JPEG dentro la cartella di lavoro, al massimo 2 MB; se non va bene il documento esce senza logo e il pannello te lo dice.
+
+### Il registro delle revisioni
+
+Sotto il riepilogo apri **Revisioni di <documento>**: ogni documento ha la sua tabella. **`+ Revisione`** aggiunge una riga con la revisione successiva (dopo `A` viene `B`, dopo `3` viene `4`), la data di oggi e l'autore del modello; scrivi la descrizione della modifica e poi esporta. L'ultima riga è la revisione corrente. Le revisioni si salvano nel progetto, con Annulla e Ripeti come ogni altra modifica.
 
 La finestra lavora su una fotografia del modello presa quando la apri; si chiude con `✕`. Aprirla e scaricare non cambia il progetto. La prossima volta che la apri trovi selezionato il documento dell'ultima volta.
 
@@ -108,5 +124,5 @@ Puoi aggiungere altri documenti in `settings.json`: mettili nella lista del tipo
 
 ## Limiti
 
-* Il formato è solo Markdown. Per avere Word o PDF puoi convertire il file con uno strumento esterno (per esempio Pandoc).
+* Word e PDF leggono il Markdown dei testi in modo semplice: titoli, elenchi, tabelle, grassetto, corsivo e codice. Citazioni e blocchi di codice restano testo.
 * I diagrammi non vengono generati.

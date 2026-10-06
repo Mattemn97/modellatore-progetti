@@ -27,7 +27,14 @@
     "gruppiVisibili": 300
   },
   "documentiExport": {
-    "anteprimaCaratteri": 200000
+    "anteprimaCaratteri": 200000,
+    "modello": {
+      "azienda": "",
+      "logo": "",
+      "classificazione": "",
+      "piePagina": "",
+      "autore": ""
+    }
   },
   "grid": {
     "size": 20

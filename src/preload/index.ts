@@ -19,5 +19,9 @@ contextBridge.exposeInMainWorld('desktop', {
         // Import dei dati di una installazione 1.x (voce 22)
         analizzaV1: (cartella: string) => ipcRenderer.invoke(CANALI.importaV1Analizza, String(cartella)),
         importaV1: (cartella: string, sovrascrivi: boolean) => ipcRenderer.invoke(CANALI.importaV1Esegui, String(cartella), sovrascrivi === true)
+    },
+    // Export Word e PDF dei documenti (spec 0028): la richiesta la controlla il processo principale
+    documenti: {
+        esporta: (richiesta: unknown) => ipcRenderer.invoke(CANALI.esportaDocumento, richiesta)
     }
 });

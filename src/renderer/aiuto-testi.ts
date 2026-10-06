@@ -133,7 +133,11 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     // Documenti
     'documenti.documento': { titolo: 'Documento', testo: "Il tipo di documento MIL-STD-498 da generare, con i capitoli del suo DID (Data Item Description, la traccia ufficiale del documento)." },
     'documenti.nonAmmessi': { titolo: 'Testi su documenti non ammessi', testo: "Testi della libreria in un documento che il tipo del requisito non ammette. Non entrano in nessun documento generato. Un clic apre il blocco nell'Ispettore per correggerli." },
-    'documenti.esporta': { titolo: 'Esporta .md', testo: "Scarica il documento generato come file Markdown." },
+    'documenti.word': { titolo: 'Esporta Word', testo: "Scarica il documento come file Word (.docx) con il modello aziendale: frontespizio con logo, registro delle revisioni, intestazione e numeri di pagina. Il modello si regola in settings.json (documentiExport.modello)." },
+    'documenti.pdf': { titolo: 'Esporta PDF', testo: "Scarica il documento come PDF con lo stesso modello aziendale del Word, pronto da consegnare." },
+    'documenti.revisioni': { titolo: 'Registro delle revisioni', testo: "Le emissioni di questo documento: revisione, data, descrizione della modifica e autore. Finisce nel Word e nel PDF, e l'ultima riga è la revisione corrente scritta nel frontespizio e in testa a ogni pagina. Si salva nel progetto." },
+    'documenti.nuovaRevisione': { titolo: 'Nuova revisione', testo: "Aggiunge una riga con la revisione successiva (dopo A viene B, dopo 3 viene 4), la data di oggi e l'autore del modello. Scrivi la descrizione della modifica prima di esportare." },
+    'documenti.esporta': { titolo: 'Esporta .md', testo: "Scarica il documento generato come file Markdown, senza il modello aziendale." },
 
     // Import cliente
     'import.foglio': { titolo: 'Foglio', testo: "Il foglio del file Excel da leggere. Un CSV ha un solo foglio." },

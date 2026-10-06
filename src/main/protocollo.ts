@@ -1,5 +1,6 @@
 /* --- PROTOCOLLO app:// : FILE DELL'INTERFACCIA E ROTTE /api --- */
 import { net, protocol } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { risolviFile } from './percorsi.js';
 
@@ -23,6 +24,15 @@ function nonTrovato(): Response {
 
 export const URL_BENVENUTO = `${SCHEMA}://${HOST}/benvenuto.html`;
 
+// Pagine da stampare in PDF (spec 0028): servite dalla memoria finché l'export non le toglie, mai da disco
+const pagineStampa = new Map<string, string>();
+
+export function registraPaginaStampa(html: string): { url: string; togli: () => void } {
+    const id = randomUUID();
+    pagineStampa.set(id, html);
+    return { url: `${SCHEMA}://${HOST}/stampa/${id}.html`, togli: () => { pagineStampa.delete(id); } };
+}
+
 // radice: out/renderer (spec 0020). settings.json: quello della cartella di lavoro se c'è (spec 0019), altrimenti i predefiniti
 export function installaProtocollo(radice: string, api: GestoreApi, settings: () => string): void {
     protocol.handle(SCHEMA, async (richiesta) => {
@@ -31,6 +41,11 @@ export function installaProtocollo(radice: string, api: GestoreApi, settings: ()
         if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return api(richiesta, url);
         if (richiesta.method !== 'GET' && richiesta.method !== 'HEAD') {
             return new Response('Metodo non consentito', { status: 405 });
+        }
+        const stampa = /^\/stampa\/([0-9a-f-]+)\.html$/.exec(url.pathname);
+        if (stampa) {
+            const html = pagineStampa.get(stampa[1] ?? '');
+            return html === undefined ? nonTrovato() : new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
         }
         const file = url.pathname === '/settings.json' ? settings() : risolviFile(radice, url.pathname);
         if (!file) return nonTrovato();
