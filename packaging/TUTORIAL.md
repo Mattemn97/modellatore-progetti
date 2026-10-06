@@ -207,7 +207,8 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 1. Premi **`📄 Documenti`**: si apre il pannello, accanto alla Matrice. Anche lui si aggiorna mentre modelli.
 2. Nel selettore **Documento** scegli **SSS**.
 3. Guarda l'anteprima: se nella Parte 5 hai scritto il testo da esportare, lo trovi nel capitolo delle capacità. I capitoli che il modello non può riempire restano con la scritta `_Da completare._`, da scrivere a mano.
-4. Premi **`⬇ Esporta .md`** per scaricare il documento.
+4. Premi **`⬇ .md`** per scaricare il documento in Markdown, oppure **`⬇ Word`** o **`⬇ PDF`** per averlo pronto da consegnare, con frontespizio, registro delle revisioni e numeri di pagina.
+5. Facoltativo: apri **Revisioni di SSS**, premi **`+ Revisione`** e scrivi `Prima emissione`. La revisione `A` compare nel frontespizio e in testa a ogni pagina del Word e del PDF. Il nome dell'azienda e il logo si mettono in `settings.json` (`documentiExport.modello`).
 
 I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni testo da esportare finisce nel documento che hai scelto per lui, e l'ispettore propone solo quelli giusti per il tipo del requisito: le interfacce vanno in IRS e IDD, le capacità in SSS, SSDD, SRS e SDD.
 

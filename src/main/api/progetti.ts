@@ -34,16 +34,19 @@ export function controllaProgetto(progetto: unknown): asserts progetto is Oggett
         && workspace !== null
         && Array.isArray(workspace.nodes) && Array.isArray(workspace.edges)
         && typeof p.formatVersion === 'number' && Number.isInteger(p.formatVersion) && FORMATI_PROGETTO_LETTI.includes(p.formatVersion)
-        && (p.cliente === undefined || p.cliente === null || eOggetto(p.cliente));
+        && (p.cliente === undefined || p.cliente === null || eOggetto(p.cliente))
+        && (p.revisioniDocumenti === undefined || eOggetto(p.revisioniDocumenti));
     if (!valido) {
         throw new ErroreApi(400, 'progetto_non_valido',
             'Il progetto non ha la forma attesa: formatVersion 1 o 2, nome, libraryPath, workspace con nodes ed edges e cliente facoltativo.');
     }
 }
 
-// Copia in progetto la chiave cliente di origine, se c'è: requisiti cliente e workspace viaggiano insieme
-function conCliente(progetto: Oggetto, origine: unknown): Oggetto {
+// Copia in progetto le chiavi del modello di origine, se ci sono: requisiti cliente e registro delle revisioni
+// dei documenti (spec 0028) viaggiano con il workspace
+function conModello(progetto: Oggetto, origine: unknown): Oggetto {
     if (eOggetto(origine) && eOggetto(origine.cliente)) progetto.cliente = origine.cliente;
+    if (eOggetto(origine) && eOggetto(origine.revisioniDocumenti)) progetto.revisioniDocumenti = origine.revisioniDocumenti;
     return progetto;
 }
 
@@ -171,7 +174,7 @@ export class ArchivioProgetti {
         const attuale = interpretaJson(attuali, `Il file del progetto "${slug}" non è JSON valido.`);
         if (!eOggetto(precedente.workspace)) throw new ErroreApi(422, 'json_non_valido', 'La versione precedente non contiene un workspace.');
         // Si ripristina solo il modello (workspace e requisiti cliente): nome e percorso della libreria restano quelli attuali
-        const progetto = conCliente({
+        const progetto = conModello({
             formatVersion: FORMATO_PROGETTO,
             nome: typeof attuale.nome === 'string' ? attuale.nome : slug,
             libraryPath: typeof attuale.libraryPath === 'string' ? attuale.libraryPath : '',
@@ -202,7 +205,7 @@ export class ArchivioProgetti {
             throw new ErroreApi(409, 'esiste', `Esiste già un progetto con il nome "${nuovoSlug}".`);
         }
         const attuale = interpretaJson(attuali, `Il file del progetto "${slug}" non è JSON valido.`);
-        const progetto = conCliente({
+        const progetto = conModello({
             formatVersion: FORMATO_PROGETTO,
             nome,
             libraryPath: typeof attuale.libraryPath === 'string' ? attuale.libraryPath : '',
