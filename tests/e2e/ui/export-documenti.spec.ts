@@ -63,3 +63,42 @@ test('Documenti: revisione nel progetto, Word con logo e intestazione, PDF', asy
         await chiudi();
     }
 });
+
+test('🖼 Immagine: il livello come SVG e PNG; il Word dell\'IRS ha il diagramma della radice (spec 0029)', async () => {
+    const { app, pagina, cartella, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progettoTracciato() }, ultimo: 'sistema' });
+    const dialoghi = registraDialoghi(pagina);
+    const download = path.join(cartella, '..', 'download');
+    fs.mkdirSync(download, { recursive: true });
+    const scaricati = await intercettaDownload(app, download);
+    const scaricato = async (nome: string): Promise<Buffer> => {
+        await expect.poll(async () => (await scaricati()).includes(nome)).toBe(true);
+        const file = path.join(download, nome);
+        await expect.poll(() => fs.existsSync(file) && fs.statSync(file).size > 0).toBe(true);
+        return fs.readFileSync(file);
+    };
+    try {
+        await pronta(pagina);
+        await pagina.locator('#btnImmagine').click();
+        await pagina.locator('#menuImmagine [data-formato="svg"]').click();
+        const svg = (await scaricato('sistema-radice.svg')).toString('utf-8');
+        expect(svg).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+        expect(svg).toContain('>Alimentatore</text>');
+        expect(svg).toContain('>Centralina</text>');
+        await expect(pagina.locator('#menuImmagine')).toBeHidden();
+
+        await pagina.locator('#btnImmagine').click();
+        await pagina.locator('#menuImmagine [data-formato="png"]').click();
+        expect((await scaricato('sistema-radice.png')).subarray(1, 4).toString('latin1')).toBe('PNG');
+
+        await pagina.locator('#btnDocumenti').click();
+        await pagina.locator('#documentiScelta').selectOption('IRS');
+        await expect(pagina.locator('#anteprimaDocumento')).toContainText('_Diagrammi da completare._');
+        await pagina.locator('#btnEsportaWord').click();
+        const zip = new ArchivioZip(await scaricato('sistema-irs.docx'));
+        expect(zip.ha('word/media/immagine1.png')).toBe(true);
+        expect(zip.leggi('word/document.xml', 10_000_000).toString('utf-8')).toContain('Diagramma: Sistema tracciato');
+        expect(dialoghi).toEqual([]);
+    } finally {
+        await chiudi();
+    }
+});

@@ -147,6 +147,14 @@
                     <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" data-aiuto="barra.documenti">📄 Documenti</button>
                     <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false" data-aiuto="barra.coerenza">⚠️ Verifica Coerenza</button>
                     <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" data-aiuto="barra.gerarchia">🌳 Gerarchia</button>
+                    <!-- Immagine del livello aperto (diagramma.ts, spec 0029) -->
+                    <div class="menu-progetto">
+                        <button id="btnImmagine" class="pulsante-immagine" aria-haspopup="menu" aria-expanded="false" data-aiuto="barra.immagine">🖼 Immagine &#9662;</button>
+                        <div id="menuImmagine" class="menu-progetto-voci menu-immagine" role="menu" hidden>
+                            <button data-formato="svg" role="menuitem">SVG (vettoriale)</button>
+                            <button data-formato="png" role="menuitem">PNG</button>
+                        </div>
+                    </div>
                     <button id="btnResetView" data-aiuto="barra.resetVista" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 

@@ -1,7 +1,7 @@
 # 0029. Immagini dei diagrammi: export del livello e figure nei documenti
 
 **Date**: 2026-10-06
-**Status**: Accepted
+**Status**: Done
 
 ## Summary
 
@@ -15,7 +15,7 @@ Il canvas disegna il livello aperto nel DOM, con zoom, filtri, Gerarchia, selezi
 
 **Acceptance criteria**:
 - **AC-1**: `svgDiagramma(grafo, padre, libreria, cliente, impostazioni)` (`src/renderer/diagramma.ts`, puro) disegna un livello come SVG autonomo: blocchi con il nome, pin di interfaccia sul bordo e di capacità dentro, nei colori di `settings.json`, fili con gli snodi (tratteggiati quelli di derivazione), blocchi tondi del padre (o i requisiti cliente con una posizione, alla radice) con id e titolo. Stessa geometria del canvas, nessun filtro, nessuna evidenza, nessuna selezione. Sfondo bianco, margine di 20 px attorno a quello che c'è, stili scritti negli attributi (nessuna classe CSS). Un livello vuoto dà `null`.
-- **AC-2**: `🖼 Immagine` nella barra del canvas apre un menu con `SVG` e `PNG`: scarica il livello aperto come `<progetto>-<livello>.svg` o `.png` (PNG a scala 2). Su un livello vuoto dice `Il livello è vuoto: niente da esportare.`
+- **AC-2**: `🖼 Immagine` nella barra del canvas apre un menu con `SVG` e `PNG`: scarica il livello aperto come `<progetto>-<livello>.svg` o `.png` (PNG a scala 2; `<livello>` è lo slug dell'etichetta del livello, `radice` alla radice). Su un livello vuoto dice `Il livello è vuoto: niente da esportare.`
 - **AC-3**: Nei documenti Word e PDF, con un modello non vuoto: l'identificazione delle interfacce (IRS, IDD e le altre con interfacce) mostra al posto di `_Diagrammi da completare._` la figura `Diagramma: <nome del progetto>` della radice; il capitolo Componenti (SSDD, SDD) mostra la figura della radice dopo la tabella e, in ogni sottocapitolo di blocco, la figura `Diagramma interno: <titolo del blocco>` del suo interno, presa dalla prima istanza con un interno non vuoto (in ordine di visita del progetto); un blocco senza interno non ha figura.
 - **AC-4**: L'export `.md` non cambia (le figure ci sono solo in Word e PDF). Nel Word la figura è un PNG largo al massimo 16 cm, nel PDF è l'SVG, nitido a ogni zoom. Sotto ogni figura c'è la didascalia in corsivo.
 

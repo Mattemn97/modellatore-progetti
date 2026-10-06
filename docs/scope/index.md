@@ -52,7 +52,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 30 | Rilascio 2.0.0 e passaggio dalla 1.x | v2 | Slice 4 | done |
 | 31 | Documenti di export legati al tipo di requisito | v2 | Slice 5 · Blocco A (2.1.0) | done |
 | 32 | Export Word e PDF dei documenti | futuro | Blocco A (2.1.0) | done |
-| 33 | Immagini dei diagrammi | futuro | Blocco A (2.1.0) | planned |
+| 33 | Immagini dei diagrammi | futuro | Blocco A (2.1.0) | done |
 | 34 | Rilascio 2.1.0 | futuro | Blocco A (2.1.0) | planned |
 | 35 | Ricerca globale | futuro | Blocco B (2.2.0) | planned |
 | 36 | Minimappa e panoramica dei livelli | futuro | Blocco B (2.2.0) | planned |
@@ -98,7 +98,7 @@ Le voci 31–56 della tabella, raggruppate per area. Ogni area è un **blocco**:
 ### Blocco A · Documenti ed export → 2.1.0
 - **31. Documenti di export legati al tipo di requisito**: già nel piano (epic v2). Viene per prima perché le altre voci del blocco lavorano sugli stessi documenti.
 - **32. Export Word e PDF dei documenti**: oltre al Markdown, i documenti MIL-STD-498 in `.docx` e PDF con un modello aziendale (intestazione, logo, tabella delle revisioni). `done` · spec [0028](../specs/0028-export-word-pdf.md) · code in `src/main/documenti/`, `src/renderer/documenti.ts`
-- **33. Immagini dei diagrammi**: esportare un livello del canvas in SVG o PNG e inserirlo in automatico nel capitolo del documento che descrive quel blocco.
+- **33. Immagini dei diagrammi**: esportare un livello del canvas in SVG o PNG e inserirlo in automatico nel capitolo del documento che descrive quel blocco. `done` · spec [0029](../specs/0029-immagini-diagrammi.md) · code in `src/renderer/diagramma.ts`
 - **34. Rilascio 2.1.0**
 
 ### Blocco B · Navigazione e modifica del canvas → 2.2.0

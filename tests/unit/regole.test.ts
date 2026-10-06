@@ -14,6 +14,7 @@ type Moduli = {
     filtri: typeof import('../../src/renderer/filtri');
     stato: typeof import('../../src/renderer/state');
     model: typeof import('../../src/renderer/model');
+    diagramma: typeof import('../../src/renderer/diagramma');
 };
 let m: Moduli;
 
@@ -28,7 +29,8 @@ beforeAll(async () => {
         matrice: await import('../../src/renderer/matrice'),
         documenti: await import('../../src/renderer/documenti'),
         filtri: await import('../../src/renderer/filtri'),
-        model: await import('../../src/renderer/model')
+        model: await import('../../src/renderer/model'),
+        diagramma: await import('../../src/renderer/diagramma')
     };
     await m.stato.loadSettings();
 });
@@ -230,6 +232,41 @@ describe('documenti ammessi per classe (spec 0027)', () => {
         expect(ssdd.testo).toMatch(/\| ali_cap \|.*\| sys_cap Titolo sys_cap \| SSS \|/);
         expect(ssdd.testo).toContain('## 2. Documenti di riferimento\n\n- SSS');
         expect(m.documenti.vociDocumento()).toEqual(['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD']);
+    });
+});
+
+describe('diagrammi (spec 0029)', () => {
+    it('livello interno: blocco, blocchi tondi del padre, filo di derivazione tratteggiato; livello vuoto null', () => {
+        const { radice, cliente } = modello();
+        const sistema = radice.nodes[0]!;
+        const d = m.diagramma.svgDiagramma(sistema.internal_graph, sistema, LIB, cliente);
+        expect(d).not.toBeNull();
+        expect(d!.svg).toContain('>Alim 1</text>');
+        expect(d!.svg.match(/r="28"/g)).toHaveLength(2);
+        expect(d!.svg).toContain('stroke-dasharray="8,4"');
+        expect(d!.svg).not.toContain('class=');
+        expect(d!.larghezza).toBeGreaterThan(160);
+        // Alla radice i requisiti cliente senza posizione non si disegnano, né i loro fili
+        const r = m.diagramma.svgDiagramma(radice, null, LIB, cliente)!;
+        expect(r.svg).toContain('>Sistema 1</text>');
+        expect(r.svg).not.toContain('<path');
+        expect(m.diagramma.svgDiagramma({ nodes: [], edges: [] }, null, LIB, cliente)).toBeNull();
+        expect([...m.diagramma.interniDeiBlocchi(radice).keys()]).toEqual(['sistema']);
+    });
+
+    it('documenti con le figure: radice nei componenti e nell\'identificazione, interno del blocco', () => {
+        const { radice, cliente } = modello();
+        const dati = m.documenti.preparaDatiDocumenti(m.matrice.calcolaMatrice(m.gerarchia.calcolaGerarchia(radice, LIB, cliente), LIB, cliente, 'Radice'), LIB);
+        const intest = { nome: 'Prova', data: '2026-10-06', libreria: { nomeFile: 'libreria.json', versione: null } };
+        const opzioni = { radice: true, blocchi: new Set(['alimentatore']) };
+        const ssdd = m.documenti.generaDocumento(dati, 'SSDD', intest, opzioni).testo;
+        expect(ssdd).toContain('![Diagramma: Prova](diagramma:radice)');
+        expect(ssdd).toContain('![Diagramma interno: Alimentatore](diagramma:blocco:alimentatore)');
+        const irs = m.documenti.generaDocumento(dati, 'IRS', intest, opzioni).testo;
+        expect(irs).toContain('![Diagramma: Prova](diagramma:radice)');
+        expect(irs).not.toContain('_Diagrammi da completare._');
+        // Senza opzioni (export .md) nulla cambia
+        expect(m.documenti.generaDocumento(dati, 'IRS', intest).testo).toContain('_Diagrammi da completare._');
     });
 });
 
