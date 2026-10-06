@@ -47,6 +47,15 @@ Nel Word i titoli usano gli stili Titolo 1, Titolo 2… di Word: il riquadro di 
 
 Il modello si regola nella chiave `documentiExport.modello` di `settings.json` (vedi [Impostazioni e file](12-impostazioni-e-file.md)). Il logo è un file PNG o JPEG dentro la cartella di lavoro, al massimo 2 MB; se non va bene il documento esce senza logo e il pannello te lo dice.
 
+### I diagrammi
+
+Nel Word e nel PDF i disegni del modello entrano da soli, con una didascalia:
+
+* l'identificazione delle interfacce (IRS, IDD e gli altri documenti con interfacce) mostra il **diagramma della radice** al posto di `_Diagrammi da completare._`;
+* il capitolo **Componenti** di SSDD e SDD mostra il diagramma della radice dopo la tabella e, nel sottocapitolo di ogni blocco, il **diagramma interno** di quel blocco (preso dalla prima istanza che ha qualcosa dentro).
+
+Il Markdown resta senza figure. Nel PDF i diagrammi sono vettoriali; nel Word sono immagini larghe al massimo 16 cm. Per avere un diagramma da solo usa `🖼 Immagine` sopra il canvas.
+
 ### Il registro delle revisioni
 
 Sotto il riepilogo apri **Revisioni di <documento>**: ogni documento ha la sua tabella. **`+ Revisione`** aggiunge una riga con la revisione successiva (dopo `A` viene `B`, dopo `3` viene `4`), la data di oggi e l'autore del modello; scrivi la descrizione della modifica e poi esporta. L'ultima riga è la revisione corrente. Le revisioni si salvano nel progetto, con Annulla e Ripeti come ogni altra modifica.
@@ -95,7 +104,7 @@ Capitoli comuni a tutti i documenti:
 
 Un capitolo destinato a un tipo di requisito che il documento non ammette non ha sottocapitoli: dice dove sono quei requisiti, per esempio `I requisiti di interfaccia sono nei documenti IRS, IDD.`
 
-Ogni capitolo di interfacce si apre con **Identificazione delle interfacce e diagrammi**: una tabella con una riga per tipologia (quanti requisiti, quali blocchi) e la riga `_Diagrammi da completare._`. Poi c'è un sottocapitolo `Interfaccia <tipologia>` per ogni tipologia presente, con i suoi requisiti.
+Ogni capitolo di interfacce si apre con **Identificazione delle interfacce e diagrammi**: una tabella con una riga per tipologia (quanti requisiti, quali blocchi) e la riga `_Diagrammi da completare._`, che nel Word e nel PDF diventa il diagramma della radice del progetto. Poi c'è un sottocapitolo `Interfaccia <tipologia>` per ogni tipologia presente, con i suoi requisiti.
 
 ### I componenti (SSDD e SDD)
 
@@ -125,4 +134,4 @@ Puoi aggiungere altri documenti in `settings.json`: mettili nella lista del tipo
 ## Limiti
 
 * Word e PDF leggono il Markdown dei testi in modo semplice: titoli, elenchi, tabelle, grassetto, corsivo e codice. Citazioni e blocchi di codice restano testo.
-* I diagrammi non vengono generati.
+* I diagrammi ci sono solo nel Word e nel PDF; il Markdown tiene il segnaposto `_Diagrammi da completare._`.

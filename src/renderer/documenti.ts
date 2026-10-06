@@ -15,7 +15,8 @@ import { escapeHtml, slugifyId, dataOggi } from './utils.js';
 import { openLibraryBlock } from './inspector.js';
 import { mostraPannello, pannelloAperto, pannelloVisibile, allaVista, allaChiusura } from './pannelli.js';
 import { render } from './renderer.js';
-import type { Blocco, ClasseDocumenti, Libreria, RequisitoLibreria, RevisioneDocumento, TestoExport } from './tipi.js';
+import { interniDeiBlocchi, svgDiagramma, svgInPng } from './diagramma.js';
+import type { Blocco, ClasseDocumenti, ImmagineDiagramma, Libreria, RequisitoLibreria, RevisioneDocumento, TestoExport } from './tipi.js';
 
 const MSG_SENZA_LIBRERIA = 'Libreria non caricata: i documenti si generano quando la carichi';
 const MSG_NESSUN_DOCUMENTO = 'Nessun documento disponibile: aggiungi documenti a documentiPerClasse in settings.json';
@@ -233,6 +234,19 @@ export interface IntestazioneDocumento {
     libreria: { nomeFile: string; versione: string | null };
 }
 
+// Figure dei diagrammi (spec 0029): solo per Word e PDF. radice: il livello radice non è vuoto;
+// blocchi: id dei blocchi con un interno non vuoto
+export interface OpzioniDiagrammi {
+    radice: boolean;
+    blocchi: Set<string>;
+}
+
+export const CHIAVE_RADICE = 'radice';
+export const chiaveBlocco = (id: string): string => `blocco:${encodeURIComponent(id)}`;
+// Didascalia su una riga e senza parentesi quadre, che chiuderebbero il segnaposto
+const didascalia = (testo: string): string => unaRiga(testo).replace(/[[\]]/g, '');
+const figura = (testo: string, chiave: string): string => `![${didascalia(testo)}](diagramma:${chiave})`;
+
 export interface DocumentoGenerato {
     testo: string;
     riepilogo: { requisiti: number; capacita: number; interfacce: number; testi: number; senzaMetodo: number; senzaPadre: number; nonUsati: number; esclusi: number };
@@ -248,7 +262,8 @@ function ordinaDocumenti(insieme: Set<string>, voci: string[]): string[] {
 }
 
 // Funzione pura: dati, documento scelto e intestazione → testo del file e riepilogo
-export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, data, libreria }: IntestazioneDocumento): DocumentoGenerato {
+export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, data, libreria }: IntestazioneDocumento,
+    diagrammi: OpzioniDiagrammi | null = null): DocumentoGenerato {
     const modello = DID[documento] || (DID.ALTRO as Did);
     const voci = vociDocumento();
     const metodi = (appSettings.metodiVerifica || []).map((m) => String(m).trim());
@@ -330,7 +345,10 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
         });
         return {
             titolo: 'Identificazione delle interfacce e diagrammi',
-            corpo: [tabellaMd(['Tipologia', 'Requisiti', 'Blocchi'], righe).join('\n'), '_Diagrammi da completare._']
+            corpo: [
+                tabellaMd(['Tipologia', 'Requisiti', 'Blocchi'], righe).join('\n'),
+                diagrammi?.radice ? figura(`Diagramma: ${nome}`, CHIAVE_RADICE) : '_Diagrammi da completare._'
+            ]
         };
     }
     const nodiTipologie = (): Capitolo[] => tipologie.map((t) => ({ titolo: `Interfaccia ${t}`, figli: diTipologia(t).map(nodoRequisito) }));
@@ -417,10 +435,13 @@ export function generaDocumento(dati: DatiDocumenti, documento: string, { nome, 
                     blocchi.map((b) => [b.titolo, b.def.categoria || '', b.requisiti.length])).join('\n');
                 return [{
                     titolo: c.titolo,
-                    corpo: [tabella],
+                    corpo: diagrammi?.radice ? [tabella, figura(`Diagramma: ${nome}`, CHIAVE_RADICE)] : [tabella],
                     figli: blocchi.map((b) => ({
                         titolo: b.titolo,
-                        corpo: String(b.def.descrizione ?? '').trim() ? [String(b.def.descrizione).trim()] : [],
+                        corpo: [
+                            ...(String(b.def.descrizione ?? '').trim() ? [String(b.def.descrizione).trim()] : []),
+                            ...(diagrammi?.blocchi.has(b.def.id) ? [figura(`Diagramma interno: ${b.titolo}`, chiaveBlocco(b.def.id))] : [])
+                        ],
                         figli: b.requisiti.map(nodoRequisito)
                     }))
                 }];
@@ -604,6 +625,31 @@ function nuovaRevisione(): void {
     aggiornaRevisioni();
 }
 
+/* --- DIAGRAMMI DEL PROGETTO PER WORD E PDF (spec 0029, AC-3) --- */
+
+// Quali figure esistono, e come prepararne SVG e PNG solo per le chiavi che il documento cita davvero
+function diagrammiDelProgetto(): { opzioni: OpzioniDiagrammi; prepara: (markdown: string) => Promise<Record<string, ImmagineDiagramma>> } {
+    const radice = pathStack[0]!.graph;
+    const interni = interniDeiBlocchi(radice);
+    const opzioni: OpzioniDiagrammi = { radice: radice.nodes.length > 0, blocchi: new Set(interni.keys()) };
+    const prepara = async (markdown: string): Promise<Record<string, ImmagineDiagramma>> => {
+        const chiavi = new Set([...markdown.matchAll(/\]\(diagramma:([^)\s]+)\)/g)].map((m) => m[1] ?? ''));
+        const immagini: Record<string, ImmagineDiagramma> = {};
+        for (const chiave of chiavi) {
+            let diagramma = null;
+            if (chiave === CHIAVE_RADICE) {
+                diagramma = svgDiagramma(radice, null, appState.library, appState.cliente);
+            } else {
+                const nodo = interni.get(decodeURIComponent(chiave.slice('blocco:'.length)));
+                if (nodo) diagramma = svgDiagramma(nodo.internal_graph, nodo, appState.library, appState.cliente);
+            }
+            if (diagramma) immagini[chiave] = { ...diagramma, png: await svgInPng(diagramma) };
+        }
+        return immagini;
+    };
+    return { opzioni, prepara };
+}
+
 /* --- WORD E PDF (spec 0028): il processo principale scrive il file dal Markdown --- */
 
 async function esportaFormato(formato: 'docx' | 'pdf'): Promise<void> {
@@ -623,7 +669,9 @@ async function esportaFormato(formato: 'docx' | 'pdf'): Promise<void> {
     const avviso = campo('documentiAvviso');
     avviso.hidden = true;
     try {
-        const markdown = generaDocumento(ultimiDati, documento, intest).testo;
+        const { opzioni, prepara } = diagrammiDelProgetto();
+        const markdown = generaDocumento(ultimiDati, documento, intest, opzioni).testo;
+        const immagini = await prepara(markdown);
         const versione = intest.libreria.versione ? ` v${intest.libreria.versione}` : '';
         const esito = await desktop.documenti.esporta({
             formato,
@@ -631,7 +679,7 @@ async function esportaFormato(formato: 'docx' | 'pdf'): Promise<void> {
             intestazione: { documento, titolo: titoloDid(documento), progetto: intest.nome, data: intest.data, libreria: `${intest.libreria.nomeFile}${versione}` },
             modello: { ...appSettings.documentiExport.modello },
             revisioni: revisioniDi(documento).map((r) => ({ ...r })),
-            immagini: {}
+            immagini
         });
         if (!esito.ok) {
             alert(`Documento non esportato: ${esito.messaggio}`);

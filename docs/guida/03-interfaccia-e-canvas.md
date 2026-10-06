@@ -33,7 +33,14 @@ I pulsanti `☰ Libreria` e `☰ Proprietà` ai lati della barra chiudono e riap
 | `📄 Documenti` | Apre la generazione dei documenti MIL-STD-498 | [Documenti](11-documenti.md) |
 | `⚠️ Verifica Coerenza` | Accende o spegne il controllo di coerenza | [Coerenza](08-coerenza.md) |
 | `🌳 Gerarchia` | Accende o spegne la vista della gerarchia | [Gerarchia](09-gerarchia.md) |
+| `🖼 Immagine` | Scarica il livello aperto come immagine SVG o PNG | qui sotto |
 | `🔍 Reset Vista` | Riporta zoom e spostamento ai valori iniziali | qui sotto |
+
+## L'immagine di un livello
+
+`🖼 Immagine` apre un menu con **SVG** (vettoriale, nitido a ogni zoom, si apre anche in un browser o in Inkscape) e **PNG** (un'immagine normale, al doppio della risoluzione dello schermo). Scarica il livello aperto come `<progetto>-<livello>.svg` o `.png` (`radice` per il livello principale). L'immagine mostra blocchi, porte, fili con gli snodi e blocchi tondi, senza filtri, evidenze o selezione. Su un livello vuoto l'app ti dice che non c'è niente da esportare.
+
+Gli stessi diagrammi entrano da soli nei documenti Word e PDF (vedi [Documenti](11-documenti.md)).
 
 ## Muoversi sul canvas
 

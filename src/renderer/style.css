@@ -131,6 +131,8 @@ select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b
 .menu-progetto-voci button:hover:not(:disabled) { background: #e1e9f1; }
 .menu-progetto-voci button:disabled { color: #aaa; cursor: default; }
 .menu-progetto-voci hr { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+.pulsante-immagine { background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.menu-immagine { left: 0; right: auto; min-width: 150px; }
 
 .banner-progetto { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 13px; z-index: 9; }
 .banner-progetto span { flex: 1; }
