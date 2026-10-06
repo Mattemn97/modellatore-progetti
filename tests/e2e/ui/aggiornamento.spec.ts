@@ -7,10 +7,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { apriApp, pronta, registraDialoghi } from '../app';
 
-// Una Release 2.0.1 il cui setup non corrisponde all'impronta di latest.yml: si vede, ma non si installa
-const SETUP = 'Modellatore-MBSE-Setup-2.0.1.exe';
+// Una Release appena più nuova dell'app (patch + 1) il cui setup non corrisponde all'impronta di latest.yml:
+// si vede, ma non si installa. Segue version di package.json, così il test vale a ogni rilascio
+const [maggiore, minore, patch] = (JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'package.json'), 'utf-8')) as { version: string }).version.split('.').map(Number);
+const NUOVA = `${maggiore}.${minore}.${(patch ?? 0) + 1}`;
+const SETUP = `Modellatore-MBSE-Setup-${NUOVA}.exe`;
 const CONTENUTO = Buffer.from('non sono un setup');
-const LATEST = `version: 2.0.1
+const LATEST = `version: ${NUOVA}
 files:
   - url: ${SETUP}
     sha512: ${Buffer.alloc(64, 1).toString('base64')}
@@ -42,7 +45,7 @@ test('avviso con le novità; un download che non corrisponde all\'impronta lasci
         registraDialoghi(pagina);
         await pronta(pagina);
         const banner = pagina.locator('#bannerAggiornamento');
-        await expect(banner).toContainText('È disponibile la versione 2.0.1', { timeout: 20_000 });
+        await expect(banner).toContainText(`È disponibile la versione ${NUOVA}`, { timeout: 20_000 });
         await banner.locator('[data-aggiornamento="novita"]').click();
         await expect(banner.locator('.note-aggiornamento')).toHaveText('Pannelli più veloci');
 

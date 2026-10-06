@@ -22,6 +22,11 @@ Se una chiave manca, il programma usa il valore predefinito. Gli aggiornamenti n
 | `gerarchia.righeAperte` | `300` | Quante righe della scheda Gerarchia aprire in automatico |
 | `matrice.gruppiVisibili` | `300` | Quanti gruppi della matrice mostrare alla volta |
 | `documentiExport.anteprimaCaratteri` | `200000` | Lunghezza massima dell'anteprima di un documento |
+| `documentiExport.modello.azienda` | `""` | Il nome dell'azienda sul frontespizio e in testa alle pagine di Word e PDF |
+| `documentiExport.modello.logo` | `""` | Il logo del frontespizio: un PNG o JPEG dentro la cartella di lavoro, es. `modello/logo.png` (al massimo 2 MB) |
+| `documentiExport.modello.classificazione` | `""` | La classificazione scritta sul frontespizio (es. `Riservato`) |
+| `documentiExport.modello.piePagina` | `""` | Il testo del piè di pagina, prima di `Pagina N di M` |
+| `documentiExport.modello.autore` | `""` | L'autore proposto in una nuova riga del registro delle revisioni |
 | `grid.size` | `20` | Il passo della griglia del canvas, in pixel |
 | `node.width`, `node.height` | `160`, `60` | La dimensione di un blocco appena posato |
 | `node.selectedBorderColor` | `#0078d4` | Il colore del bordo del blocco selezionato |
@@ -30,7 +35,8 @@ Se una chiave manca, il programma usa il valore predefinito. Gli aggiornamenti n
 | `requirements.capabilityColor` | `#8e44ad` | Il colore dei requisiti di capacità |
 | `requirements.typeColors` | Elettrica, Segnale, Meccanica, Fluidica | Le **tipologie di interfaccia** e i loro colori |
 | `metodiVerifica` | Ispezione, Analisi, Dimostrazione, Test | I metodi di verifica proposti nell'ispettore e usati nei documenti |
-| `documenti` | SSS, SSDD, IRS, IDD, SRS, SDD | I documenti proposti per i testi da esportare, nei filtri, nella matrice e nella finestra Documenti |
+| `documenti` | SSS, SSDD, IRS, IDD, SRS, SDD | L'ordine dei documenti nell'ispettore e nella finestra Documenti, e le voci dei filtri e della matrice |
+| `documentiPerClasse` | interfaccia: IRS, IDD; capacita: SSS, SSDD, SRS, SDD | Quali documenti accettano requisiti di interfaccia e quali di capacità. Un documento in nessuna lista non si può usare. Una lista vuota (`[]`) non ammette nessun documento; un valore sbagliato (non una lista di testi) usa il predefinito |
 
 ### Aggiungere una tipologia
 
@@ -38,7 +44,7 @@ Aggiungi una riga in `requirements.typeColors`, per esempio `"Ottica": "#16a085"
 
 ### Aggiungere un documento
 
-Aggiungi il nome in `documenti`, per esempio `"OCD"`. Compare nell'ispettore e nei filtri; nella finestra Documenti viene generato con la struttura generica "Documento di requisiti".
+Aggiungi il nome nella lista giusta di `documentiPerClasse`, per esempio `"capacita": ["SSS", "SSDD", "SRS", "SDD", "OCD"]`, e riavvia. Compare nell'ispettore per i requisiti di quel tipo e nella finestra Documenti, dove viene generato con la struttura generica "Documento di requisiti". Per sceglierne la posizione nei menu aggiungilo anche in `documenti`.
 
 ## Il file di un progetto
 
@@ -50,12 +56,14 @@ Aggiungi il nome in `documenti`, per esempio `"OCD"`. Compare nell'ispettore e n
   "nome": "Impianto",
   "libraryPath": "shared/libreria.json",
   "workspace": { "nodes": [], "edges": [] },
-  "cliente": { "prefisso": "CLI-", "requisiti": [], "ultimoImport": {} }
+  "cliente": { "prefisso": "CLI-", "requisiti": [], "ultimoImport": {} },
+  "revisioniDocumenti": { "SSS": [{ "revisione": "A", "data": "2026-10-06", "descrizione": "Prima emissione", "autore": "M. Rossi" }] }
 }
 ```
 
 * `formatVersion` è 2 per i file scritti dalla versione attuale. L'app apre anche i file in formato 1, scritti prima dei requisiti cliente.
 * `cliente` c'è solo dopo il primo import di requisiti cliente.
+* `revisioniDocumenti` c'è solo dopo la prima revisione scritta nel pannello Documenti: il registro delle revisioni di ogni documento, usato da Word e PDF.
 * `workspace` è il grafo della radice. Ogni nodo (un'istanza di blocco) ha id, tipo (l'id del blocco di libreria), etichetta, dimensioni, posizione, posizioni delle porte e il suo `internal_graph`, cioè il livello interno, che a sua volta ha nodi e fili. Così il file rispecchia le matriosche.
 * Ogni filo ha i due estremi (nodo e id del requisito, oppure un blocco tondo del livello) e gli snodi.
 

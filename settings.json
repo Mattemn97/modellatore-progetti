@@ -27,7 +27,14 @@
     "gruppiVisibili": 300
   },
   "documentiExport": {
-    "anteprimaCaratteri": 200000
+    "anteprimaCaratteri": 200000,
+    "modello": {
+      "azienda": "",
+      "logo": "",
+      "classificazione": "",
+      "piePagina": "",
+      "autore": ""
+    }
   },
   "grid": {
     "size": 20
@@ -51,5 +58,9 @@
     }
   },
   "metodiVerifica": ["Ispezione", "Analisi", "Dimostrazione", "Test"],
-  "documenti": ["SSS", "SSDD", "IRS", "IDD", "SRS", "SDD"]
+  "documenti": ["SSS", "SSDD", "IRS", "IDD", "SRS", "SDD"],
+  "documentiPerClasse": {
+    "interfaccia": ["IRS", "IDD"],
+    "capacita": ["SSS", "SSDD", "SRS", "SDD"]
+  }
 }

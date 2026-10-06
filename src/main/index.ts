@@ -11,6 +11,7 @@ import { ArchivioProgetti } from './api/progetti.js';
 import { creaRouter } from './api/router.js';
 import { installaCanaliCartelle, type StatoCartelleApp } from './cartelle-ipc.js';
 import { cartelleDi, leggiConfigurazione, NOME_CARTELLA_PREDEFINITA, scriviConfigurazione, statoCartelle, type Cartelle } from './configurazione.js';
+import { installaCanaleExport } from './documenti/esporta.js';
 import { creaFinestraPrincipale } from './finestra.js';
 import { installaProtocollo, registraSchema, URL_BENVENUTO, URL_INIZIALE } from './protocollo.js';
 import { installaRichiestaTesto } from './richiesta-testo.js';
@@ -120,6 +121,7 @@ async function avvia(): Promise<void> {
         return file && fs.existsSync(file) ? file : settingsPredefiniti;
     });
     installaRichiestaTesto(cartellaOut);
+    installaCanaleExport(() => cartelle?.lavoro ?? null);
     installaCanaliCartelle({
         stato: statoPerPagine,
         impostazioniPredefinite: settingsPredefiniti,

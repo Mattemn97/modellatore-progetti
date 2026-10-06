@@ -15,7 +15,7 @@ import {
 import { segnaSchedaCoerenzaDaAggiornare } from './coerenza.js';
 import { azzeraSceltaGerarchia } from './gerarchia.js';
 import { tourAttivo } from './tour.js';
-import type { Cliente, FileProgetto, Grafo } from './tipi.js';
+import type { Cliente, FileProgetto, Grafo, RevisioneDocumento } from './tipi.js';
 
 // Riesportata per i moduli che la importano da qui
 export { chiamaApi };
@@ -96,6 +96,7 @@ function testoProgetto(): string {
         workspace: pathStack[0]!.graph
     };
     if (appState.cliente) contenuto.cliente = appState.cliente;
+    if (Object.keys(appState.revisioniDocumenti).length) contenuto.revisioniDocumenti = appState.revisioniDocumenti;
     return JSON.stringify(contenuto);
 }
 
@@ -154,11 +155,12 @@ export function apriPercorso(ids: string[]): boolean {
 }
 
 // Sostituisce workspace e requisiti cliente, sempre insieme; con mantieniLivello riapre gli stessi blocchi seguendo i loro id
-function sostituisciModello(workspace: Grafo, cliente: Cliente | null | undefined, mantieniLivello: boolean): void {
+function sostituisciModello(workspace: Grafo, cliente: Cliente | null | undefined, revisioni: unknown, mantieniLivello: boolean): void {
     const idAperti = mantieniLivello ? pathStack.slice(1).map((livello) => livello.id) : [];
     completaModello(workspace);
     appState.workspace = workspace;
     appState.cliente = completaCliente(cliente ?? null);
+    appState.revisioniDocumenti = leggiRevisioni(revisioni);
     pathStack.length = 0;
     pathStack.push({ id: 'root', label: progetto.nome, graph: workspace, parentNode: null });
     apriPercorso(idAperti);
@@ -176,13 +178,27 @@ function sostituisciModello(workspace: Grafo, cliente: Cliente | null | undefine
     }
 }
 
+// Registro delle revisioni dal file (spec 0028, AC-7): solo liste di righe; un valore non valido si ignora
+function leggiRevisioni(valore: unknown): Record<string, RevisioneDocumento[]> {
+    const esito: Record<string, RevisioneDocumento[]> = {};
+    if (!valore || typeof valore !== 'object' || Array.isArray(valore)) return esito;
+    const testo = (v: unknown): string => (typeof v === 'string' ? v : '');
+    for (const [documento, righe] of Object.entries(valore as Record<string, unknown>)) {
+        if (!Array.isArray(righe)) continue;
+        const valide = righe.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object' && !Array.isArray(r))
+            .map((r) => ({ revisione: testo(r.revisione), data: testo(r.data), descrizione: testo(r.descrizione), autore: testo(r.autore) }));
+        if (valide.length) esito[documento] = valide;
+    }
+    return esito;
+}
+
 // Rende attivo un progetto appena letto o scritto; la libreria va caricata prima
 function impostaProgetto(slug: string, nome: string, libraryPath: string, workspace: Grafo, cliente: Cliente | null | undefined,
-    impronta: string, versioni: number, mantieniLivello: boolean): void {
+    revisioni: unknown, impronta: string, versioni: number, mantieniLivello: boolean): void {
     annullaTimer();
     fermaRitentativi();
     Object.assign(progetto, { slug, nome, libraryPath, impronta, versioni });
-    sostituisciModello(workspace, cliente, mantieniLivello);
+    sostituisciModello(workspace, cliente, revisioni, mantieniLivello);
     const libPathInput = document.getElementById('libPathInput') as HTMLInputElement | null;
     if (libPathInput) libPathInput.value = libraryPath;
     renderUI();
@@ -412,7 +428,7 @@ async function apriProgetto(slug: string, { silenzioso404 = false } = {}): Promi
     await caricaLibreria(libraryPath);
 
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : slug;
-    impostaProgetto(slug, nome, libraryPath, dati.workspace, dati.cliente, r.dati.impronta, r.dati.versioni, false);
+    impostaProgetto(slug, nome, libraryPath, dati.workspace, dati.cliente, dati.revisioniDocumenti, r.dati.impronta, r.dati.versioni, false);
     controllaCliente();
     pilaRipeti = [];
     aggiornaInterfaccia();
@@ -505,7 +521,7 @@ async function annulla(): Promise<void> {
     if (testoAttuale !== null) pilaRipeti.push(testoAttuale);
     while (pilaRipeti.length > appSettings.progetti.versioni) pilaRipeti.shift();
     const dati = r.dati.progetto as DatiProgetto;
-    impostaProgetto(slug, progetto.nome, progetto.libraryPath, dati.workspace, dati.cliente, r.dati.impronta, r.dati.versioni, true);
+    impostaProgetto(slug, progetto.nome, progetto.libraryPath, dati.workspace, dati.cliente, dati.revisioniDocumenti, r.dati.impronta, r.dati.versioni, true);
 }
 
 async function ripeti(): Promise<void> {
@@ -514,7 +530,7 @@ async function ripeti(): Promise<void> {
     const testo = pilaRipeti.pop();
     if (testo === undefined) return;
     const dati = JSON.parse(testo) as DatiProgetto;
-    sostituisciModello(dati.workspace, dati.cliente, true);
+    sostituisciModello(dati.workspace, dati.cliente, dati.revisioniDocumenti, true);
     renderUI();
     render();
     prossimoDaRipeti = true;
@@ -538,7 +554,7 @@ async function ricaricaDalDisco(): Promise<void> {
     const libraryPath = typeof dati.libraryPath === 'string' && dati.libraryPath ? dati.libraryPath : progetto.libraryPath;
     await caricaLibreria(libraryPath);
     const nome = typeof dati.nome === 'string' && dati.nome.trim() ? dati.nome : slug;
-    impostaProgetto(slug, nome, libraryPath, dati.workspace, dati.cliente, r.dati.impronta, r.dati.versioni, true);
+    impostaProgetto(slug, nome, libraryPath, dati.workspace, dati.cliente, dati.revisioniDocumenti, r.dati.impronta, r.dati.versioni, true);
     controllaCliente();
     pilaRipeti = [];
 }
@@ -669,7 +685,11 @@ async function importaDati(datiGrezzi: unknown, file: File): Promise<void> {
         ? dati.libraryPath
         : (progetto.libraryPath || appSettings.libraryPath);
     const slug = await chiediNomeECrea('Nome del progetto importato:', nomeProposto,
-        (nome) => ({ formatVersion: FORMAT_VERSION, nome, libraryPath, workspace, ...(dati.cliente ? { cliente: dati.cliente } : {}) }));
+        (nome) => ({
+            formatVersion: FORMAT_VERSION, nome, libraryPath, workspace,
+            ...(dati.cliente ? { cliente: dati.cliente } : {}),
+            ...(dati.revisioniDocumenti ? { revisioniDocumenti: dati.revisioniDocumenti } : {})
+        }));
     if (!slug || await apriProgetto(slug) !== 'ok') return;
 
     const mancanti = tipiMancanti(pathStack[0]!.graph);

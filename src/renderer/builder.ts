@@ -3,7 +3,7 @@
 import { appState } from './state.js';
 import { render } from './renderer.js';
 import { openLibraryBlock } from './inspector.js';
-import { normalizzaLibreria, trovaIdRequisitiDuplicati } from './model.js';
+import { normalizzaLibreria, testiNonAmmessi, trovaIdRequisitiDuplicati } from './model.js';
 import { escapeHtml } from './utils.js';
 import { apriLibreria } from './libreria.js';
 import { riallineaFiltri } from './filtri.js';
@@ -52,6 +52,10 @@ export function initLibrary(): void {
 
     const ordina = (a: string, b: string) => a.localeCompare(b, 'it');
 
+    // Testi su documenti non ammessi per blocco (spec 0027, AC-6)
+    const nonAmmessi = new Map<string, number>();
+    testiNonAmmessi(appState.library).forEach((t) => nonAmmessi.set(t.blockId, (nonAmmessi.get(t.blockId) ?? 0) + 1));
+
     Object.keys(albero).sort(ordina).forEach((catName) => {
         const catDiv = document.createElement('div');
         catDiv.className = 'tree-category';
@@ -82,7 +86,11 @@ export function initLibrary(): void {
                     div.className = 'lib-item';
                     div.draggable = true;
                     div.title = blockDef.descrizione || blockDef.titolo;
-                    div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-count">${blockDef.requisiti.length}</span>`;
+                    const k = nonAmmessi.get(typeId) ?? 0;
+                    const avviso = k
+                        ? `<span class="lib-item-avviso" data-aiuto="libreria.nonAmmessi" data-titolo-nativo="${k === 1 ? '1 testo su un documento non ammesso' : `${k} testi su documenti non ammessi`}">⚠</span>`
+                        : '';
+                    div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-segni"><span class="lib-item-count">${blockDef.requisiti.length}</span>${avviso}</span>`;
 
                     div.addEventListener('dragstart', (e) => e.dataTransfer?.setData('blockType', typeId));
                     div.addEventListener('click', () => openLibraryBlock(typeId));

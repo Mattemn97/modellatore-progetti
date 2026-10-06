@@ -147,6 +147,14 @@
                     <button id="btnDocumenti" style="background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" data-aiuto="barra.documenti">📄 Documenti</button>
                     <button id="btnDRC" class="pulsante-coerenza" aria-pressed="false" data-aiuto="barra.coerenza">⚠️ Verifica Coerenza</button>
                     <button id="btnGerarchia" class="pulsante-gerarchia" aria-pressed="false" data-aiuto="barra.gerarchia">🌳 Gerarchia</button>
+                    <!-- Immagine del livello aperto (diagramma.ts, spec 0029) -->
+                    <div class="menu-progetto">
+                        <button id="btnImmagine" class="pulsante-immagine" aria-haspopup="menu" aria-expanded="false" data-aiuto="barra.immagine">🖼 Immagine &#9662;</button>
+                        <div id="menuImmagine" class="menu-progetto-voci menu-immagine" role="menu" hidden>
+                            <button data-formato="svg" role="menuitem">SVG (vettoriale)</button>
+                            <button data-formato="png" role="menuitem">PNG</button>
+                        </div>
+                    </div>
                     <button id="btnResetView" data-aiuto="barra.resetVista" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 
@@ -209,9 +217,24 @@
             <div class="riga-guida"><button class="pulsante-tour-finestra" data-tour-avvia="documenti" data-aiuto="finestra.tour" aria-label="Guida di questo pannello">❓ Guida</button></div>
             <div id="documentiBarra" class="filtri-matrice">
                 <label class="campo-import"><span>Documento<span class="icona-aiuto" data-aiuto="documenti.documento" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="documentiScelta"></select></label>
-                <button id="btnEsportaDocumento" class="pulsante-progetto" data-aiuto="documenti.esporta" disabled>⬇ Esporta .md</button>
+                <button id="btnEsportaDocumento" class="pulsante-progetto" data-aiuto="documenti.esporta" disabled>⬇ .md</button>
+                <button id="btnEsportaWord" class="pulsante-progetto" data-aiuto="documenti.word" disabled>⬇ Word</button>
+                <button id="btnEsportaPdf" class="pulsante-progetto" data-aiuto="documenti.pdf" disabled>⬇ PDF</button>
             </div>
             <div id="documentiRiepilogo" class="import-conteggi"></div>
+            <details id="revisioniDocumento" class="revisioni-documento" hidden>
+                <summary>Revisioni di <span id="revisioniNomeDocumento"></span>: <span id="revisioniConteggio">0</span><span class="icona-aiuto" data-aiuto="documenti.revisioni" tabindex="0" role="button" aria-label="Informazioni">i</span></summary>
+                <table class="tabella-revisioni">
+                    <thead><tr><th>Revisione</th><th>Data</th><th>Descrizione</th><th>Autore</th><th></th></tr></thead>
+                    <tbody id="righeRevisioni"></tbody>
+                </table>
+                <button id="btnNuovaRevisione" class="pulsante-progetto" data-aiuto="documenti.nuovaRevisione">+ Revisione</button>
+            </details>
+            <div id="documentiAvviso" class="avviso-documenti" hidden></div>
+            <details id="elencoNonAmmessi" class="elenco-non-ammessi" hidden>
+                <summary>Testi su documenti non ammessi: <span id="conteggioNonAmmessi">0</span><span class="icona-aiuto" data-aiuto="documenti.nonAmmessi" tabindex="0" role="button" aria-label="Informazioni">i</span></summary>
+                <ul id="righeNonAmmessi"></ul>
+            </details>
             <div id="documentiMessaggio" class="empty-props" hidden></div>
             <pre id="anteprimaDocumento" class="anteprima-documento"></pre>
         </div>

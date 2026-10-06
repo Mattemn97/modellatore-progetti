@@ -9,8 +9,9 @@ export function downloadJsonFile(dataObj: unknown, filename: string): void {
     document.body.appendChild(a); a.click(); a.remove();
 }
 
-// Download di un testo lungo (es. la matrice in Markdown): un Blob al posto di un URL data:, che i browser troncano
-export function scaricaFileTesto(testo: string, nomeFile: string, tipo: string): void {
+// Download di un testo lungo (es. la matrice in Markdown) o di byte (Word, PDF, PNG): un Blob al posto di un URL
+// data:, che i browser troncano
+export function scaricaFileTesto(testo: BlobPart, nomeFile: string, tipo: string): void {
     const url = URL.createObjectURL(new Blob([testo], { type: tipo }));
     const a = document.createElement('a');
     a.href = url; a.download = nomeFile;

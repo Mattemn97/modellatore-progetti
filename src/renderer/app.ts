@@ -11,6 +11,7 @@ import { initCoerenza } from './coerenza.js';
 import { initGerarchia } from './gerarchia.js';
 import { initMatrice } from './matrice.js';
 import { initDocumenti } from './documenti.js';
+import { initDiagrammi } from './diagramma.js';
 import { initFiltri } from './filtri.js';
 import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { avviaAggiornamenti } from './aggiornamento.js';
@@ -99,6 +100,7 @@ export async function initApp(): Promise<void> {
     initGerarchia();
     initMatrice();
     initDocumenti();
+    initDiagrammi();
     initChangelog();
     initAiuto();
     initImpostazioni();

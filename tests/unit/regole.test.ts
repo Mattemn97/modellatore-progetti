@@ -13,6 +13,8 @@ type Moduli = {
     documenti: typeof import('../../src/renderer/documenti');
     filtri: typeof import('../../src/renderer/filtri');
     stato: typeof import('../../src/renderer/state');
+    model: typeof import('../../src/renderer/model');
+    diagramma: typeof import('../../src/renderer/diagramma');
 };
 let m: Moduli;
 
@@ -26,7 +28,9 @@ beforeAll(async () => {
         gerarchia: await import('../../src/renderer/gerarchia'),
         matrice: await import('../../src/renderer/matrice'),
         documenti: await import('../../src/renderer/documenti'),
-        filtri: await import('../../src/renderer/filtri')
+        filtri: await import('../../src/renderer/filtri'),
+        model: await import('../../src/renderer/model'),
+        diagramma: await import('../../src/renderer/diagramma')
     };
     await m.stato.loadSettings();
 });
@@ -167,6 +171,102 @@ describe('documenti', () => {
         expect(g.testo).toContain('Fornisce 24V');
         expect(g.riepilogo.senzaMetodo).toBe(1);
         expect(g.testo).toContain('- Metodo di verifica: non definito');
+    });
+});
+
+describe('documenti ammessi per classe (spec 0027)', () => {
+    const regola = { documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD'], documentiPerClasse: { interfaccia: ['IRS', 'IDD'], capacita: ['SSS', 'SSDD', 'SRS', 'SDD'] } };
+
+    it('capacità e interfaccia, documento non classificato, documento in due liste, lista vuota', () => {
+        const mo = m.model;
+        expect(mo.motivoNonAmmesso(req('c', null, ''), 'SSS', regola)).toBeNull();
+        expect(mo.motivoNonAmmesso(req('c', null, ''), 'IRS', regola)).toBe('un requisito di capacità va solo in SSS, SSDD, SRS, SDD');
+        expect(mo.motivoNonAmmesso(req('e', 'Elettrica', ''), ' IRS ', regola)).toBeNull();
+        expect(mo.motivoNonAmmesso(req('e', 'Inventata', ''), 'SSS', regola)).toBe('un requisito di interfaccia va solo in IRS, IDD');
+        expect(mo.motivoNonAmmesso(req('c', null, ''), 'XYZ', regola)).toBe('"XYZ" non è in documentiPerClasse di settings.json');
+        expect(mo.motivoNonAmmesso(req('c', null, ''), '', regola)).toBeNull();
+        const doppio = { ...regola, documentiPerClasse: { interfaccia: ['IRS', 'ICD'], capacita: ['SSS', 'ICD'] } };
+        expect(mo.motivoNonAmmesso(req('c', null, ''), 'ICD', doppio)).toBeNull();
+        expect(mo.motivoNonAmmesso(req('e', 'Segnale', ''), 'ICD', doppio)).toBeNull();
+        expect(mo.documentiDellaClasse('interfaccia', doppio)).toEqual(['IRS', 'ICD']);
+        const vuota = { ...regola, documentiPerClasse: { interfaccia: [], capacita: ['SSS', 'IRS'] } };
+        expect(mo.motivoNonAmmesso(req('e', 'Segnale', ''), 'IRS', vuota)).toBe('nessun documento accetta requisiti di interfaccia');
+    });
+
+    it('settings.json: chiave mancante o sbagliata usa il predefinito, voci ripulite', () => {
+        const unisci = m.stato.unisciDocumentiPerClasse;
+        expect(unisci(undefined)).toEqual(regola.documentiPerClasse);
+        expect(unisci({ capacita: 'SSS', interfaccia: [' ICD ', '', 'ICD', 'Cliente'] })).toEqual({ interfaccia: ['ICD'], capacita: regola.documentiPerClasse.capacita });
+        expect(unisci({ interfaccia: [] }).interfaccia).toEqual([]);
+    });
+
+    it('testi non ammessi per blocco, in ordine di titolo, requisito e testo', () => {
+        const lib: Libreria = {
+            b2: { id: 'b2', titolo: 'Blocco 10', descrizione: '', categoria: '', sottocategoria: '', requisiti: [req('x', null, 'XYZ')] },
+            b1: { id: 'b1', titolo: 'Blocco 2', descrizione: '', categoria: '', sottocategoria: '', requisiti: [req('ok', null, 'SSS'), req('i', 'Elettrica', 'SSS')] }
+        };
+        expect(m.model.testiNonAmmessi(lib, regola).map((t) => `${t.blockId}:${t.reqId}:${t.documento}`)).toEqual(['b1:i:SSS', 'b2:x:XYZ']);
+    });
+
+    it('generatore: esclusione, rinvio, niente Altri requisiti, documenti padre ammessi, selettore', () => {
+        // sys_cap ha in più un testo IRS (non ammesso), sys_ele un testo SSS (non ammesso), ali_cap un testo XYZ
+        const lib: Libreria = JSON.parse(JSON.stringify(LIB));
+        lib.sistema!.requisiti[0]!.testiExport.push({ testo: 'Capacità in IRS', documento: 'IRS' });
+        lib.sistema!.requisiti[1]!.testiExport.push({ testo: 'Interfaccia in SSS', documento: 'SSS' });
+        lib.alimentatore!.requisiti[0]!.testiExport.push({ testo: 'Fuori standard', documento: 'XYZ' });
+        const { radice, cliente } = modello();
+        const dati = m.documenti.preparaDatiDocumenti(m.matrice.calcolaMatrice(m.gerarchia.calcolaGerarchia(radice, lib, cliente), lib, cliente, 'Radice'), lib);
+        const intest = { nome: 'Prova', data: '2026-10-06', libreria: { nomeFile: 'libreria.json', versione: null } };
+
+        const sss = m.documenti.generaDocumento(dati, 'SSS', intest);
+        expect(sss.testo).not.toContain('Interfaccia in SSS');
+        expect(sss.testo).toContain('### 3.3 Requisiti di interfaccia esterna del sistema\n\nI requisiti di interfaccia sono nei documenti IRS, IDD.');
+        expect(sss.riepilogo.esclusi).toBe(1);
+
+        const irs = m.documenti.generaDocumento(dati, 'IRS', intest);
+        expect(irs.testo).not.toContain('Altri requisiti');
+        expect(irs.testo).not.toContain('Capacità in IRS');
+
+        // ali_cap deriva da sys_cap: documenti padre solo SSS (IRS non è ammesso per una capacità)
+        const ssdd = m.documenti.generaDocumento(dati, 'SSDD', intest);
+        expect(ssdd.testo).toMatch(/\| ali_cap \|.*\| sys_cap Titolo sys_cap \| SSS \|/);
+        expect(ssdd.testo).toContain('## 2. Documenti di riferimento\n\n- SSS');
+        expect(m.documenti.vociDocumento()).toEqual(['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD']);
+    });
+});
+
+describe('diagrammi (spec 0029)', () => {
+    it('livello interno: blocco, blocchi tondi del padre, filo di derivazione tratteggiato; livello vuoto null', () => {
+        const { radice, cliente } = modello();
+        const sistema = radice.nodes[0]!;
+        const d = m.diagramma.svgDiagramma(sistema.internal_graph, sistema, LIB, cliente);
+        expect(d).not.toBeNull();
+        expect(d!.svg).toContain('>Alim 1</text>');
+        expect(d!.svg.match(/r="28"/g)).toHaveLength(2);
+        expect(d!.svg).toContain('stroke-dasharray="8,4"');
+        expect(d!.svg).not.toContain('class=');
+        expect(d!.larghezza).toBeGreaterThan(160);
+        // Alla radice i requisiti cliente senza posizione non si disegnano, né i loro fili
+        const r = m.diagramma.svgDiagramma(radice, null, LIB, cliente)!;
+        expect(r.svg).toContain('>Sistema 1</text>');
+        expect(r.svg).not.toContain('<path');
+        expect(m.diagramma.svgDiagramma({ nodes: [], edges: [] }, null, LIB, cliente)).toBeNull();
+        expect([...m.diagramma.interniDeiBlocchi(radice).keys()]).toEqual(['sistema']);
+    });
+
+    it('documenti con le figure: radice nei componenti e nell\'identificazione, interno del blocco', () => {
+        const { radice, cliente } = modello();
+        const dati = m.documenti.preparaDatiDocumenti(m.matrice.calcolaMatrice(m.gerarchia.calcolaGerarchia(radice, LIB, cliente), LIB, cliente, 'Radice'), LIB);
+        const intest = { nome: 'Prova', data: '2026-10-06', libreria: { nomeFile: 'libreria.json', versione: null } };
+        const opzioni = { radice: true, blocchi: new Set(['alimentatore']) };
+        const ssdd = m.documenti.generaDocumento(dati, 'SSDD', intest, opzioni).testo;
+        expect(ssdd).toContain('![Diagramma: Prova](diagramma:radice)');
+        expect(ssdd).toContain('![Diagramma interno: Alimentatore](diagramma:blocco:alimentatore)');
+        const irs = m.documenti.generaDocumento(dati, 'IRS', intest, opzioni).testo;
+        expect(irs).toContain('![Diagramma: Prova](diagramma:radice)');
+        expect(irs).not.toContain('_Diagrammi da completare._');
+        // Senza opzioni (export .md) nulla cambia
+        expect(m.documenti.generaDocumento(dati, 'IRS', intest).testo).toContain('_Diagrammi da completare._');
     });
 });
 

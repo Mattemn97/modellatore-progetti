@@ -46,6 +46,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
 
     // Libreria (pannello sinistro)
     'libreria.titolo': { titolo: 'Libreria Blocchi', testo: "I tipi di blocco che puoi usare nel progetto, salvati su disco. Il numero accanto è la versione della libreria: sale da sola a ogni modifica (patch, minor o major) e ogni passo finisce nel Changelog." },
+    'libreria.nonAmmessi': { titolo: 'Testi su documenti non ammessi', testo: "Questo blocco ha testi in un documento che il tipo del requisito non ammette (regola documentiPerClasse di settings.json). Aprilo: i testi sbagliati sono in rosso. Finché non li correggi il blocco non si salva e quei testi restano fuori dai documenti." },
     'libreria.changelog': { titolo: 'Changelog', testo: "Elenco di tutte le modifiche alla libreria: quando, quale blocco, quali requisiti e con quale livello di versione." },
     'libreria.solaLettura': { titolo: 'Sola lettura', testo: "La libreria non si può modificare (file protetto o versione futura). Puoi usarne i blocchi, ma non salvarli." },
     'libreria.percorso': { titolo: 'Percorso della libreria', testo: "Il file JSON della libreria usata da questo progetto, relativo alla cartella dell'app (es. shared/libreria.json). Cambialo e premi 🔄 per passare a un'altra libreria." },
@@ -67,7 +68,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'barra.proprieta': { titolo: 'Pannello destro', testo: "Mostra o nasconde l'ispettore." },
     'barra.filtri': { titolo: 'Filtri', testo: "Filtra blocchi e fili per classe (capacità o tipologia di interfaccia), documento, categoria e sottocategoria. Gli esclusi si attenuano o si nascondono; i filtri restano attivi entrando e uscendo dai blocchi." },
     'barra.matrice': { titolo: 'Matrice Requisiti', testo: "Apre la matrice di tracciabilità: ogni derivazione padre → figlio con i documenti di ciascun lato, filtrabile ed esportabile in Markdown." },
-    'barra.documenti': { titolo: 'Documenti', testo: "Genera un documento MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD) in Markdown, con i testi dei requisiti nei capitoli giusti." },
+    'barra.immagine': { titolo: 'Immagine del livello', testo: "Scarica il livello aperto come immagine: SVG (vettoriale, nitido a ogni zoom) o PNG. L'immagine mostra blocchi, porte, fili e blocchi tondi, senza filtri, evidenze o selezione. Gli stessi diagrammi entrano da soli nei documenti Word e PDF." },
+    'barra.documenti': { titolo: 'Documenti', testo: "Genera un documento MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD) in Markdown, con i testi dei requisiti nei capitoli giusti. Ogni testo entra solo se il suo documento è ammesso per il tipo del requisito." },
     'barra.coerenza': { titolo: 'Verifica Coerenza', testo: "Accende o spegne il controllo: evidenzia in rosso i requisiti senza padre o senza figli e apre la scheda Coerenza con l'elenco dei problemi." },
     'barra.gerarchia': { titolo: 'Gerarchia', testo: "Accende o spegne la modalità Gerarchia: clicca un pin o un blocco tondo e vedi la catena completa dei suoi antenati e discendenti, sul canvas e nella scheda Gerarchia." },
     'barra.resetVista': { titolo: 'Reset Vista', testo: "Riporta zoom e spostamento del canvas alla vista iniziale." },
@@ -87,7 +89,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'ispettore.req.titolo': { titolo: 'Titolo del requisito', testo: "Una frase breve che si legge sul canvas, nella matrice e nei documenti." },
     'ispettore.req.tipologia': { titolo: 'Tipologia', testo: "Con una tipologia (Elettrica, Segnale, Meccanica, Fluidica…) il requisito è di interfaccia: porta sul bordo, si collega solo a porte della stessa tipologia. Vuota (Capacità) è un requisito di capacità: pin quadrato interno, si collega solo a capacità. Tipologie e colori stanno in settings.json." },
     'ispettore.req.metodo': { titolo: 'Metodo di verifica', testo: "Come si dimostrerà che il requisito è soddisfatto: Ispezione, Analisi, Dimostrazione o Test. Va nelle disposizioni di qualifica dei documenti." },
-    'ispettore.req.documento': { titolo: 'Documento', testo: "In quale documento MIL-STD-498 finisce il testo sotto (SSS, SSDD, IRS, IDD, SRS, SDD). Un requisito può avere più testi, uno per documento." },
+    'ispettore.req.documento': { titolo: 'Documento', testo: "In quale documento finisce il testo sotto. Il menu propone solo i documenti ammessi per il tipo del requisito: con il valore predefinito un'interfaccia va in IRS o IDD, una capacità in SSS, SSDD, SRS o SDD. Un documento che non c'è va aggiunto a documentiPerClasse in settings.json, poi riavvia. Un requisito può avere più testi, uno per documento." },
     'ispettore.req.testo': { titolo: 'Testo da esportare', testo: "La frase formale del requisito come apparirà nel documento scelto. I testi lasciati del tutto vuoti non vengono salvati." },
     'ispettore.livello': { titolo: 'Livello della versione', testo: "Automatico calcola il passo di versione dalla modifica: major se togli o rinomini un requisito o cambi una tipologia, minor se aggiungi, patch per il resto. Puoi alzarlo a mano; un livello più basso di quello calcolato viene ignorato." },
     'ispettore.motivo': { titolo: 'Motivo della modifica', testo: "Facoltativo. Una nota che finisce nella voce del Changelog, per ricordare perché hai cambiato il blocco." },
@@ -131,7 +133,12 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
 
     // Documenti
     'documenti.documento': { titolo: 'Documento', testo: "Il tipo di documento MIL-STD-498 da generare, con i capitoli del suo DID (Data Item Description, la traccia ufficiale del documento)." },
-    'documenti.esporta': { titolo: 'Esporta .md', testo: "Scarica il documento generato come file Markdown." },
+    'documenti.nonAmmessi': { titolo: 'Testi su documenti non ammessi', testo: "Testi della libreria in un documento che il tipo del requisito non ammette. Non entrano in nessun documento generato. Un clic apre il blocco nell'Ispettore per correggerli." },
+    'documenti.word': { titolo: 'Esporta Word', testo: "Scarica il documento come file Word (.docx) con il modello aziendale: frontespizio con logo, registro delle revisioni, intestazione e numeri di pagina. Il modello si regola in settings.json (documentiExport.modello)." },
+    'documenti.pdf': { titolo: 'Esporta PDF', testo: "Scarica il documento come PDF con lo stesso modello aziendale del Word, pronto da consegnare." },
+    'documenti.revisioni': { titolo: 'Registro delle revisioni', testo: "Le emissioni di questo documento: revisione, data, descrizione della modifica e autore. Finisce nel Word e nel PDF, e l'ultima riga è la revisione corrente scritta nel frontespizio e in testa a ogni pagina. Si salva nel progetto." },
+    'documenti.nuovaRevisione': { titolo: 'Nuova revisione', testo: "Aggiunge una riga con la revisione successiva (dopo A viene B, dopo 3 viene 4), la data di oggi e l'autore del modello. Scrivi la descrizione della modifica prima di esportare." },
+    'documenti.esporta': { titolo: 'Esporta .md', testo: "Scarica il documento generato come file Markdown, senza il modello aziendale." },
 
     // Import cliente
     'import.foglio': { titolo: 'Foglio', testo: "Il foglio del file Excel da leggere. Un CSV ha un solo foglio." },

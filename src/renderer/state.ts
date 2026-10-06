@@ -1,6 +1,6 @@
 /* --- GESTIONE STATO GLOBALE --- */
 
-import type { Cliente, Grafo, Impostazioni, Libreria, Livello } from './tipi.js';
+import type { Cliente, DocumentiPerClasse, Grafo, Impostazioni, Libreria, Livello, ModelloAziendale, RevisioneDocumento } from './tipi.js';
 
 // Impostate da loadSettings() prima di ogni altro init: dopo l'avvio non sono mai null
 export let appSettings: Impostazioni = null as unknown as Impostazioni;
@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: Impostazioni = {
     coerenza: { righePerGruppo: 200 },
     gerarchia: { righeAperte: 300 },
     matrice: { gruppiVisibili: 300 },
-    documentiExport: { anteprimaCaratteri: 200000 },
+    documentiExport: { anteprimaCaratteri: 200000, modello: { azienda: '', logo: '', classificazione: '', piePagina: '', autore: '' } },
     grid: { size: 20 },
     node: { width: 160, height: 60, selectedBorderColor: '#0078d4' },
     parentBlock: { radius: 28 },
@@ -25,10 +25,14 @@ const DEFAULT_SETTINGS: Impostazioni = {
         typeColors: { Elettrica: '#e74c3c', Segnale: '#2ecc71', Meccanica: '#f39c12', Fluidica: '#3498db' }
     },
     metodiVerifica: ['Ispezione', 'Analisi', 'Dimostrazione', 'Test'],
-    documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD']
+    documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD'],
+    documentiPerClasse: { interfaccia: ['IRS', 'IDD'], capacita: ['SSS', 'SSDD', 'SRS', 'SDD'] }
 };
 
-export const appState: { librarySearchQuery: string; library: Libreria; workspace: Grafo; cliente: Cliente | null } = {
+export const appState: {
+    librarySearchQuery: string; library: Libreria; workspace: Grafo; cliente: Cliente | null;
+    revisioniDocumenti: Record<string, RevisioneDocumento[]>;
+} = {
     librarySearchQuery: '',
     // Libreria di esempio, sostituita da quella caricata da libraryPath
     library: {
@@ -58,7 +62,9 @@ export const appState: { librarySearchQuery: string; library: Libreria; workspac
     },
     workspace: { nodes: [], edges: [] },
     // Requisiti cliente del progetto aperto (spec 0003): null se il progetto non ne ha
-    cliente: null
+    cliente: null,
+    // Registro delle revisioni dei documenti del progetto aperto (spec 0028)
+    revisioniDocumenti: {}
 };
 
 // Il percorso dei livelli aperti; si sostituisce sempre sul posto (altri moduli tengono questo riferimento)
@@ -95,10 +101,35 @@ export async function loadSettings(): Promise<void> {
         coerenza: { ...DEFAULT_SETTINGS.coerenza, ...caricate.coerenza },
         gerarchia: { ...DEFAULT_SETTINGS.gerarchia, ...caricate.gerarchia },
         matrice: { ...DEFAULT_SETTINGS.matrice, ...caricate.matrice },
-        documentiExport: { ...DEFAULT_SETTINGS.documentiExport, ...caricate.documentiExport },
+        documentiExport: {
+            ...DEFAULT_SETTINGS.documentiExport,
+            ...caricate.documentiExport,
+            modello: unisciModello((caricate.documentiExport as { modello?: unknown } | undefined)?.modello)
+        },
         grid: { ...DEFAULT_SETTINGS.grid, ...caricate.grid },
         node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
         parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },
-        requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements }
+        requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements },
+        documentiPerClasse: unisciDocumentiPerClasse(caricate.documentiPerClasse)
     };
+}
+
+// Modello aziendale di Word e PDF (spec 0028, AC-3): ogni campo non testo vale ""
+export function unisciModello(caricato: unknown): ModelloAziendale {
+    const o = caricato && typeof caricato === 'object' ? caricato as Record<string, unknown> : {};
+    const testo = (v: unknown): string => (typeof v === 'string' ? v : '');
+    return { azienda: testo(o.azienda), logo: testo(o.logo), classificazione: testo(o.classificazione), piePagina: testo(o.piePagina), autore: testo(o.autore) };
+}
+
+// Per ciascuna classe vince una lista di stringhe, altrimenti il predefinito (spec 0027, AC-1):
+// un refuso in settings.json non deve far sparire tutti i documenti dal menu
+export function unisciDocumentiPerClasse(caricata: unknown): DocumentiPerClasse {
+    const esito: DocumentiPerClasse = { ...DEFAULT_SETTINGS.documentiPerClasse };
+    if (!caricata || typeof caricata !== 'object') return esito;
+    for (const classe of ['interfaccia', 'capacita'] as const) {
+        const lista = (caricata as Record<string, unknown>)[classe];
+        if (!Array.isArray(lista) || !lista.every(v => typeof v === 'string')) continue;
+        esito[classe] = [...new Set((lista as string[]).map(v => v.trim()).filter(v => v && v !== 'Cliente'))];
+    }
+    return esito;
 }

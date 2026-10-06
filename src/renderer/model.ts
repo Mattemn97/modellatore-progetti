@@ -4,7 +4,7 @@
 // Un requisito con tipologia è di interfaccia; con tipologia null è di capacità.
 
 import { appSettings, appState } from './state.js';
-import type { Blocco, Cliente, Filo, Grafo, Libreria, Nodo, Requisito, RequisitoCliente, RequisitoLibreria, TestoExport, TipoEstremo } from './tipi.js';
+import type { Blocco, ClasseDocumenti, Cliente, Filo, Grafo, Libreria, Nodo, Requisito, Impostazioni, RequisitoCliente, RequisitoLibreria, TestoExport, TipoEstremo } from './tipi.js';
 import { generaId } from './utils.js';
 
 export const CAPACITA = 'Capacità';
@@ -63,6 +63,67 @@ export function descriviRequisito(req: Requisito): string {
     ];
     req.testiExport.forEach((t) => righe.push(`[${t.documento || '?'}] ${t.testo}`));
     return righe.join('\n');
+}
+
+/* --- DOCUMENTI AMMESSI PER CLASSE DEL REQUISITO (spec 0027): una sola regola per Ispettore, albero e Documenti --- */
+
+type RegolaDocumenti = Pick<Impostazioni, 'documenti' | 'documentiPerClasse'>;
+
+// Con una tipologia (anche fuori da settings) è interfaccia, altrimenti capacità
+export function classeDocumenti(req: Requisito | null | undefined): ClasseDocumenti {
+    return isInterfaccia(req) ? 'interfaccia' : 'capacita';
+}
+
+// Documenti ammessi per la classe: prima quelli di settings.documenti nel loro ordine, poi gli altri della lista
+export function documentiDellaClasse(classe: ClasseDocumenti, impostazioni: RegolaDocumenti = appSettings): string[] {
+    const lista = new Set((impostazioni.documentiPerClasse?.[classe] || []).map(d => d.trim()).filter(d => d && d !== 'Cliente'));
+    const esito: string[] = [];
+    for (const d of (impostazioni.documenti || []).map(v => v.trim())) {
+        if (lista.has(d) && !esito.includes(d)) esito.push(d);
+    }
+    for (const d of lista) if (!esito.includes(d)) esito.push(d);
+    return esito;
+}
+
+// null se il documento è ammesso per il requisito (o vuoto), altrimenti il motivo da mostrare
+export function motivoNonAmmesso(req: Requisito, documento: string, impostazioni: RegolaDocumenti = appSettings): string | null {
+    const d = (documento || '').trim();
+    if (!d) return null;
+    const classe = classeDocumenti(req);
+    const ammessi = documentiDellaClasse(classe, impostazioni);
+    if (ammessi.includes(d)) return null;
+    const altra: ClasseDocumenti = classe === 'interfaccia' ? 'capacita' : 'interfaccia';
+    if (!documentiDellaClasse(altra, impostazioni).includes(d)) return `"${d}" non è in documentiPerClasse di settings.json`;
+    const nome = classe === 'interfaccia' ? 'interfaccia' : 'capacità';
+    if (!ammessi.length) return `nessun documento accetta requisiti di ${nome}`;
+    return `un requisito di ${nome} va solo in ${ammessi.join(', ')}`;
+}
+
+export interface TestoNonAmmesso {
+    blockId: string;
+    titoloBlocco: string;
+    reqId: string;
+    indiceRequisito: number;
+    indiceTesto: number;
+    documento: string;
+    motivo: string;
+}
+
+// Ogni blocco con i propri requisiti, ordinati per titolo del blocco (ordine naturale), poi requisito e testo
+export function testiNonAmmessi(libreria: Libreria, impostazioni: RegolaDocumenti = appSettings): TestoNonAmmesso[] {
+    const blocchi = Object.entries(libreria)
+        .map(([blockId, def]) => ({ blockId, def, titolo: def.titolo || blockId }))
+        .sort((a, b) => a.titolo.localeCompare(b.titolo, 'it', { numeric: true, sensitivity: 'base' }));
+    const esito: TestoNonAmmesso[] = [];
+    for (const { blockId, def, titolo } of blocchi) {
+        (def.requisiti || []).forEach((req, indiceRequisito) => {
+            (req.testiExport || []).forEach((t, indiceTesto) => {
+                const motivo = motivoNonAmmesso(req, t.documento, impostazioni);
+                if (motivo) esito.push({ blockId, titoloBlocco: titolo, reqId: req.id, indiceRequisito, indiceTesto, documento: t.documento.trim(), motivo });
+            });
+        });
+    }
+    return esito;
 }
 
 /* --- MIGRAZIONE: accetta il formato vecchio (name/category/requirements/type),

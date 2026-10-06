@@ -124,6 +124,8 @@ export interface FileProgetto {
     libraryPath: string;
     workspace: Grafo;
     cliente?: Cliente;
+    // Registro delle revisioni di ogni documento esportato (spec 0028), chiave = documento
+    revisioniDocumenti?: Record<string, RevisioneDocumento[]>;
 }
 
 /* --- Impostazioni (settings.json, fuse con i predefiniti) --- */
@@ -137,14 +139,20 @@ export interface Impostazioni {
     coerenza: { righePerGruppo: number };
     gerarchia: { righeAperte: number };
     matrice: { gruppiVisibili: number };
-    documentiExport: { anteprimaCaratteri: number };
+    documentiExport: { anteprimaCaratteri: number; modello: ModelloAziendale };
     grid: { size: number };
     node: { width: number; height: number; selectedBorderColor: string };
     parentBlock: { radius: number };
     requirements: { radius: number; capabilityColor: string; typeColors: Record<string, string> };
     metodiVerifica: string[];
     documenti: string[];
+    // Documenti ammessi per classe del requisito (spec 0027)
+    documentiPerClasse: DocumentiPerClasse;
 }
+
+export type ClasseDocumenti = 'interfaccia' | 'capacita';
+
+export type DocumentiPerClasse = Record<ClasseDocumenti, string[]>;
 
 /* --- Ponte con il processo principale (preload, spec 0016 e 0019) --- */
 
@@ -176,7 +184,45 @@ export interface Desktop {
         analizzaV1(cartella: string): Promise<{ nuovi: number; uguali: number; diversi: string[] } | { errore: string }>;
         importaV1(cartella: string, sovrascrivi: boolean): Promise<{ copiati: number; saltati: number } | { errore: string }>;
     };
+    documenti: {
+        esporta(richiesta: RichiestaExport): Promise<EsitoExport>;
+    };
 }
+
+/* --- Export Word e PDF (spec 0028) e diagrammi (spec 0029) --- */
+
+export interface RevisioneDocumento {
+    revisione: string;
+    data: string;
+    descrizione: string;
+    autore: string;
+}
+
+export interface ModelloAziendale {
+    azienda: string;
+    logo: string;
+    classificazione: string;
+    piePagina: string;
+    autore: string;
+}
+
+export interface ImmagineDiagramma {
+    svg: string;
+    png: Uint8Array;
+    larghezza: number;
+    altezza: number;
+}
+
+export interface RichiestaExport {
+    formato: 'docx' | 'pdf';
+    markdown: string;
+    intestazione: { documento: string; titolo: string; progetto: string; data: string; libreria: string };
+    modello: ModelloAziendale;
+    revisioni: RevisioneDocumento[];
+    immagini: Record<string, ImmagineDiagramma>;
+}
+
+export type EsitoExport = { ok: true; dati: Uint8Array; avviso: string | null } | { ok: false; messaggio: string };
 
 declare global {
     interface Window {

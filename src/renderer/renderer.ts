@@ -17,6 +17,7 @@ import {
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE, type Estremo
 } from './model.js';
 import { generaId } from './utils.js';
+import { posizioneCapacita, posizioneInColonna as posizioneInColonnaDiagramma, posizionePorta } from './diagramma.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
 import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
@@ -26,9 +27,6 @@ const viewport = document.getElementById('viewport') as unknown as SVGGElement;
 const nodesLayer = document.getElementById('nodesLayer') as unknown as SVGGElement;
 const edgesLayer = document.getElementById('edgesLayer') as unknown as SVGGElement;
 const parentLayer = document.getElementById('parentLayer') as unknown as SVGGElement;
-
-// Distanza dal bordo inferiore interno a cui stanno i pin di capacità di un blocco
-const MARGINE_PIN_CAPACITA = 12;
 
 interface Proprietario {
     ownerId: string;
@@ -542,8 +540,7 @@ function getParentBlockCenter(graph: Grafo, reqId: string, idx: number): Punto {
 
 // Posto idx della colonna a sinistra in cui stanno i blocchi tondi non ancora spostati
 export function posizioneInColonna(idx: number): Punto {
-    const passo = appSettings.parentBlock.radius * 2 + appSettings.grid.size * 2;
-    return { x: 60, y: 60 + idx * passo };
+    return posizioneInColonnaDiagramma(idx);
 }
 
 function getParentReqPinPos(graph: Grafo, reqId: string, idx: number): Punto {
@@ -686,32 +683,14 @@ export function getCanvasCoords(e: { clientX: number; clientY: number }): Punto 
     };
 }
 
+// Geometria condivisa con i diagrammi esportati (diagramma.ts, spec 0029)
 function getReqPerimeterPos(node: Nodo, reqId: string, idx: number, totalReqs: number): Punto {
-    const nodeW = node.width || appSettings.node.width;
-    const nodeH = node.height || appSettings.node.height;
-
     if (!node.pinPositions) node.pinPositions = {};
-    const pin = node.pinPositions[reqId];
-    if (pin) {
-        switch (pin.side) {
-            case 'top': return { x: pin.ratio * nodeW, y: 0 };
-            case 'bottom': return { x: pin.ratio * nodeW, y: nodeH };
-            case 'left': return { x: 0, y: pin.ratio * nodeH };
-            case 'right': return { x: nodeW, y: pin.ratio * nodeH };
-        }
-    }
-
-    const isRight = idx % 2 === 1;
-    return {
-        x: isRight ? nodeW : 0,
-        y: (nodeH / (Math.ceil(totalReqs / 2) + 1)) * (Math.floor(idx / 2) + 1)
-    };
+    return posizionePorta(node, reqId, idx, totalReqs);
 }
 
 function getCapacitaPos(node: Nodo, idx: number, totalReqs: number): Punto {
-    const nodeW = node.width || appSettings.node.width;
-    const nodeH = node.height || appSettings.node.height;
-    return { x: (nodeW / (totalReqs + 1)) * (idx + 1), y: nodeH - MARGINE_PIN_CAPACITA };
+    return posizioneCapacita(node, idx, totalReqs);
 }
 
 // Coordinate assolute del pin di un requisito di un nodo (bordo per l'interfaccia, interno per la capacità)
