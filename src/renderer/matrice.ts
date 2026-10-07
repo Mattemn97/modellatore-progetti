@@ -922,6 +922,7 @@ function installaEventiMenu(el: HTMLElement): void {
 // Filtri e scorrimento restano: serve anche per l'aggiornamento dopo una modifica al modello
 function ricalcola(): void {
     daAggiornare = false;
+    chiudiMenuColonna();
     // Aperta da un layout salvato senza passare da apriMatrice()
     if (gruppiMostrati <= 0) gruppiMostrati = appSettings.matrice.gruppiVisibili;
     applicaRicercaInSospeso();
