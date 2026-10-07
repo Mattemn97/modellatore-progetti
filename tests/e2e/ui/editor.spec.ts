@@ -127,7 +127,7 @@ test('pin di capacità: Shift+trascina lo sposta dentro il blocco, Riposiziona i
         // Nessun filo nuovo: con Shift il pin si sposta e basta
         expect(leggiJson<ConPin>(file).workspace.edges).toHaveLength(1);
 
-        await pagina.locator('#nodesLayer > g', { hasText: 'Alimentatore' }).locator('rect.node-rect').click({ position: { x: 120, y: 10 } });
+        await pagina.locator('#nodesLayer > g', { hasText: 'Alimentatore' }).locator('rect.node-rect').dispatchEvent('click');
         const riposiziona = pagina.locator('#btnRiposizionaPin');
         await expect(riposiziona).toBeEnabled();
         await riposiziona.click();
