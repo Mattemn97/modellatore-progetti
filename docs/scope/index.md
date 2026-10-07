@@ -11,8 +11,8 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 
 - [v1-web.md](v1-web.md): editor web con server locale (1.x). 18 voci, tutte `done` o `existing`.
 - [v2-desktop.md](v2-desktop.md): app desktop Windows in TypeScript, pannelli agganciabili, installabile (2.0.0). 16 voci, tutte `done`.
-- [feedback-utenti.md](feedback-utenti.md): blocco G, richieste di chi usa la 2.1.0 (pin di capacità, fili intorno ai blocchi, blocchi matrioska, filtri della Matrice, filtro dell'import cliente). Voci 57–62, release 2.2.0, tutte `planned`.
-- **futuro** (voci 32–56, ancora senza file di epic): idee dopo la 2.0.0 divise in sei blocchi di rilascio, dalla 2.1.0 alla 2.7.0, descritte in "Idee future" qui sotto. Blocco A (32–34, 2.1.0) `done`, le altre `planned`. Il blocco G è entrato dopo il blocco A e ha spostato in avanti di una release i blocchi da B a F.
+- [feedback-utenti.md](feedback-utenti.md): blocco G, richieste di chi usa la 2.1.0 (pin di capacità, fili intorno ai blocchi, blocchi matrioska, filtri della Matrice, filtro dell'import cliente). Voci 57–62, release 2.2.0, tutte `done`.
+- **futuro** (voci 32–56, ancora senza file di epic): idee dopo la 2.0.0 divise in sei blocchi di rilascio, dalla 2.1.0 alla 2.7.0, descritte in "Idee future" qui sotto. Blocco A (32–34, 2.1.0) e blocco G (57–62, 2.2.0) `done`, le altre `planned`. Il blocco G è entrato dopo il blocco A e ha spostato in avanti di una release i blocchi da B a F.
 
 ## At a glance
 
@@ -60,7 +60,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 59 | Pin di capacità spostabili | feedback | Blocco G (2.2.0) | done |
 | 60 | Instradamento automatico dei fili | feedback | Blocco G (2.2.0) | done |
 | 61 | Blocchi di libreria con l'interno (matrioska) | feedback | Blocco G (2.2.0) | done |
-| 62 | Rilascio 2.2.0 | feedback | Blocco G (2.2.0) | planned |
+| 62 | Rilascio 2.2.0 | feedback | Blocco G (2.2.0) | done |
 | 35 | Ricerca globale | futuro | Blocco B (2.3.0) | planned |
 | 36 | Minimappa e panoramica dei livelli | futuro | Blocco B (2.3.0) | planned |
 | 37 | Selezione multipla e allineamento | futuro | Blocco B (2.3.0) | planned |

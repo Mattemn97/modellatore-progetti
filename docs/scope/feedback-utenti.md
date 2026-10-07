@@ -38,7 +38,7 @@ Un blocco di libreria può salvare anche il suo interno: i blocchi figli, i fili
 - [x] Design it (spec): [0034](../specs/0034-blocchi-matrioska.md)
 - [x] Build it: `src/renderer/matrioska.ts` (istanziazione, controlli), `Blocco.interno` conservato da `normalizzaBlocco()` e dal salvataggio dell'Ispettore, Salva / Togli l'interno in `inspector.ts`, 📦 e ⚠ in `builder.ts`, rinomina negli interni in `src/main/api/librerie.ts`; test in `tests/unit/matrioska.test.ts`, `tests/e2e/ui/libreria.spec.ts`, `tests/e2e/api/libreria.spec.ts`
 
-### 62. Rilascio 2.2.0
+### 62. Rilascio 2.2.0 · done
 Chiude il blocco come descritto in [index.md](index.md): `version` 2.2.0, note in `packaging/note/2.2.0.md`, `packaging/TUTORIAL.md` e `docs/guida/` aggiornati (pin, fili, matrioska, filtri della Matrice, filtro dell'import), aiuto contestuale e tour allineati, merge di `develop` in `main`.
 **Done when:** la Release 2.2.0 è pubblicata e una copia 2.1.0 installata si aggiorna e apre i suoi progetti senza perdite.
-- [ ] Prepare the release: `/develop rilascio 2.2.0`
+- [x] Prepare the release: `version` 2.2.0, note in `packaging/note/2.2.0.md`, `TUTORIAL.md` e `docs/guida/` aggiornati, revisione in `docs/reviews/2026-10-07-develop.md`, merge di `develop` in `main`
