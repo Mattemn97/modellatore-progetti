@@ -70,6 +70,61 @@ test.describe.serial('tracciabilità su un progetto con requisiti cliente', () =
         expect(fs.readFileSync(path.join(cartellaDownload, nome), 'utf-8')).toContain('ali_002');
     });
 
+    test('Matrice: filtri e ordinamento per colonna, Pulisci filtri (spec 0031)', async () => {
+        const { pagina } = a;
+        const tabella = pagina.locator('#matriceContenuto');
+        const menu = pagina.locator('#menuColonnaMatrice');
+        const pulisci = pagina.locator('#btnPulisciMatrice');
+        await expect(tabella).toContainText('Peso');
+        await expect(pulisci).toBeDisabled();
+
+        // Filtro sui valori: tolgo R2 dagli ID padre
+        await pagina.locator('.menu-colonna[data-colonna="idPadre"]').click();
+        await expect(menu).toBeVisible();
+        await expect(menu).toContainText('(Seleziona tutto)');
+        await menu.locator('input[data-valore="R2"]').uncheck();
+        await menu.locator('[data-azione="ok"]').click();
+        await expect(menu).toBeHidden();
+        await expect(tabella).not.toContainText('Peso');
+        await expect(tabella).toContainText('ali_002');
+        await expect(pagina.locator('.menu-colonna[data-colonna="idPadre"]')).toHaveClass(/filtrata/);
+        await expect(pulisci).toBeEnabled();
+
+        // Esc chiude senza applicare
+        await pagina.locator('.menu-colonna[data-colonna="bloccoFiglio"]').click();
+        await expect(menu).toBeVisible();
+        await menu.locator('input[data-tutti]').uncheck();
+        await expect(menu.locator('[data-azione="ok"]')).toBeDisabled();
+        await pagina.keyboard.press('Escape');
+        await expect(menu).toBeHidden();
+        await expect(tabella).toContainText('ali_002');
+
+        // Combinato con Documento: IDD toglie l'unica derivazione rimasta
+        await pagina.locator('#matriceDocumento').selectOption('IDD');
+        await expect(tabella).not.toContainText('ali_002');
+        await pagina.locator('#matriceDocumento').selectOption({ index: 0 });
+
+        // Ricerca nel menu con Invio: solo i valori visibili e spuntati
+        await pagina.locator('.menu-colonna[data-colonna="spId"]').click();
+        await menu.locator('.cerca-menu-colonna').fill('cen');
+        await expect(menu.locator('input[data-valore]')).toHaveCount(2);
+        await menu.locator('.cerca-menu-colonna').press('Enter');
+        await expect(tabella).not.toContainText('ali_001');
+        await expect(tabella).toContainText('cen_001');
+
+        // Ordinamento Z→A della tabella Senza padre
+        await pagina.locator('.menu-colonna[data-colonna="spId"]').click();
+        await menu.locator('[data-azione="desc"]').click();
+        await expect(tabella.locator('table').last().locator('tbody tr').first()).toContainText('cen_002');
+        await expect(tabella.locator('table').last().locator('thead')).toContainText('↓');
+
+        await pulisci.click();
+        await expect(tabella).toContainText('Peso');
+        await expect(tabella).toContainText('ali_001');
+        await expect(pagina.locator('.menu-colonna.filtrata')).toHaveCount(0);
+        await expect(pulisci).toBeDisabled();
+    });
+
     test('Matrice aperta come pannello: si aggiorna dopo una modifica e con Ctrl+Z (spec 0022)', async () => {
         const { pagina } = a;
         const conteggi = pagina.locator('#matriceConteggi');

@@ -56,7 +56,7 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 33 | Immagini dei diagrammi | futuro | Blocco A (2.1.0) | done |
 | 34 | Rilascio 2.1.0 | futuro | Blocco A (2.1.0) | done |
 | 57 | Filtro delle righe nell'import cliente | feedback | Blocco G (2.2.0) | done |
-| 58 | Filtri per colonna nella Matrice | feedback | Blocco G (2.2.0) | planned |
+| 58 | Filtri per colonna nella Matrice | feedback | Blocco G (2.2.0) | done |
 | 59 | Pin di capacità spostabili | feedback | Blocco G (2.2.0) | planned |
 | 60 | Instradamento automatico dei fili | feedback | Blocco G (2.2.0) | planned |
 | 61 | Blocchi di libreria con l'interno (matrioska) | feedback | Blocco G (2.2.0) | planned |

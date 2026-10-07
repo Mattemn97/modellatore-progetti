@@ -132,6 +132,39 @@ describe('matrice', () => {
         expect(ricerca.senzaPadre.map((v) => v.id)).toEqual(['ali_ele']);
     });
 
+    it('filtri per colonna, valori del menu, ordinamento e descrizione nell\'export (spec 0031)', () => {
+        const { radice, cliente } = modello();
+        const mat = m.matrice.calcolaMatrice(m.gerarchia.calcolaGerarchia(radice, LIB, cliente), LIB, cliente, 'Radice');
+        const base = { documento: '', lato: 'entrambi' as const, classe: '', ricerca: '' };
+        const padri = (f: Parameters<typeof m.matrice.filtraMatrice>[1]) => m.matrice.filtraMatrice(mat, f).gruppi.map((g) => g.gruppo.padre.idMostrato);
+
+        // Valori distinti in ordine naturale; la cella vuota del figlio di un padre senza figli è ''
+        expect(m.matrice.valoriColonna(mat, base, 'bloccoFiglio')).toEqual(['', 'Alimentatore', 'Sistema']);
+        expect(m.matrice.valoriColonna(mat, base, 'documentiFiglio')).toEqual(['', 'SSDD', 'SSS']);
+
+        // Un filtro di colonna tiene le righe con un valore scelto; due colonne in AND
+        expect(padri({ ...base, colonne: { bloccoFiglio: ['Sistema'] } })).toEqual(['1', '3']);
+        expect(padri({ ...base, colonne: { bloccoFiglio: ['Sistema'], note: ['Ritirato'] } })).toEqual(['3']);
+        expect(padri({ ...base, colonne: { bloccoFiglio: [''] } })).toEqual(['2', 'sys_ele']);
+        // Con i filtri globali: Documento SSDD lato figlio e blocco figlio Sistema non hanno righe in comune
+        expect(padri({ ...base, documento: 'SSDD', lato: 'figlio', colonne: { bloccoFiglio: ['Sistema'] } })).toEqual([]);
+        // L'elenco di una colonna ignora il suo filtro ma rispetta gli altri
+        expect(m.matrice.valoriColonna(mat, { ...base, colonne: { bloccoFiglio: ['Sistema'], note: ['Ritirato'] } }, 'note')).toEqual(['', 'Ritirato']);
+        // Senza padre ha le sue colonne
+        expect(m.matrice.filtraMatrice(mat, { ...base, colonne: { spBlocco: ['Alimentatore'] } }).senzaPadre.map((v) => v.id)).toEqual(['ali_ele']);
+
+        // Ordinamento: sul padre ordina i gruppi, sul figlio le righe e poi i gruppi per la prima riga
+        expect(padri({ ...base, ordine: { derivazioni: { colonna: 'idPadre', verso: 'desc' } } })).toEqual(['sys_ele', 'sys_cap', '3', '2', '1']);
+        expect(padri({ ...base, ordine: { derivazioni: { colonna: 'bloccoFiglio', verso: 'asc' } } })).toEqual(['2', 'sys_ele', 'sys_cap', '1', '3']);
+        expect(m.matrice.filtraMatrice(mat, { ...base, ordine: { senzaPadre: { colonna: 'spId', verso: 'asc' } } }).senzaPadre.map((v) => v.id)).toEqual(['ali_ele', 'sys_ele']);
+
+        expect(m.matrice.filtriAttivi(base)).toBe(false);
+        expect(m.matrice.filtriAttivi({ ...base, colonne: { note: [''] } })).toBe(true);
+        const f = { ...base, colonne: { bloccoFiglio: ['Sistema', ''] }, ordine: { derivazioni: { colonna: 'metodoFiglio', verso: 'desc' as const } } };
+        const md = m.matrice.matriceInMarkdown(m.matrice.filtraMatrice(mat, f), { nome: 'P', data: '2026-10-07', libreria: { nomeFile: 'l.json', versione: null }, filtri: f });
+        expect(md).toContain('Filtri: Blocco figlio: Sistema, (vuote) · Ordine: Metodo figlio Z→A');
+    });
+
     it('celle Markdown con barre e a capo', () => {
         expect(m.matrice.cellaMd('a|b\nc\\d')).toBe('a\\|b c\\\\d');
         expect(m.matrice.tabellaMd(['X', 'Y'], [[1, 'z']])).toEqual(['| X | Y |', '| --- | --- |', '| 1 | z |']);

@@ -332,6 +332,26 @@ span.segno-ramo { cursor: default; }
 .tabella-matrice .vai-matrice { cursor: pointer; }
 .tabella-matrice .vai-matrice:hover { background: #e1e9f1; text-decoration: underline; }
 .tabella-matrice .ritirato-matrice { text-decoration: line-through; color: #999; }
+/* Menu delle colonne della Matrice (spec 0031) */
+.intestazione-matrice { display: inline-flex; align-items: center; gap: 4px; }
+.ordine-colonna { color: #0078d4; font-weight: bold; }
+.menu-colonna { border: 1px solid #c8d1db; background: white; color: #555; border-radius: 3px; padding: 0 4px; font-size: 10px; line-height: 16px; cursor: pointer; }
+.menu-colonna:hover { background: #e1e9f1; }
+.menu-colonna.filtrata { background: #0078d4; border-color: #0078d4; color: white; }
+.tabella-matrice th.colonna-filtrata { background: #dcebf8; }
+.menu-colonna-matrice { position: fixed; z-index: 50; width: 260px; max-height: 380px; display: flex; flex-direction: column; gap: 4px; padding: 8px; box-sizing: border-box;
+    background: white; border: 1px solid #b0bac5; border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); font-size: 12px; }
+.menu-colonna-matrice[hidden] { display: none; }
+.menu-colonna-matrice:focus { outline: none; }
+.titolo-menu-colonna { font-weight: bold; color: #333; padding-bottom: 2px; border-bottom: 1px solid #eee; }
+.voce-menu-colonna { text-align: left; background: none; border: none; padding: 3px 4px; border-radius: 3px; font-size: 12px; cursor: pointer; }
+.voce-menu-colonna:hover { background: #eef2f6; }
+.voce-menu-colonna.attivo { color: #0078d4; font-weight: bold; }
+.cerca-menu-colonna { padding: 4px; font-size: 12px; }
+.valori-menu-colonna { flex: 1; min-height: 60px; overflow-y: auto; border: 1px solid #e3e6ea; padding: 2px 4px; }
+.valore-menu-colonna { display: flex; align-items: center; gap: 4px; padding: 1px 0; white-space: nowrap; }
+.valore-menu-colonna span { overflow: hidden; text-overflow: ellipsis; }
+.pulsanti-menu-colonna { display: flex; justify-content: flex-end; gap: 6px; }
 .titolo-sezione-matrice { font-size: 13px; font-weight: bold; color: #333; margin: 14px 0 6px; }
 .altri-matrice { margin: 8px 0; }
 .disattivato { color: #999; cursor: not-allowed; pointer-events: auto; }
