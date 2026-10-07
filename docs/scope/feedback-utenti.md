@@ -20,10 +20,11 @@ Filtri come in Excel sulla tabella della Matrice di tracciabilità: ogni intesta
 - [x] Design it (spec): [0031](../specs/0031-filtri-colonne-matrice.md)
 - [x] Build it: `src/renderer/matrice.ts` (`COLONNE_DERIVAZIONI`, `filtraMatrice()` con colonne e ordine, `valoriColonna()`, menu `#menuColonnaMatrice`, `Pulisci filtri`), test in `tests/unit/regole.test.ts`, `tests/e2e/ui/tracciabilita.spec.ts` e `pannelli.spec.ts`
 
-### 59. Pin di capacità spostabili · needs a decision
+### 59. Pin di capacità spostabili · done
 I quadratini dei requisiti di capacità dentro il rettangolo di un blocco si possono trascinare dove vuoi, agganciati alla griglia, per orientarli verso i blocchi a cui vanno e non incrociare i fili. Oggi l'app li mette in fila da sola e non si possono spostare.
 **Done when:** trascini un quadratino dentro il blocco e resta lì (salvato per istanza, come le porte di interfaccia sul bordo); non esce dal rettangolo né si sovrappone a un altro; un comando "Riposiziona i pin" torna alla disposizione automatica; ridimensionando il blocco i pin restano dentro; le immagini dei diagrammi (spec 0029) li disegnano nella nuova posizione; i progetti vecchi si aprono con la disposizione di oggi.
-- [ ] Design it (spec): `/architect pin di capacità spostabili`
+- [x] Design it (spec): [0032](../specs/0032-pin-capacita-spostabili.md)
+- [x] Build it: `posizioniCapacita()` / `puntoPin()` in `src/renderer/diagramma.ts`, Shift+trascina in `renderer.ts`, `↺ Riposiziona i pin` in `inspector.ts`, test in `tests/unit/regole.test.ts` e `tests/e2e/ui/editor.spec.ts`
 
 ### 60. Instradamento automatico dei fili · needs a decision
 I fili non passano mai sotto i blocchi: l'app li fa girare intorno con tratti ad angolo retto. I punti che hai messo a mano su un filo vincono sempre; un comando "Reinstrada" li toglie e lascia fare all'app. Si appoggia alle posizioni dei pin della voce 59, per questo viene dopo.

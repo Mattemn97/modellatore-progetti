@@ -17,7 +17,7 @@ import {
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE, type Estremo
 } from './model.js';
 import { generaId } from './utils.js';
-import { posizioneCapacita, posizioneInColonna as posizioneInColonnaDiagramma, posizionePorta } from './diagramma.js';
+import { limitaDentro, pinSovrapposti, posizioniCapacita, posizioneInColonna as posizioneInColonnaDiagramma, posizionePorta, puntoPin } from './diagramma.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
 import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
@@ -507,11 +507,21 @@ function renderNode(node: Nodo, blockDef: Blocco): void {
         g.appendChild(pin);
     });
 
-    // Capacità: pin quadrati all'interno del blocco, lungo il bordo inferiore
+    // Capacità: pin quadrati all'interno del blocco, in fila sul bordo inferiore o dove li hai spostati con Shift (spec 0032)
     const capacita = blockDef.requisiti.filter((r) => !isInterfaccia(r));
-    capacita.forEach((req, idx) => {
-        const pos = getCapacitaPos(node, idx, capacita.length);
-        g.appendChild(createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'quadrato'));
+    const posizioni = posizioniCapacita(node, capacita.map((r) => r.id));
+    capacita.forEach((req) => {
+        const pos = posizioni[req.id];
+        if (!pos) return;
+        const pin = createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'quadrato');
+        pin.classList.add('pin-capacita');
+        pin.addEventListener('mousedown', (e) => {
+            if (e.shiftKey) {
+                e.stopPropagation();
+                startPinCapacitaDrag(node, blockDef, req.id);
+            }
+        });
+        g.appendChild(pin);
     });
 
     g.addEventListener('mousedown', (e) => startDrag(e, node));
@@ -689,22 +699,12 @@ function getReqPerimeterPos(node: Nodo, reqId: string, idx: number, totalReqs: n
     return posizionePorta(node, reqId, idx, totalReqs);
 }
 
-function getCapacitaPos(node: Nodo, idx: number, totalReqs: number): Punto {
-    return posizioneCapacita(node, idx, totalReqs);
-}
-
 // Coordinate assolute del pin di un requisito di un nodo (bordo per l'interfaccia, interno per la capacità)
 export function getReqCoordinates(node: Nodo, reqId: string): Punto | null {
     const blockDef = getBlockDef(node.type);
-    const req = blockDef?.requisiti.find((r) => r.id === reqId);
-    if (!blockDef || !req) return null;
-
-    const gruppo = blockDef.requisiti.filter((r) => isInterfaccia(r) === isInterfaccia(req));
-    const idx = gruppo.indexOf(req);
-    const relPos = isInterfaccia(req)
-        ? getReqPerimeterPos(node, reqId, idx, gruppo.length)
-        : getCapacitaPos(node, idx, gruppo.length);
-    return { x: node.position.x + relPos.x, y: node.position.y + relPos.y };
+    if (!blockDef) return null;
+    if (!node.pinPositions) node.pinPositions = {};
+    return puntoPin(node, blockDef, reqId);
 }
 
 function getEstremoCoords(ownerId: string, reqId: string, ownerType: TipoEstremo, graph: Grafo): Punto | null {
@@ -741,7 +741,8 @@ function createReqPin(cx: number, cy: number, req: Requisito, owner: Proprietari
         pin.classList.add('fuori-filtro');
     }
 
-    const suggerimento = owner.ownerType === 'node' && isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '';
+    const suggerimento = owner.ownerType !== 'node' ? ''
+        : isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '\n[Shift+trascina per spostare il pin]';
     aggiungiTooltip(pin, descriviRequisito(req) + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
 
     pin.addEventListener('mousedown', (e) => {
@@ -816,14 +817,15 @@ export function cleanupEdgeDrawing(): void {
 
 /* --- TRASCINAMENTI --- */
 
-// Collega il trascinamento a window finché il tasto non si rilascia
+// Collega il trascinamento a window finché il tasto non si rilascia. Il rilascio si ascolta in cattura:
+// un pin sotto il mouse ferma la propagazione del suo mouseup, e il trascinamento resterebbe agganciato
 function trascina(drag: (ev: MouseEvent) => void): void {
     function endDrag(): void {
         window.removeEventListener('mousemove', drag);
-        window.removeEventListener('mouseup', endDrag);
+        window.removeEventListener('mouseup', endDrag, true);
     }
     window.addEventListener('mousemove', drag);
-    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('mouseup', endDrag, true);
 }
 
 function startResizeDrag(e: MouseEvent, node: Nodo): void {
@@ -865,6 +867,30 @@ function startPinPerimeterDrag(node: Nodo, reqId: string): void {
 
         render();
     });
+}
+
+// Un pin di capacità segue il mouse sulla griglia, dentro il blocco; una casella che coprirebbe un altro pin
+// è rifiutata e il pin resta all'ultima posizione buona (spec 0032, AC-3)
+function startPinCapacitaDrag(node: Nodo, blockDef: Blocco, reqId: string): void {
+    const ids = blockDef.requisiti.filter((r) => !isInterfaccia(r)).map((r) => r.id);
+    trascina((ev) => {
+        const coords = getCanvasCoords(ev);
+        const nuova = limitaDentro({ x: coords.x - node.position.x, y: coords.y - node.position.y }, node);
+        const attuali = posizioniCapacita(node, ids);
+        const vecchia = attuali[reqId];
+        if (vecchia && vecchia.x === nuova.x && vecchia.y === nuova.y) return;
+        if (ids.some((id) => id !== reqId && attuali[id] && pinSovrapposti(attuali[id], nuova))) return;
+        if (!node.capabilityPositions) node.capabilityPositions = {};
+        node.capabilityPositions[reqId] = nuova;
+        render();
+    });
+}
+
+// Riposiziona i pin (spec 0032, AC-6): l'istanza torna alla disposizione automatica dei pin di capacità
+export function riposizionaPinCapacita(node: Nodo): void {
+    if (!node.capabilityPositions) return;
+    delete node.capabilityPositions;
+    render();
 }
 
 function startWaypointDrag(e: MouseEvent, waypoint: Punto): void {

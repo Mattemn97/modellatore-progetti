@@ -480,6 +480,10 @@ export function aggiornaRiferimentiRequisiti(
                 // Le porte sul bordo esistono solo per i requisiti di interfaccia
                 const mappa = riallineaMappa(node.pinPositions, (req) => isInterfaccia(req));
                 if (mappa) node.pinPositions = mappa;
+                // I pin di capacità spostati (spec 0032) esistono solo per i requisiti di capacità
+                const capacita = riallineaMappa(node.capabilityPositions, (req) => Boolean(req) && !isInterfaccia(req));
+                if (capacita && Object.keys(capacita).length) node.capabilityPositions = capacita;
+                else delete node.capabilityPositions;
             }
             if (node.internal_graph) visita(node.internal_graph, node.type);
         });

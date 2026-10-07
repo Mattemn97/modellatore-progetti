@@ -78,7 +78,7 @@ Se il progetto contiene un blocco il cui tipo non esiste più nella libreria ape
 ## Porte e pin
 
 * Le **porte** (requisiti di interfaccia) stanno sul bordo del blocco, colorate secondo la tipologia. Per spostarne una lungo il bordo, **tieni premuto Shift e trascinala**: con Shift premuto il cursore sopra la porta diventa la freccia di spostamento.
-* I **pin quadrati** viola (requisiti di capacità) stanno dentro il rettangolo del blocco.
+* I **pin quadrati** viola (requisiti di capacità) stanno dentro il rettangolo del blocco, in fila sul bordo inferiore. Anche loro si spostano con **Shift+trascina**, dove vuoi dentro il rettangolo e agganciati alla griglia: così li orienti verso i blocchi a cui vanno e i fili non si incrociano. La posizione vale solo per quell'istanza del blocco; un pin non esce dal blocco e non si sovrappone a un altro, nemmeno quando ridimensioni il blocco. Per rimetterli in fila: seleziona il blocco e premi **`↺ Riposiziona i pin`** nella sezione *Questa istanza* dell'Ispettore.
 * Senza Shift, trascinare da una porta o da un pin serve a tirare un filo.
 
 ## Blocchi tondi
@@ -99,7 +99,7 @@ Alla radice i cerchi sono i requisiti del cliente che hai portato sul canvas. Un
 
 In basso a sinistra del canvas c'è una riga che ricorda i gesti che non hanno un pulsante:
 
-> Shift+trascina una porta per spostarla lungo il bordo · Doppio clic su un filo: aggiungi snodo · Clic destro su un filo: elimina · Doppio clic su un blocco: entra
+> Shift+trascina una porta per spostarla lungo il bordo, o un pin di capacità dentro il blocco · Doppio clic su un filo: aggiungi snodo · Clic destro su un filo: elimina · Doppio clic su un blocco: entra
 
 La riga non blocca i clic sul canvas. Se non ti serve più, chiudila con `✕`: il browser se lo ricorda anche le volte successive.
 
@@ -133,6 +133,7 @@ La colonna destra cambia contenuto secondo quello che hai selezionato:
 | `Ctrl+Z` | Annulla l'ultima modifica al progetto |
 | `Ctrl+Y` oppure `Ctrl+Shift+Z` | Ripeti |
 | `Shift` + trascina una porta | Sposta la porta lungo il bordo |
+| `Shift` + trascina un pin di capacità | Sposta il pin dentro il blocco |
 | `Esc` | Con la Gerarchia accesa, toglie il requisito scelto |
 
 Annulla, Ripeti ed Esc non agiscono mentre scrivi in un campo di testo o mentre è aperta una finestra (Apri, Changelog, Import cliente, Matrice, Documenti), così non cambi nulla per sbaglio dietro la finestra.

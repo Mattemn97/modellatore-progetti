@@ -7,7 +7,7 @@ import { infoProgetto } from './progetto.js';
 import { scaricaFileTesto } from './storage.js';
 import { isDerivazione, isInterfaccia, isRequisitoCliente, titoloRequisito } from './model.js';
 import { escapeHtml, slugifyId } from './utils.js';
-import type { Cliente, Grafo, Impostazioni, Libreria, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
+import type { Blocco, Cliente, Grafo, Impostazioni, Libreria, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
 type Geometria = Pick<Impostazioni, 'node' | 'parentBlock' | 'grid' | 'requirements'>;
 
@@ -41,11 +41,77 @@ export function posizionePorta(node: Nodo, reqId: string, idx: number, totale: n
     return { x: destra ? w : 0, y: (h / (Math.ceil(totale / 2) + 1)) * (Math.floor(idx / 2) + 1) };
 }
 
-// Pin di capacità dentro il blocco, lungo il bordo inferiore, relativo al blocco
+// Pin di capacità dentro il blocco, lungo il bordo inferiore, relativo al blocco: la disposizione automatica
 export function posizioneCapacita(node: Nodo, idx: number, totale: number, imp: Geometria = appSettings): Punto {
     const w = node.width || imp.node.width;
     const h = node.height || imp.node.height;
     return { x: (w / (totale + 1)) * (idx + 1), y: h - MARGINE_PIN_CAPACITA };
+}
+
+// Un centro di pin di capacità riportato dentro il rettangolo del blocco (spec 0032, AC-3, AC-4)
+export function limitaDentro(p: Punto, node: Nodo, imp: Geometria = appSettings): Punto {
+    const w = node.width || imp.node.width;
+    const h = node.height || imp.node.height;
+    const m = imp.requirements.radius + 2;
+    const dentro = (v: number, max: number) => (max < m ? max / 2 : Math.min(Math.max(v, m), max - m));
+    return { x: dentro(p.x, w), y: dentro(p.y, h) };
+}
+
+// Due pin quadrati si sovrappongono se i loro centri distano meno di un lato su entrambi gli assi
+export function pinSovrapposti(a: Punto, b: Punto, imp: Geometria = appSettings): boolean {
+    const lato = imp.requirements.radius * 2;
+    return Math.abs(a.x - b.x) < lato && Math.abs(a.y - b.y) < lato;
+}
+
+// Centri di tutti i pin di capacità di un blocco, relativi al blocco (spec 0032). ids: i requisiti di capacità
+// nell'ordine della libreria. Senza posizioni salvate è la disposizione automatica di sempre, identica
+export function posizioniCapacita(node: Nodo, ids: string[], imp: Geometria = appSettings): Record<string, Punto> {
+    const salvate = node.capabilityPositions ?? {};
+    const risultato: Record<string, Punto> = {};
+    if (!ids.some((id) => salvate[id])) {
+        ids.forEach((id, idx) => { risultato[id] = posizioneCapacita(node, idx, ids.length, imp); });
+        return risultato;
+    }
+    const occupati: Punto[] = [];
+    const libero = (p: Punto) => occupati.every((o) => !pinSovrapposti(o, p, imp));
+    const passo = imp.grid.size;
+    // La casella libera più vicina, per anelli di griglia sempre più larghi
+    const cercaLibero = (p: Punto): Punto => {
+        if (libero(p)) return p;
+        for (let anello = 1; anello <= 30; anello++) {
+            for (let dy = -anello; dy <= anello; dy++) {
+                for (let dx = -anello; dx <= anello; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) !== anello) continue;
+                    const q = limitaDentro({ x: p.x + dx * passo, y: p.y + dy * passo }, node, imp);
+                    if (libero(q)) return q;
+                }
+            }
+        }
+        return p;
+    };
+    const piazza = (id: string, p: Punto) => {
+        const q = cercaLibero(p);
+        risultato[id] = q;
+        occupati.push(q);
+    };
+    // Prima i pin spostati a mano (vincono loro), poi gli automatici al loro posto di sempre, se è libero
+    ids.forEach((id) => { const p = salvate[id]; if (p) piazza(id, limitaDentro(p, node, imp)); });
+    ids.forEach((id, idx) => { if (!salvate[id]) piazza(id, posizioneCapacita(node, idx, ids.length, imp)); });
+    return risultato;
+}
+
+// Centro assoluto del pin di un requisito di un nodo: porta sul bordo per l'interfaccia, dentro per la capacità
+export function puntoPin(node: Nodo, def: Blocco, reqId: string, imp: Geometria = appSettings): Punto | null {
+    const req = def.requisiti.find((r) => r.id === reqId);
+    if (!req) return null;
+    let rel: Punto | undefined;
+    if (isInterfaccia(req)) {
+        const porte = def.requisiti.filter(isInterfaccia);
+        rel = posizionePorta(node, reqId, porte.indexOf(req), porte.length, imp);
+    } else {
+        rel = posizioniCapacita(node, def.requisiti.filter((r) => !isInterfaccia(r)).map((r) => r.id), imp)[reqId];
+    }
+    return rel ? { x: node.position.x + rel.x, y: node.position.y + rel.y } : null;
 }
 
 /* --- SVG di un livello --- */
@@ -117,12 +183,7 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
         }
         const nodo = nodi.get(ownerId);
         const def = nodo ? libreria[nodo.type] : undefined;
-        const req = def?.requisiti.find((r) => r.id === reqId);
-        if (!nodo || !def || !req) return null;
-        const gruppo = def.requisiti.filter((r) => isInterfaccia(r) === isInterfaccia(req));
-        const idx = gruppo.indexOf(req);
-        const rel = isInterfaccia(req) ? posizionePorta(nodo, reqId, idx, gruppo.length, imp) : posizioneCapacita(nodo, idx, gruppo.length, imp);
-        return { x: nodo.position.x + rel.x, y: nodo.position.y + rel.y };
+        return nodo && def ? puntoPin(nodo, def, reqId, imp) : null;
     }
 
     function pin(x: number, y: number, req: Requisito, quadrato: boolean): string {
@@ -179,9 +240,10 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
             parti.push(pin(x + p.x, y + p.y, req, false));
         });
         const capacita = def.requisiti.filter((r) => !isInterfaccia(r));
-        capacita.forEach((req, idx) => {
-            const p = posizioneCapacita(nodo, idx, capacita.length, imp);
-            parti.push(pin(x + p.x, y + p.y, req, true));
+        const posizioni = posizioniCapacita(nodo, capacita.map((r) => r.id), imp);
+        capacita.forEach((req) => {
+            const p = posizioni[req.id];
+            if (p) parti.push(pin(x + p.x, y + p.y, req, true));
         });
         blocchi.push(`<g>${parti.join('')}</g>`);
     });

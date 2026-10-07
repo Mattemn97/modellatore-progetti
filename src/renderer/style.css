@@ -96,6 +96,10 @@ select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b
 .req-testo { display: flex; flex-direction: column; gap: 2px; }
 
 .prop-item { margin-bottom: 8px; font-size: 12px; }
+.sezione-istanza { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid #dde3ea; border-radius: 4px; background: #f8f9fa; font-size: 12px; }
+.pulsante-istanza { background: white; color: #333; border: 1px solid #b0bac5; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; text-align: left; }
+.pulsante-istanza:hover:not(:disabled) { background: #e1e9f1; }
+.pulsante-istanza:disabled { color: #999; cursor: default; }
 .prop-item strong { display: block; color: #666; font-size: 11px; text-transform: uppercase; }
 .empty-props { color: #888; font-style: italic; font-size: 13px; }
 
@@ -360,7 +364,7 @@ span.segno-ramo { cursor: default; }
 .aiuto-canvas { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: rgba(255, 255, 255, 0.92); border: 1px solid #ddd; border-radius: 4px; font-size: 11px; color: #555; pointer-events: none; z-index: 5; box-sizing: border-box; }
 .aiuto-canvas[hidden] { display: none; }
 .aiuto-canvas button { pointer-events: auto; border: none; background: none; cursor: pointer; font-size: 12px; color: #777; padding: 0 2px; }
-.shift-premuto .porta-interfaccia { cursor: move; }
+.shift-premuto .porta-interfaccia, .shift-premuto .pin-capacita { cursor: move; }
 
 /* Aiuto contestuale: icone (i), suggerimento, menu Aiuto (spec 0012) */
 .icona-aiuto { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; margin-left: 4px; border-radius: 50%; background: #0078d4; color: white; font: italic bold 9px Georgia, 'Times New Roman', serif; text-transform: none; vertical-align: middle; cursor: help; flex: 0 0 auto; user-select: none; }

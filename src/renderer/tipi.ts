@@ -101,6 +101,8 @@ export interface Nodo {
     position: Punto;
     internal_graph: Grafo;
     pinPositions?: Record<string, PosizionePorta>;
+    // Centri dei pin di capacità spostati a mano, relativi all'angolo del blocco (spec 0032); assente = disposizione automatica
+    capabilityPositions?: Record<string, Punto>;
 }
 
 export interface Grafo {
