@@ -17,7 +17,11 @@ import {
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE, type Estremo
 } from './model.js';
 import { generaId } from './utils.js';
-import { limitaDentro, pinSovrapposti, posizioniCapacita, posizioneInColonna as posizioneInColonnaDiagramma, posizionePorta, puntoPin } from './diagramma.js';
+import {
+    contestoFili, limitaDentro, percorsoFilo, pinSovrapposti, posizioniCapacita, posizioneInColonna as posizioneInColonnaDiagramma,
+    posizionePorta, puntoPin, type ContestoFili
+} from './diagramma.js';
+import { trattoPiuVicino } from './instradamento.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
 import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
@@ -83,6 +87,26 @@ export function eliminaFilo(graph: Grafo, edgeId: string): void {
         filoSelezionato = null;
         chiudiDettaglioCollegamento(edgeId);
     }
+    render();
+}
+
+// Reinstrada (spec 0033, AC-5): toglie gli snodi messi a mano e lascia il percorso all'app
+export function reinstradaFilo(edgeId: string): void {
+    const edge = getCurrentLevel().graph.edges.find((e) => e.id === edgeId);
+    if (!edge || !edge.waypoints?.length) return;
+    edge.waypoints = [];
+    render();
+}
+
+export function reinstradaLivello(): void {
+    const aMano = getCurrentLevel().graph.edges.filter((e) => e.waypoints?.length);
+    if (!aMano.length) {
+        alert('Nessun filo con punti messi a mano in questo livello.');
+        return;
+    }
+    const quanti = aMano.length === 1 ? '1 filo' : `${aMano.length} fili`;
+    if (!confirm(`Togliere i punti messi a mano da ${quanti} di questo livello?`)) return;
+    aMano.forEach((e) => { e.waypoints = []; });
     render();
 }
 
@@ -319,8 +343,9 @@ export function render(): void {
         renderBlocchiCliente(currentGraph);
     }
 
-    // RENDER FILI (EDGES)
-    daDisegnare.forEach((edge) => renderEdge(edge, currentGraph));
+    // RENDER FILI (EDGES): percorsi automatici intorno ai blocchi o snodi messi a mano (spec 0033)
+    const contesto = contestoFili(currentGraph, currentLevel.parentNode, appState.library, appState.cliente);
+    daDisegnare.forEach((edge) => renderEdge(edge, currentGraph, contesto));
 
     // RENDER NODI: con Nascondi un blocco escluso resta se è nella catena o estremo di un filo disegnato
     let blocchiEsclusi = 0;
@@ -360,18 +385,16 @@ function nodoNellaCatena(node: Nodo, blockDef: Blocco): boolean {
     return haPinInCatena(node, blockDef) || contatoreGerarchia(percorsoNodo(node)) > 0;
 }
 
-function renderEdge(edge: Filo, currentGraph: Grafo): void {
-    const startCoords = getEstremoCoords(edge.source, edge.sourceHandle, edge.sourceType, currentGraph);
-    const endCoords = getEstremoCoords(edge.target, edge.targetHandle, edge.targetType, currentGraph);
-    if (!startCoords || !endCoords) return;
+function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): void {
+    if (!edge.waypoints) edge.waypoints = [];
+    const points = percorsoFilo(edge, contesto);
+    if (!points) return;
 
     const srcReq = trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType);
     const tgtReq = trovaRequisito(edge.target, edge.targetHandle, edge.targetType);
     const edgeColor = getColoreRequisito(srcReq);
     const derivazione = isDerivazione(edge);
-
-    if (!edge.waypoints) edge.waypoints = [];
-    const points = [startCoords, ...edge.waypoints, endCoords];
+    const automatico = edge.waypoints.length === 0;
     const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
     // Gerarchia con una scelta: i fili della catena evidenziati, tutti gli altri attenuati
@@ -381,7 +404,7 @@ function renderEdge(edge: Filo, currentGraph: Grafo): void {
     else if (!inclusi.fili.has(edge.id)) classeCatena = ' fuori-filtro';
     const selezionato = filoSelezionatoId() === edge.id ? ' filo-selezionato' : '';
     const path = creaSvg('path', {
-        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + classeCatena + selezionato,
+        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + (automatico ? ' filo-automatico' : ' filo-a-mano') + classeCatena + selezionato,
         d: pathData,
         stroke: edgeColor
     });
@@ -390,6 +413,7 @@ function renderEdge(edge: Filo, currentGraph: Grafo): void {
     aggiungiTooltip(path,
         `${relazione} [${getClasseRequisito(srcReq)}]\n` +
         `${srcReq?.id ?? edge.sourceHandle} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
+        (automatico ? 'Percorso automatico · ' : 'Percorso a mano (Reinstrada per tornare automatico) · ') +
         'Clic: dettaglio · Doppio clic: aggiungi snodo · Clic destro: elimina');
 
     // Clic: seleziona il filo e ne mostra il dettaglio nell'ispettore (spec 0009)
@@ -398,11 +422,17 @@ function renderEdge(edge: Filo, currentGraph: Grafo): void {
         selezionaFilo(edge.id);
     });
 
-    // Aggiungi Snodo con Doppio Clic
+    // Aggiungi Snodo con Doppio Clic, nel tratto più vicino. Un filo automatico diventa a mano con gli angoli
+    // del percorso di adesso, così il disegno non salta (spec 0033, AC-4)
     path.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         const coords = getCanvasCoords(e);
-        edge.waypoints.push({ x: coords.x, y: coords.y });
+        const tratto = trattoPiuVicino(points, coords);
+        // Per un filo a mano gli angoli sono i suoi snodi. Il tratto i va da points[i] a points[i+1]:
+        // fra gli angoli il nuovo snodo va in posizione i
+        const angoli = points.slice(1, -1).map((p) => ({ x: p.x, y: p.y }));
+        angoli.splice(tratto, 0, { x: coords.x, y: coords.y });
+        edge.waypoints = angoli;
         render();
     });
 

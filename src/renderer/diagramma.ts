@@ -7,7 +7,8 @@ import { infoProgetto } from './progetto.js';
 import { scaricaFileTesto } from './storage.js';
 import { isDerivazione, isInterfaccia, isRequisitoCliente, titoloRequisito } from './model.js';
 import { escapeHtml, slugifyId } from './utils.js';
-import type { Blocco, Cliente, Grafo, Impostazioni, Libreria, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
+import { instrada, puntoDiUscita, type Direzione, type EstremoFilo, type Rettangolo } from './instradamento.js';
+import type { Blocco, Cliente, Filo, Grafo, Impostazioni, Libreria, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
 type Geometria = Pick<Impostazioni, 'node' | 'parentBlock' | 'grid' | 'requirements'>;
 
@@ -114,6 +115,116 @@ export function puntoPin(node: Nodo, def: Blocco, reqId: string, imp: Geometria 
     return rel ? { x: node.position.x + rel.x, y: node.position.y + rel.y } : null;
 }
 
+/* --- Fili: estremi, ostacoli e percorso (spec 0033), uguali sul canvas e nei diagrammi --- */
+
+// Altezza delle due righe di testo sotto un blocco tondo (id e titolo)
+const TESTO_TONDO = 30;
+
+export interface ContestoFili {
+    ostacoli: Rettangolo[];
+    margine: number;
+    // Centro del pin di un estremo, o null se non si disegna
+    centro(ownerType: TipoEstremo, ownerId: string, reqId: string): Punto | null;
+    // Pin con verso di uscita e riquadro proprio; verso: l'altro estremo, per scegliere il lato di un pin di capacità
+    estremo(ownerType: TipoEstremo, ownerId: string, reqId: string, verso: Punto | null): EstremoFilo | null;
+}
+
+// Requisiti del padre di un livello: del blocco che lo contiene, o i requisiti cliente alla radice
+function requisitiDelPadre(padre: Nodo | null, libreria: Libreria, cliente: Cliente | null): Requisito[] {
+    return padre ? libreria[padre.type]?.requisiti ?? [] : cliente?.requisiti ?? [];
+}
+
+// Centro del blocco tondo del requisito idx del padre: alla radice solo i requisiti cliente con una posizione salvata
+function centroTondo(graph: Grafo, padre: Nodo | null, reqId: string, idx: number, imp: Geometria): Punto | null {
+    const salvato = graph.parentReqPositions?.[reqId];
+    if (!padre && !salvato) return null;
+    return salvato ?? posizioneInColonna(idx, imp);
+}
+
+function riquadroNodo(node: Nodo, imp: Geometria): Rettangolo {
+    const w = node.width || imp.node.width;
+    const h = node.height || imp.node.height;
+    return { x1: node.position.x, y1: node.position.y, x2: node.position.x + w, y2: node.position.y + h };
+}
+
+function riquadroTondo(centro: Punto, imp: Geometria): Rettangolo {
+    const r = imp.parentBlock.radius;
+    return { x1: centro.x - r, y1: centro.y - r, x2: centro.x + r, y2: centro.y + r + TESTO_TONDO };
+}
+
+export function contestoFili(graph: Grafo, padre: Nodo | null, libreria: Libreria, cliente: Cliente | null, imp: Geometria = appSettings): ContestoFili {
+    const requisitiPadre = requisitiDelPadre(padre, libreria, cliente);
+    const ownerPadre = padre ? padre.id : '__cliente__';
+    const nodi = new Map(graph.nodes.map((n) => [n.id, n]));
+    const ostacoli: Rettangolo[] = [];
+    graph.nodes.forEach((n) => { if (libreria[n.type]) ostacoli.push(riquadroNodo(n, imp)); });
+    requisitiPadre.forEach((req, idx) => {
+        const c = centroTondo(graph, padre, req.id, idx, imp);
+        if (c) ostacoli.push(riquadroTondo(c, imp));
+    });
+
+    const tondo = (reqId: string): Punto | null => {
+        const idx = requisitiPadre.findIndex((r) => r.id === reqId);
+        return idx >= 0 ? centroTondo(graph, padre, reqId, idx, imp) : null;
+    };
+
+    function centro(ownerType: TipoEstremo, ownerId: string, reqId: string): Punto | null {
+        if (ownerType === 'parent') {
+            if (ownerId !== ownerPadre) return null;
+            const c = tondo(reqId);
+            return c ? { x: c.x + imp.parentBlock.radius, y: c.y } : null;
+        }
+        const nodo = nodi.get(ownerId);
+        const def = nodo ? libreria[nodo.type] : undefined;
+        return nodo && def ? puntoPin(nodo, def, reqId, imp) : null;
+    }
+
+    function estremo(ownerType: TipoEstremo, ownerId: string, reqId: string, verso: Punto | null): EstremoFilo | null {
+        const punto = centro(ownerType, ownerId, reqId);
+        if (!punto) return null;
+        if (ownerType === 'parent') {
+            const c = tondo(reqId);
+            return { punto, direzione: 'destra', proprio: c ? riquadroTondo(c, imp) : null };
+        }
+        const nodo = nodi.get(ownerId)!;
+        const r = riquadroNodo(nodo, imp);
+        const req = libreria[nodo.type]?.requisiti.find((x) => x.id === reqId);
+        // Porta sul bordo: esce perpendicolare al suo lato
+        if (isInterfaccia(req)) {
+            const direzione: Direzione = punto.x <= r.x1 ? 'sinistra' : punto.x >= r.x2 ? 'destra' : punto.y <= r.y1 ? 'su' : 'giu';
+            return { punto, direzione, proprio: r };
+        }
+        // Pin di capacità: il lato che porta più vicino all'altro estremo, a parità il più vicino al pin
+        const lati: Direzione[] = ['giu', 'destra', 'sinistra', 'su'];
+        let scelta: Direzione = 'giu';
+        let migliore = Infinity;
+        lati.forEach((direzione) => {
+            const uscita = puntoDiUscita({ punto, direzione, proprio: r }, imp.grid.size);
+            const tratto = Math.abs(uscita.x - punto.x) + Math.abs(uscita.y - punto.y);
+            const resto = verso ? Math.abs(verso.x - uscita.x) + Math.abs(verso.y - uscita.y) : 0;
+            if (tratto + resto < migliore) {
+                migliore = tratto + resto;
+                scelta = direzione;
+            }
+        });
+        return { punto, direzione: scelta, proprio: r };
+    }
+
+    return { ostacoli, margine: imp.grid.size, centro, estremo };
+}
+
+// Spezzata di un filo: con snodi messi a mano retta per retta come sempre, senza snodi il percorso automatico
+export function percorsoFilo(edge: Filo, contesto: ContestoFili): Punto[] | null {
+    const p1 = contesto.centro(edge.sourceType, edge.source, edge.sourceHandle);
+    const p2 = contesto.centro(edge.targetType, edge.target, edge.targetHandle);
+    if (!p1 || !p2) return null;
+    if (edge.waypoints?.length) return [p1, ...edge.waypoints, p2];
+    const da = contesto.estremo(edge.sourceType, edge.source, edge.sourceHandle, p2);
+    const a = contesto.estremo(edge.targetType, edge.target, edge.targetHandle, p1);
+    if (!da || !a) return [p1, p2];
+    return instrada(da, a, contesto.ostacoli, contesto.margine);
+}
+
 /* --- SVG di un livello --- */
 
 export interface Diagramma {
@@ -159,31 +270,15 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
     const blocchi: string[] = [];
 
     // Requisiti del padre del livello e dove stanno i loro blocchi tondi
-    const requisitiPadre: Requisito[] = padre ? libreria[padre.type]?.requisiti ?? [] : cliente?.requisiti ?? [];
+    const requisitiPadre = requisitiDelPadre(padre, libreria, cliente);
     const ownerPadre = padre ? padre.id : '__cliente__';
-    const centroTondo = (req: Requisito, idx: number): Punto | null => {
-        const salvato = graph.parentReqPositions?.[req.id];
-        if (!padre && !salvato) return null;
-        return salvato ?? posizioneInColonna(idx, imp);
-    };
     const nodi = new Map(graph.nodes.map((n) => [n.id, n]));
+    const contesto = contestoFili(graph, padre, libreria, cliente, imp);
 
     function requisito(ownerType: TipoEstremo, ownerId: string, reqId: string): Requisito | null {
         if (ownerType === 'parent') return ownerId === ownerPadre ? requisitiPadre.find((r) => r.id === reqId) ?? null : null;
         const nodo = nodi.get(ownerId);
         return nodo ? libreria[nodo.type]?.requisiti.find((r) => r.id === reqId) ?? null : null;
-    }
-
-    function punto(ownerType: TipoEstremo, ownerId: string, reqId: string): Punto | null {
-        if (ownerType === 'parent') {
-            const idx = requisitiPadre.findIndex((r) => r.id === reqId);
-            const req = requisitiPadre[idx];
-            const centro = req ? centroTondo(req, idx) : null;
-            return centro ? { x: centro.x + raggio, y: centro.y } : null;
-        }
-        const nodo = nodi.get(ownerId);
-        const def = nodo ? libreria[nodo.type] : undefined;
-        return nodo && def ? puntoPin(nodo, def, reqId, imp) : null;
     }
 
     function pin(x: number, y: number, req: Requisito, quadrato: boolean): string {
@@ -195,7 +290,7 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
 
     // Blocchi tondi: requisiti del padre (o cliente con posizione, alla radice)
     requisitiPadre.forEach((req, idx) => {
-        const centro = centroTondo(req, idx);
+        const centro = centroTondo(graph, padre, req.id, idx, imp);
         if (!centro) return;
         const ritirato = isRequisitoCliente(req) && req.stato === 'ritirato';
         const etichetta = isRequisitoCliente(req) ? req.idCliente : req.id;
@@ -209,13 +304,11 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
             + `${pin(centro.x + raggio, centro.y, req, !isInterfaccia(req))}</g>`);
     });
 
-    // Fili con gli snodi; tratteggiati quelli di derivazione
+    // Fili con gli snodi o con il percorso automatico del canvas (spec 0033); tratteggiati quelli di derivazione
     graph.edges.forEach((edge) => {
         const sorgente = requisito(edge.sourceType, edge.source, edge.sourceHandle);
-        const inizio = punto(edge.sourceType, edge.source, edge.sourceHandle);
-        const fine = punto(edge.targetType, edge.target, edge.targetHandle);
-        if (!sorgente || !inizio || !fine) return;
-        const punti = [inizio, ...(edge.waypoints || []), fine];
+        const punti = sorgente ? percorsoFilo(edge, contesto) : null;
+        if (!sorgente || !punti) return;
         punti.forEach((p) => riquadro.aggiungi(p.x, p.y));
         const d = punti.map((p, i) => `${i === 0 ? 'M' : 'L'} ${num(p.x)} ${num(p.y)}`).join(' ');
         fili.push(`<path d="${d}" fill="none" stroke="${colore(sorgente)}" stroke-width="2.5"${isDerivazione(edge) ? ' stroke-dasharray="8,4"' : ''}/>`);
