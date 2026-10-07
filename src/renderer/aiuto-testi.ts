@@ -130,6 +130,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'matrice.classe': { titolo: 'Classe', testo: "Mostra solo le derivazioni di una classe: capacità o una tipologia di interfaccia." },
     'matrice.ricerca': { titolo: 'Ricerca', testo: "Filtra per ID o titolo, del padre o del figlio. Un clic su un requisito della tabella lo apre nella Gerarchia." },
     'matrice.esporta': { titolo: 'Esporta .md', testo: "Scarica la matrice filtrata come tabella Markdown." },
+    'matrice.colonna': { titolo: 'Filtra e ordina la colonna', testo: "Come in Excel: ordina A→Z o Z→A, cerca un valore e spunta quelli da vedere. I filtri di più colonne si sommano a Documento, Classe e Ricerca. Una colonna filtrata ha il pulsante blu." },
+    'matrice.pulisci': { titolo: 'Pulisci filtri', testo: "Toglie tutti i filtri della Matrice, anche quelli delle colonne, e gli ordinamenti." },
 
     // Documenti
     'documenti.documento': { titolo: 'Documento', testo: "Il tipo di documento MIL-STD-498 da generare, con i capitoli del suo DID (Data Item Description, la traccia ufficiale del documento)." },
@@ -185,7 +187,7 @@ export const TOUR: Record<string, PassoTour[]> = {
         { area: null, titolo: 'Matrice di tracciabilità', testo: "Ogni riga è una derivazione: un requisito padre e un figlio che ne deriva, con i documenti di ciascun lato. I padri senza figli e i figli senza padre sono segnalati." },
         { area: '#matriceFiltri', titolo: 'Filtri', testo: "Restringi per documento (e su quale lato deve stare), per classe, o cerca per ID e titolo." },
         { area: '#matriceConteggi', titolo: 'Conteggi', testo: "Quante derivazioni e quanti problemi ci sono con i filtri di adesso." },
-        { area: '#matriceContenuto', titolo: 'Tabella', testo: "Le derivazioni raggruppate per padre. Clicca un requisito per aprirlo nella Gerarchia." },
+        { area: '#matriceContenuto', titolo: 'Tabella', testo: "Le derivazioni raggruppate per padre. Clicca un requisito per aprirlo nella Gerarchia. Il ▾ di ogni intestazione filtra e ordina la colonna come in Excel; Pulisci filtri azzera tutto." },
         { area: '#btnEsportaMatrice', titolo: 'Esporta', testo: "Scarica la matrice filtrata come file Markdown (.md)." }
     ],
     documenti: [

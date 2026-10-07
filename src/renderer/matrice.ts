@@ -60,6 +60,13 @@ export interface Matrice {
     voci: VoceMatrice[];
 }
 
+export type TabellaMatrice = 'derivazioni' | 'senzaPadre';
+
+export interface OrdineColonna {
+    colonna: string;
+    verso: 'asc' | 'desc';
+}
+
 export interface FiltriMatrice {
     // '' = Tutti
     documento: string;
@@ -67,7 +74,54 @@ export interface FiltriMatrice {
     // '' = Tutte
     classe: string;
     ricerca: string;
+    // Filtri di colonna (spec 0031): chiave della colonna → valori scelti; colonna assente = nessun filtro
+    colonne?: Record<string, string[]>;
+    // Un ordinamento per tabella; assente = ordine della spec 0006
+    ordine?: Partial<Record<TabellaMatrice, OrdineColonna>>;
 }
+
+// Una riga della tabella delle derivazioni: la coppia padre → figlio, o il padre da solo (riga null)
+export interface RigaDerivazione {
+    gruppo: GruppoMatrice;
+    riga: RigaFiglio | null;
+}
+
+interface ColonnaMatrice<T> {
+    chiave: string;
+    nome: string;
+    // Sul padre si ordinano i gruppi, sul figlio le righe dentro i gruppi
+    lato: 'padre' | 'figlio';
+    // Valori della cella per filtro e ordinamento: più di uno solo per Documenti, [''] = cella vuota
+    valori: (r: T) => string[];
+}
+
+const docs = (v: VoceMatrice) => v.documenti.length ? v.documenti : [''];
+
+export const COLONNE_DERIVAZIONI: Array<ColonnaMatrice<RigaDerivazione>> = [
+    { chiave: 'idPadre', nome: 'ID padre', lato: 'padre', valori: (r) => [r.gruppo.padre.idMostrato] },
+    { chiave: 'titoloPadre', nome: 'Titolo padre', lato: 'padre', valori: (r) => [r.gruppo.padre.titolo] },
+    { chiave: 'bloccoPadre', nome: 'Blocco padre', lato: 'padre', valori: (r) => [r.gruppo.padre.blocco] },
+    { chiave: 'metodoPadre', nome: 'Metodo padre', lato: 'padre', valori: (r) => [r.gruppo.padre.metodo] },
+    { chiave: 'documentiPadre', nome: 'Documenti padre', lato: 'padre', valori: (r) => docs(r.gruppo.padre) },
+    { chiave: 'classe', nome: 'Classe', lato: 'figlio', valori: (r) => [r.riga ? r.riga.figlio.classe : r.gruppo.padre.classe] },
+    { chiave: 'idFiglio', nome: 'ID figlio', lato: 'figlio', valori: (r) => [r.riga?.figlio.idMostrato ?? ''] },
+    { chiave: 'titoloFiglio', nome: 'Titolo figlio', lato: 'figlio', valori: (r) => [r.riga?.figlio.titolo ?? ''] },
+    { chiave: 'bloccoFiglio', nome: 'Blocco figlio', lato: 'figlio', valori: (r) => [r.riga?.figlio.blocco ?? ''] },
+    { chiave: 'metodoFiglio', nome: 'Metodo figlio', lato: 'figlio', valori: (r) => [r.riga?.figlio.metodo ?? ''] },
+    { chiave: 'documentiFiglio', nome: 'Documenti figlio', lato: 'figlio', valori: (r) => r.riga ? docs(r.riga.figlio) : [''] },
+    { chiave: 'istanze', nome: 'Istanze', lato: 'figlio', valori: (r) => [r.riga ? String(r.riga.istanze) : ''] },
+    { chiave: 'note', nome: 'Note', lato: 'padre', valori: (r) => [r.gruppo.nota] }
+];
+
+export const COLONNE_SENZA_PADRE: Array<ColonnaMatrice<VoceMatrice>> = [
+    { chiave: 'spId', nome: 'ID', lato: 'padre', valori: (v) => [v.idMostrato] },
+    { chiave: 'spTitolo', nome: 'Titolo', lato: 'padre', valori: (v) => [v.titolo] },
+    { chiave: 'spBlocco', nome: 'Blocco', lato: 'padre', valori: (v) => [v.blocco] },
+    { chiave: 'spClasse', nome: 'Classe', lato: 'padre', valori: (v) => [v.classe] },
+    { chiave: 'spMetodo', nome: 'Metodo', lato: 'padre', valori: (v) => [v.metodo] },
+    { chiave: 'spDocumenti', nome: 'Documenti', lato: 'padre', valori: docs },
+    { chiave: 'spNote', nome: 'Note', lato: 'padre', valori: (v) => [v.notaSenzaPadre] }
+];
 
 export interface MatriceFiltrata {
     gruppi: Array<{ gruppo: GruppoMatrice; righe: RigaFiglio[] }>;
@@ -82,11 +136,9 @@ const DOC_CLIENTE = 'Cliente';
 const MAX_PERCORSI = 10;
 const RITARDO_RICERCA = 200;
 
-const INTESTAZIONI = [
-    'ID padre', 'Titolo padre', 'Blocco padre', 'Metodo padre', 'Documenti padre', 'Classe',
-    'ID figlio', 'Titolo figlio', 'Blocco figlio', 'Metodo figlio', 'Documenti figlio', 'Istanze', 'Note'
-];
-const INTESTAZIONI_SENZA_PADRE = ['ID', 'Titolo', 'Blocco', 'Classe', 'Metodo', 'Documenti', 'Note'];
+const INTESTAZIONI = COLONNE_DERIVAZIONI.map((c) => c.nome);
+const INTESTAZIONI_SENZA_PADRE = COLONNE_SENZA_PADRE.map((c) => c.nome);
+const NOMI_VERSO: Record<OrdineColonna['verso'], string> = { asc: 'A→Z', desc: 'Z→A' };
 const NOMI_LATO: Record<FiltriMatrice['lato'], string> = { entrambi: 'uno dei due', padre: 'padre', figlio: 'figlio' };
 
 // Uno solo, riusato: con migliaia di gruppi localeCompare ripetuto costa troppo
@@ -95,7 +147,8 @@ const collator = new Intl.Collator('it', { numeric: true });
 let ultimaMatrice: Matrice | null = null;
 let ultimoFiltrato: MatriceFiltrata | null = null;
 // Restano tra un'apertura e l'altra finché la pagina è aperta (AC-12)
-const filtri: FiltriMatrice = { documento: '', lato: 'entrambi', classe: '', ricerca: '' };
+const filtri: FiltriMatrice & Required<Pick<FiltriMatrice, 'colonne' | 'ordine'>> =
+    { documento: '', lato: 'entrambi', classe: '', ricerca: '', colonne: {}, ordine: {} };
 let gruppiMostrati = 0;
 let timerRicerca: ReturnType<typeof setTimeout> | null = null;
 
@@ -281,9 +334,48 @@ export function calcolaMatrice(indice: IndiceGerarchia, libreria: Libreria, clie
 
 /* --- FILTRI (AC-8) --- */
 
+type FiltroColonna<T> = { colonna: ColonnaMatrice<T>; scelti: Set<string> };
+
+function filtriDiColonna<T>(colonne: Array<ColonnaMatrice<T>>, f: FiltriMatrice, senza: string | null): Array<FiltroColonna<T>> {
+    const scelte = f.colonne ?? {};
+    return colonne.filter((c) => c.chiave !== senza && Array.isArray(scelte[c.chiave]))
+        .map((c) => ({ colonna: c, scelti: new Set(scelte[c.chiave]) }));
+}
+
+function passaColonne<T>(filtriColonna: Array<FiltroColonna<T>>, r: T): boolean {
+    return filtriColonna.every(({ colonna, scelti }) => colonna.valori(r).some((v) => scelti.has(v)));
+}
+
+function chiaveOrdine<T>(colonna: ColonnaMatrice<T>, r: T): string {
+    return colonna.valori(r).join(', ');
+}
+
+// Sulle colonne del figlio si ordinano le righe dei gruppi, poi i gruppi per la loro prima riga (spec 0031, AC-4)
+function ordinaGruppi(gruppi: MatriceFiltrata['gruppi'], ordine: OrdineColonna | undefined): void {
+    const colonna = ordine && COLONNE_DERIVAZIONI.find((c) => c.chiave === ordine.colonna);
+    if (!ordine || !colonna) return;
+    const segno = ordine.verso === 'desc' ? -1 : 1;
+    const valore = (gruppo: GruppoMatrice, riga: RigaFiglio | null) => chiaveOrdine(colonna, { gruppo, riga });
+    if (colonna.lato === 'figlio') {
+        gruppi.forEach((g) => g.righe.sort((a, b) => segno * collator.compare(valore(g.gruppo, a), valore(g.gruppo, b))));
+    }
+    gruppi.sort((a, b) => segno * collator.compare(valore(a.gruppo, a.righe[0] ?? null), valore(b.gruppo, b.righe[0] ?? null)));
+}
+
+function ordinaSenzaPadre(voci: VoceMatrice[], ordine: OrdineColonna | undefined): void {
+    const colonna = ordine && COLONNE_SENZA_PADRE.find((c) => c.chiave === ordine.colonna);
+    if (!ordine || !colonna) return;
+    const segno = ordine.verso === 'desc' ? -1 : 1;
+    voci.sort((a, b) => segno * collator.compare(chiaveOrdine(colonna, a), chiaveOrdine(colonna, b)));
+}
+
 // Prima le righe di ogni gruppo e le voci Senza padre, poi i gruppi con almeno una riga.
-// Un gruppo senza figli ha solo il lato padre, una voce Senza padre solo il lato figlio
-export function filtraMatrice(matrice: Matrice, f: FiltriMatrice): MatriceFiltrata {
+// Un gruppo senza figli ha solo il lato padre, una voce Senza padre solo il lato figlio.
+// Poi i filtri di colonna riga per riga e l'ordinamento (spec 0031); senzaColonna ignora il filtro di una colonna
+// (serve all'elenco dei valori del suo menu)
+export function filtraMatrice(matrice: Matrice, f: FiltriMatrice, senzaColonna: string | null = null): MatriceFiltrata {
+    const filtriDerivazioni = filtriDiColonna(COLONNE_DERIVAZIONI, f, senzaColonna);
+    const filtriSenzaPadre = filtriDiColonna(COLONNE_SENZA_PADRE, f, senzaColonna);
     const documento = f.documento;
     const lato = f.lato;
     const testo = f.ricerca.trim().toLowerCase();
@@ -296,20 +388,22 @@ export function filtraMatrice(matrice: Matrice, f: FiltriMatrice): MatriceFiltra
         const padre = gruppo.padre;
         if (gruppo.figli.length === 0) {
             const resta = (!documento || (lato !== 'figlio' && haDocumento(padre))) && haClasse(padre) && trovata(padre);
-            if (resta) gruppi.push({ gruppo, righe: [] });
+            if (resta && passaColonne(filtriDerivazioni, { gruppo, riga: null })) gruppi.push({ gruppo, righe: [] });
             return;
         }
         const padreTrovato = trovata(padre);
         const padreConDocumento = !!documento && lato !== 'figlio' && haDocumento(padre);
         const righe = gruppo.figli.filter((r) => {
             if (documento && !padreConDocumento && !(lato !== 'padre' && haDocumento(r.figlio))) return false;
-            return haClasse(r.figlio) && (padreTrovato || trovata(r.figlio));
+            return haClasse(r.figlio) && (padreTrovato || trovata(r.figlio)) && passaColonne(filtriDerivazioni, { gruppo, riga: r });
         });
         if (righe.length) gruppi.push({ gruppo, righe });
     });
 
     const senzaPadre = matrice.senzaPadre.filter((v) =>
-        (!documento || (lato !== 'padre' && haDocumento(v))) && haClasse(v) && trovata(v));
+        (!documento || (lato !== 'padre' && haDocumento(v))) && haClasse(v) && trovata(v) && passaColonne(filtriSenzaPadre, v));
+    ordinaGruppi(gruppi, f.ordine?.derivazioni);
+    ordinaSenzaPadre(senzaPadre, f.ordine?.senzaPadre);
 
     return {
         gruppi,
@@ -321,6 +415,42 @@ export function filtraMatrice(matrice: Matrice, f: FiltriMatrice): MatriceFiltra
             senzaPadre: senzaPadre.length
         }
     };
+}
+
+export function tabellaDellaColonna(chiave: string): TabellaMatrice | null {
+    if (COLONNE_DERIVAZIONI.some((c) => c.chiave === chiave)) return 'derivazioni';
+    if (COLONNE_SENZA_PADRE.some((c) => c.chiave === chiave)) return 'senzaPadre';
+    return null;
+}
+
+// Valori distinti di una colonna nelle righe che passano tutti gli altri filtri, in ordine naturale (spec 0031, AC-2)
+export function valoriColonna(matrice: Matrice, f: FiltriMatrice, chiave: string): string[] {
+    const filtrata = filtraMatrice(matrice, f, chiave);
+    const valori = new Set<string>();
+    const derivazione = COLONNE_DERIVAZIONI.find((c) => c.chiave === chiave);
+    const senzaPadre = COLONNE_SENZA_PADRE.find((c) => c.chiave === chiave);
+    if (derivazione) {
+        filtrata.gruppi.forEach(({ gruppo, righe }) => {
+            const tutte: RigaDerivazione[] = righe.length ? righe.map((riga) => ({ gruppo, riga })) : [{ gruppo, riga: null }];
+            tutte.forEach((r) => derivazione.valori(r).forEach((v) => valori.add(v)));
+        });
+    } else if (senzaPadre) {
+        filtrata.senzaPadre.forEach((v) => senzaPadre.valori(v).forEach((x) => valori.add(x)));
+    }
+    return [...valori].sort((a, b) => collator.compare(a, b));
+}
+
+export function nomeColonna(chiave: string): string {
+    const derivazione = COLONNE_DERIVAZIONI.find((c) => c.chiave === chiave);
+    if (derivazione) return derivazione.nome;
+    const senzaPadre = COLONNE_SENZA_PADRE.find((c) => c.chiave === chiave);
+    return senzaPadre ? `Senza padre › ${senzaPadre.nome}` : chiave;
+}
+
+// Qualcosa da pulire: un filtro globale, un filtro di colonna o un ordinamento
+export function filtriAttivi(f: FiltriMatrice): boolean {
+    return !!f.documento || !!f.classe || !!f.ricerca.trim() || f.lato !== 'entrambi'
+        || Object.keys(f.colonne ?? {}).length > 0 || Object.values(f.ordine ?? {}).some(Boolean);
 }
 
 /* --- EXPORT MARKDOWN (AC-11) --- */
@@ -343,6 +473,13 @@ function descriviFiltri(f: FiltriMatrice): string {
     if (f.documento) parti.push(`Documento ${f.documento} (lato ${NOMI_LATO[f.lato]})`);
     if (f.classe) parti.push(`Classe ${f.classe}`);
     if (f.ricerca.trim()) parti.push(`Ricerca "${f.ricerca.trim()}"`);
+    Object.entries(f.colonne ?? {}).forEach(([chiave, valori]) => {
+        parti.push(`${nomeColonna(chiave)}: ${valori.map((v) => v || '(vuote)').join(', ')}`);
+    });
+    (['derivazioni', 'senzaPadre'] as const).forEach((tabella) => {
+        const ordine = f.ordine?.[tabella];
+        if (ordine) parti.push(`Ordine: ${nomeColonna(ordine.colonna)} ${NOMI_VERSO[ordine.verso]}`);
+    });
     return parti.length ? parti.join(' · ') : 'nessuno';
 }
 
@@ -450,8 +587,18 @@ function htmlSenzaPadre(v: VoceMatrice): string {
         <td class="cella-nota">${escapeHtml(v.notaSenzaPadre)}</td></tr>`;
 }
 
-function intestazioniHtml(nomi: string[]): string {
-    return `<thead><tr>${nomi.map((n) => `<th>${escapeHtml(n)}</th>`).join('')}</tr></thead>`;
+// Ogni intestazione ha il suo ▼ (spec 0031): evidenziato se la colonna è filtrata, con ↑ o ↓ se è ordinata
+function intestazioniHtml(tabella: TabellaMatrice): string {
+    const colonne = tabella === 'derivazioni' ? COLONNE_DERIVAZIONI : COLONNE_SENZA_PADRE;
+    const ordine = filtri.ordine[tabella];
+    const celle = colonne.map(({ chiave, nome }) => {
+        const filtrata = Array.isArray(filtri.colonne[chiave]);
+        const freccia = ordine?.colonna === chiave ? `<span class="ordine-colonna">${ordine.verso === 'asc' ? '↑' : '↓'}</span>` : '';
+        return `<th class="${filtrata ? 'colonna-filtrata' : ''}"><span class="intestazione-matrice">${escapeHtml(nome)}${freccia}
+            <button type="button" class="menu-colonna${filtrata ? ' filtrata' : ''}" data-colonna="${chiave}" data-aiuto="matrice.colonna"
+                aria-label="Filtra e ordina la colonna ${escapeHtml(nome)}">${filtrata ? '⏷' : '▾'}</button></span></th>`;
+    });
+    return `<thead><tr>${celle.join('')}</tr></thead>`;
 }
 
 // Senza padre conta come un gruppo per ogni sua voce; i gruppi oltre il limite si aggiungono con Mostra altri
@@ -461,11 +608,11 @@ function htmlTabella(filtrata: MatriceFiltrata): string {
     const restanti = filtrata.gruppi.length + filtrata.senzaPadre.length - gruppiVisti.length - senzaPadreVisti.length;
     const parti: string[] = [];
     if (gruppiVisti.length) {
-        parti.push(`<table class="tabella-matrice">${intestazioniHtml(INTESTAZIONI)}${gruppiVisti.map(htmlGruppo).join('')}</table>`);
+        parti.push(`<table class="tabella-matrice">${intestazioniHtml('derivazioni')}${gruppiVisti.map(htmlGruppo).join('')}</table>`);
     }
     if (senzaPadreVisti.length) {
         parti.push(`<div class="titolo-sezione-matrice">Senza padre</div>
-            <table class="tabella-matrice">${intestazioniHtml(INTESTAZIONI_SENZA_PADRE)}<tbody>${senzaPadreVisti.map(htmlSenzaPadre).join('')}</tbody></table>`);
+            <table class="tabella-matrice">${intestazioniHtml('senzaPadre')}<tbody>${senzaPadreVisti.map(htmlSenzaPadre).join('')}</tbody></table>`);
     }
     if (restanti > 0) {
         const altri = Math.min(restanti, appSettings.matrice.gruppiVisibili);
@@ -486,6 +633,8 @@ function aggiorna(): void {
     const conteggi = campo('matriceConteggi');
     const contenuto = campo('matriceContenuto');
     const pulsante = campo<HTMLButtonElement>('btnEsportaMatrice');
+    const pulisci = document.getElementById('btnPulisciMatrice') as HTMLButtonElement | null;
+    if (pulisci) pulisci.disabled = !filtriAttivi(filtri);
     ultimoFiltrato = null;
     if (!ultimaMatrice) return;
 
@@ -554,6 +703,219 @@ function applicaRicercaInSospeso(): void {
     filtriCambiati();
 }
 
+// Pulisci filtri: globali, di colonna e ordinamenti (spec 0031, AC-5)
+function pulisciFiltri(): void {
+    if (timerRicerca !== null) {
+        clearTimeout(timerRicerca);
+        timerRicerca = null;
+    }
+    chiudiMenuColonna();
+    filtri.documento = '';
+    filtri.lato = 'entrambi';
+    filtri.classe = '';
+    filtri.ricerca = '';
+    filtri.colonne = {};
+    filtri.ordine = {};
+    if (ultimaMatrice) popolaFiltri(ultimaMatrice);
+    filtriCambiati();
+}
+
+/* --- MENU DELLA COLONNA (spec 0031) --- */
+
+// Oltre questo numero di valori il menu chiede di usare la ricerca
+const MAX_VALORI_MENU = 1000;
+
+interface StatoMenu {
+    chiave: string;
+    tabella: TabellaMatrice;
+    valori: string[];
+    scelti: Set<string>;
+    ricerca: string;
+}
+
+let menu: StatoMenu | null = null;
+
+// Il menu è figlio del pannello: si sposta con lui quando si stacca in un'altra finestra (spec 0023)
+function elementoMenu(): HTMLElement | null {
+    const pannello = document.getElementById('pannelloMatrice');
+    if (!pannello) return null;
+    let el = pannello.querySelector<HTMLElement>('#menuColonnaMatrice');
+    if (!el) {
+        el = pannello.ownerDocument.createElement('div');
+        el.id = 'menuColonnaMatrice';
+        el.className = 'menu-colonna-matrice';
+        el.tabIndex = -1;
+        el.hidden = true;
+        el.setAttribute('role', 'dialog');
+        pannello.appendChild(el);
+        installaEventiMenu(el);
+    }
+    return el;
+}
+
+export function menuColonnaAperto(): boolean {
+    return menu !== null;
+}
+
+function chiudiMenuColonna(): void {
+    menu = null;
+    const el = document.getElementById('pannelloMatrice')?.querySelector<HTMLElement>('#menuColonnaMatrice');
+    if (el) {
+        el.hidden = true;
+        el.innerHTML = '';
+    }
+}
+
+function valoriVisibili(s: StatoMenu): string[] {
+    const testo = s.ricerca.trim().toLowerCase();
+    return testo ? s.valori.filter((v) => (v || '(vuote)').toLowerCase().includes(testo)) : s.valori;
+}
+
+function htmlValori(s: StatoMenu): string {
+    const visibili = valoriVisibili(s);
+    const mostrati = visibili.slice(0, MAX_VALORI_MENU);
+    const tutti = visibili.length > 0 && visibili.every((v) => s.scelti.has(v));
+    const voci = mostrati.map((v) => `<label class="valore-menu-colonna"><input type="checkbox" data-valore="${escapeHtml(v)}" ${s.scelti.has(v) ? 'checked' : ''}>
+        <span>${v ? escapeHtml(v) : '<em>(vuote)</em>'}</span></label>`).join('');
+    const altri = visibili.length - mostrati.length;
+    return `<label class="valore-menu-colonna"><input type="checkbox" data-tutti ${tutti ? 'checked' : ''}> <span>(Seleziona tutto)</span></label>
+        ${voci || '<p class="empty-props">Nessun valore</p>'}
+        ${altri > 0 ? `<p class="empty-props">e altri ${altri}: restringi con la ricerca</p>` : ''}`;
+}
+
+// Con una ricerca attiva valgono solo i valori spuntati fra quelli visibili (AC-2)
+function sceltaDelMenu(s: StatoMenu): string[] {
+    return valoriVisibili(s).filter((v) => s.scelti.has(v));
+}
+
+// Ridisegna l'elenco (solo dalla ricerca: il fuoco è nel campo, non su una casella che sparirebbe)
+function aggiornaValoriMenu(el: HTMLElement, s: StatoMenu): void {
+    const lista = el.querySelector<HTMLElement>('.valori-menu-colonna');
+    if (lista) lista.innerHTML = htmlValori(s);
+    sincronizzaCaselle(el, s);
+}
+
+// Dopo un clic su una casella: aggiorna le spunte e OK senza ricreare gli elementi
+function sincronizzaCaselle(el: HTMLElement, s: StatoMenu): void {
+    el.querySelectorAll<HTMLInputElement>('input[data-valore]').forEach((c) => { c.checked = s.scelti.has(c.dataset.valore ?? ''); });
+    const visibili = valoriVisibili(s);
+    const tutti = el.querySelector<HTMLInputElement>('input[data-tutti]');
+    if (tutti) tutti.checked = visibili.length > 0 && visibili.every((v) => s.scelti.has(v));
+    const ok = el.querySelector<HTMLButtonElement>('[data-azione="ok"]');
+    if (ok) ok.disabled = sceltaDelMenu(s).length === 0;
+}
+
+function apriMenuColonna(pulsante: HTMLElement): void {
+    const chiave = pulsante.dataset.colonna ?? '';
+    const tabella = tabellaDellaColonna(chiave);
+    const el = elementoMenu();
+    if (!tabella || !el || !ultimaMatrice) return;
+    if (menu?.chiave === chiave) {
+        chiudiMenuColonna();
+        return;
+    }
+    applicaRicercaInSospeso();
+    const valori = valoriColonna(ultimaMatrice, filtri, chiave);
+    const attuale = filtri.colonne[chiave];
+    const s: StatoMenu = { chiave, tabella, valori, scelti: new Set(attuale ?? valori), ricerca: '' };
+    menu = s;
+    const ordine = filtri.ordine[tabella];
+    const segno = (verso: OrdineColonna['verso']) => ordine?.colonna === chiave && ordine.verso === verso ? ' attivo' : '';
+    el.innerHTML = `
+        <div class="titolo-menu-colonna">${escapeHtml(nomeColonna(chiave))}</div>
+        <button type="button" class="voce-menu-colonna${segno('asc')}" data-azione="asc">↑ Ordina A→Z</button>
+        <button type="button" class="voce-menu-colonna${segno('desc')}" data-azione="desc">↓ Ordina Z→A</button>
+        ${Array.isArray(attuale) ? '<button type="button" class="voce-menu-colonna" data-azione="togli">✕ Togli il filtro della colonna</button>' : ''}
+        <input type="text" class="cerca-menu-colonna" placeholder="Cerca…" aria-label="Cerca fra i valori">
+        <div class="valori-menu-colonna"></div>
+        <div class="pulsanti-menu-colonna">
+            <button type="button" class="pulsante-progetto pulsante-menu" data-azione="ok">OK</button>
+            <button type="button" class="pulsante-progetto" data-azione="annulla">Annulla</button>
+        </div>`;
+    aggiornaValoriMenu(el, s);
+    el.hidden = false;
+
+    // Sotto il pulsante, dentro la finestra che contiene il pannello (fixed: il pannello taglia ciò che esce)
+    const finestra = el.ownerDocument.defaultView ?? window;
+    const r = pulsante.getBoundingClientRect();
+    const larghezza = el.offsetWidth;
+    const altezza = el.offsetHeight;
+    el.style.left = `${Math.max(4, Math.min(r.left, finestra.innerWidth - larghezza - 4))}px`;
+    el.style.top = `${r.bottom + altezza + 4 > finestra.innerHeight ? Math.max(4, finestra.innerHeight - altezza - 4) : r.bottom + 2}px`;
+    el.querySelector<HTMLInputElement>('.cerca-menu-colonna')?.focus();
+}
+
+function applicaMenu(s: StatoMenu): void {
+    const scelti = sceltaDelMenu(s);
+    if (scelti.length === 0) return;
+    // Tutti i valori spuntati = nessun filtro sulla colonna (AC-3)
+    if (scelti.length === s.valori.length) delete filtri.colonne[s.chiave];
+    else filtri.colonne[s.chiave] = scelti;
+    chiudiMenuColonna();
+    filtriCambiati();
+}
+
+function ordinaDaMenu(s: StatoMenu, verso: OrdineColonna['verso']): void {
+    const ordine = filtri.ordine[s.tabella];
+    // Lo stesso ordinamento una seconda volta lo toglie
+    if (ordine?.colonna === s.chiave && ordine.verso === verso) delete filtri.ordine[s.tabella];
+    else filtri.ordine[s.tabella] = { colonna: s.chiave, verso };
+    chiudiMenuColonna();
+    filtriCambiati();
+}
+
+function installaEventiMenu(el: HTMLElement): void {
+    el.addEventListener('click', (e) => {
+        const s = menu;
+        const azione = (e.target as Element).closest<HTMLElement>('[data-azione]')?.dataset.azione;
+        if (!s || !azione) return;
+        if (azione === 'asc' || azione === 'desc') ordinaDaMenu(s, azione);
+        else if (azione === 'ok') applicaMenu(s);
+        else if (azione === 'annulla') chiudiMenuColonna();
+        else if (azione === 'togli') {
+            delete filtri.colonne[s.chiave];
+            chiudiMenuColonna();
+            filtriCambiati();
+        }
+    });
+    el.addEventListener('change', (e) => {
+        const s = menu;
+        const casella = e.target as HTMLInputElement;
+        if (!s || casella.type !== 'checkbox') return;
+        if (casella.hasAttribute('data-tutti')) valoriVisibili(s).forEach((v) => (casella.checked ? s.scelti.add(v) : s.scelti.delete(v)));
+        else if (casella.dataset.valore !== undefined) {
+            if (casella.checked) s.scelti.add(casella.dataset.valore);
+            else s.scelti.delete(casella.dataset.valore);
+        }
+        sincronizzaCaselle(el, s);
+    });
+    el.addEventListener('input', (e) => {
+        const s = menu;
+        const campoRicerca = e.target as HTMLInputElement;
+        if (!s || !campoRicerca.classList.contains('cerca-menu-colonna')) return;
+        s.ricerca = campoRicerca.value;
+        aggiornaValoriMenu(el, s);
+    });
+    // Esc chiude senza applicare, Invio nella ricerca vale OK; i tasti non arrivano alle scorciatoie della pagina
+    el.addEventListener('keydown', (e) => {
+        const s = menu;
+        if (!s) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            chiudiMenuColonna();
+        } else if (e.key === 'Enter' && (e.target as HTMLElement).classList.contains('cerca-menu-colonna')) {
+            e.preventDefault();
+            applicaMenu(s);
+        }
+    });
+    // Un clic fuori dal menu lo chiude senza applicare
+    el.addEventListener('focusout', (e) => {
+        const verso = (e as FocusEvent).relatedTarget as Node | null;
+        if (menu && (!verso || !el.contains(verso)) && !(verso as HTMLElement | null)?.classList?.contains('menu-colonna')) chiudiMenuColonna();
+    });
+}
+
 /* --- PANNELLO (AC-1; spec 0022) --- */
 
 // Calcola dal modello di adesso, mai dall'indice della Gerarchia (che esiste solo a modalità accesa).
@@ -600,6 +962,7 @@ function allaChiusuraMatrice(): void {
         timerRicerca = null;
         filtri.ricerca = campo<HTMLInputElement>('matriceRicerca').value;
     }
+    chiudiMenuColonna();
     ultimaMatrice = null;
     ultimoFiltrato = null;
     daAggiornare = false;
@@ -641,9 +1004,15 @@ export function initMatrice(): void {
     });
 
     document.getElementById('btnEsportaMatrice')?.addEventListener('click', esporta);
+    document.getElementById('btnPulisciMatrice')?.addEventListener('click', pulisciFiltri);
 
     document.getElementById('matriceContenuto')?.addEventListener('click', (e) => {
         const bersaglio = e.target as Element;
+        const menuColonna = bersaglio.closest<HTMLElement>('.menu-colonna');
+        if (menuColonna) {
+            apriMenuColonna(menuColonna);
+            return;
+        }
         if (bersaglio.closest('#btnAltriMatrice')) {
             gruppiMostrati += appSettings.matrice.gruppiVisibili;
             aggiorna();

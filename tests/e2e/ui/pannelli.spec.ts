@@ -104,7 +104,18 @@ test('la Matrice si stacca in una finestra, resta allineata e si riaggancia (spe
         await staccata.locator('#matriceDocumento').selectOption({ index: 0 });
         await expect(staccata.locator('#matriceContenuto')).toContainText('ali_002');
 
-        await staccata.locator('.pulsante-stacca').click();
+        // Il menu di una colonna si apre nella finestra staccata (spec 0031)
+        await staccata.locator('.menu-colonna[data-colonna="idPadre"]').click();
+        await expect(staccata.locator('#menuColonnaMatrice')).toBeVisible();
+        await staccata.locator('#menuColonnaMatrice input[data-valore="R1"]').uncheck();
+        await staccata.locator('#menuColonnaMatrice [data-azione="ok"]').click();
+        await expect(staccata.locator('#matriceContenuto')).not.toContainText('ali_002');
+        await staccata.locator('#btnPulisciMatrice').click();
+        await expect(staccata.locator('#matriceContenuto')).toContainText('ali_002');
+
+        // Il clic chiude la sua stessa finestra: Playwright a volte lo segnala come pagina chiusa a metà clic.
+        // L'effetto si controlla sotto
+        await staccata.locator('.pulsante-stacca').click().catch(() => undefined);
         await expect(pagina.locator('#pannelloMatrice')).toBeVisible();
         await expect.poll(() => staccata.isClosed()).toBe(true);
     } finally {

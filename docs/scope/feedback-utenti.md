@@ -14,10 +14,11 @@ Nella finestra di import dei requisiti cliente, un campo in più da mappare: sce
 - [x] Design it (spec): [0030](../specs/0030-filtro-righe-import-cliente.md)
 - [x] Build it: `src/renderer/cliente.ts` (`passaFiltro()`, `estraiRighe()` con il filtro, scheda Esclusi), test in `tests/unit/import-cliente.test.ts` e `tests/e2e/ui/cliente.spec.ts`
 
-### 58. Filtri per colonna nella Matrice · needs a decision
+### 58. Filtri per colonna nella Matrice · done
 Filtri come in Excel sulla tabella della Matrice di tracciabilità: ogni intestazione ha un menu ▼ con l'elenco dei valori da spuntare, una casella di ricerca e l'ordinamento, così trovi al volo quello che ti serve senza combinare a mano i filtri globali.
 **Done when:** ogni colonna ha il suo menu con valori, ricerca e ordinamento A→Z / Z→A; i filtri di più colonne si combinano fra loro e con quelli che ci sono già; una colonna filtrata si riconosce a colpo d'occhio; "Pulisci filtri" azzera tutto; l'export Markdown segue i filtri; funziona anche col pannello staccato.
-- [ ] Design it (spec): `/architect filtri per colonna nella Matrice`
+- [x] Design it (spec): [0031](../specs/0031-filtri-colonne-matrice.md)
+- [x] Build it: `src/renderer/matrice.ts` (`COLONNE_DERIVAZIONI`, `filtraMatrice()` con colonne e ordine, `valoriColonna()`, menu `#menuColonnaMatrice`, `Pulisci filtri`), test in `tests/unit/regole.test.ts`, `tests/e2e/ui/tracciabilita.spec.ts` e `pannelli.spec.ts`
 
 ### 59. Pin di capacità spostabili · needs a decision
 I quadratini dei requisiti di capacità dentro il rettangolo di un blocco si possono trascinare dove vuoi, agganciati alla griglia, per orientarli verso i blocchi a cui vanno e non incrociare i fili. Oggi l'app li mette in fila da sola e non si possono spostare.
