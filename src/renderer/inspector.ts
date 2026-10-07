@@ -1,7 +1,7 @@
 /* --- ISPETTORE: MODIFICA DI BLOCCHI DI LIBRERIA, REQUISITI E TESTI DA ESPORTARE --- */
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
-import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo, riposizionaPinCapacita } from './renderer.js';
+import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo, riposizionaPinCapacita, reinstradaFilo } from './renderer.js';
 import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
@@ -739,8 +739,12 @@ export function mostraDettaglioCollegamento(edge: Filo): void {
             ${rigaDettaglio('Relazione', derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi', '', 'coll.relazione')}
             ${motivo ? `<div class="prop-item avviso-collegamento">⚠️ ${escapeHtml(motivo)}</div>` : ''}
             ${lati.map(([titolo, e]) => htmlLato(titolo, e)).join('')}
-            <button id="btnEliminaCollegamento" class="pulsante-progetto" data-aiuto="coll.elimina" style="margin-top:8px;">🗑 Elimina collegamento</button>
+            <button id="btnReinstradaFilo" class="pulsante-progetto" data-aiuto="coll.reinstrada" style="margin-top:8px;"
+                ${edge.waypoints?.length ? '' : 'disabled data-titolo-nativo="Il filo segue già il percorso automatico"'}>↻ Reinstrada</button>
+            <button id="btnEliminaCollegamento" class="pulsante-progetto" data-aiuto="coll.elimina">🗑 Elimina collegamento</button>
         </div>`;
+
+    document.getElementById('btnReinstradaFilo')?.addEventListener('click', () => reinstradaFilo(edge.id));
 
     document.getElementById('btnEliminaCollegamento')?.addEventListener('click', () => {
         if (!confirm('Vuoi eliminare questo collegamento?')) return;

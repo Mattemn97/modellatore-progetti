@@ -38,7 +38,7 @@ I pulsanti `☰ Libreria` e `☰ Proprietà` ai lati della barra chiudono e riap
 
 ## L'immagine di un livello
 
-`🖼 Immagine` apre un menu con **SVG** (vettoriale, nitido a ogni zoom, si apre anche in un browser o in Inkscape) e **PNG** (un'immagine normale, al doppio della risoluzione dello schermo). Scarica il livello aperto come `<progetto>-<livello>.svg` o `.png` (`radice` per il livello principale). L'immagine mostra blocchi, porte, fili con gli snodi e blocchi tondi, senza filtri, evidenze o selezione. Su un livello vuoto l'app ti dice che non c'è niente da esportare.
+`🖼 Immagine` apre un menu con **SVG** (vettoriale, nitido a ogni zoom, si apre anche in un browser o in Inkscape) e **PNG** (un'immagine normale, al doppio della risoluzione dello schermo). Scarica il livello aperto come `<progetto>-<livello>.svg` o `.png` (`radice` per il livello principale). L'immagine mostra blocchi, porte, fili (con gli snodi a mano o con lo stesso percorso automatico del canvas) e blocchi tondi, senza filtri, evidenze o selezione. Su un livello vuoto l'app ti dice che non c'è niente da esportare.
 
 Gli stessi diagrammi entrano da soli nei documenti Word e PDF (vedi [Documenti](11-documenti.md)).
 
@@ -91,7 +91,9 @@ Alla radice i cerchi sono i requisiti del cliente che hai portato sul canvas. Un
 
 * **Tirare un filo**: premi su un pin, una porta o il pin di un blocco tondo e trascina fino a un altro pin, poi rilascia. Se i due requisiti non sono compatibili, l'app non crea il filo e ti dice il motivo ("Impossibile collegare: …").
 * **Selezionare un filo**: un clic sul filo. Diventa più spesso con un alone blu e l'ispettore mostra il dettaglio del collegamento (vedi sotto).
-* **Aggiungere uno snodo**: doppio clic su un punto del filo. Lo snodo è un pallino che puoi trascinare per dare al filo la forma che vuoi.
+* **Percorso automatico**: un filo senza snodi non passa mai sotto i blocchi. L'app lo fa girare intorno ai blocchi e ai blocchi tondi con tratti orizzontali e verticali, scegliendo il percorso con meno curve, e lo ricalcola quando sposti un blocco o un pin. Una porta esce perpendicolare al suo lato; un pin di capacità esce dal lato del blocco più comodo verso l'altro estremo. Due fili che vanno allo stesso pin possono condividere l'ultimo tratto.
+* **Aggiungere uno snodo**: doppio clic su un punto del filo. Su un filo automatico il doppio clic lo trasforma in un filo *a mano*: tiene gli angoli che aveva più il nuovo snodo, così il disegno non salta. Lo snodo è un pallino che puoi trascinare per dare al filo la forma che vuoi; un filo a mano non cambia più da solo.
+* **Tornare al percorso automatico**: `↻ Reinstrada` nel dettaglio del filo toglie i suoi snodi; `↻ Reinstrada` nella barra del canvas li toglie da tutti i fili del livello, dopo una conferma. Si annulla con `Ctrl+Z` come ogni modifica.
 * **Togliere uno snodo**: doppio clic sullo snodo.
 * **Eliminare un filo**: clic destro sul filo e conferma, oppure dal pulsante dell'ispettore dei collegamenti.
 
@@ -112,7 +114,7 @@ Quando selezioni un filo, la colonna destra mostra il titolo `Collegamento` e:
 
 Se un estremo non esiste più (blocco sparito, requisito cancellato) la sua sezione dice `Requisito non trovato: <id>`. Se il filo non rispetta più le regole di collegamento, sotto la Relazione compare `⚠️` con il motivo.
 
-Il pulsante `🗑 Elimina collegamento` chiede conferma e toglie il filo. Un clic su un blocco, sullo sfondo o su `+ Nuovo Blocco`, oppure entrare o uscire da un livello, toglie la selezione del filo.
+Il pulsante `↻ Reinstrada` toglie gli snodi messi a mano (è spento se il filo è già automatico). Il pulsante `🗑 Elimina collegamento` chiede conferma e toglie il filo. Un clic su un blocco, sullo sfondo o su `+ Nuovo Blocco`, oppure entrare o uscire da un livello, toglie la selezione del filo.
 
 ## L'ispettore in generale
 

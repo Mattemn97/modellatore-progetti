@@ -158,6 +158,7 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 * doppio clic su un punto del filo: aggiungi uno snodo da trascinare per dargli forma;
 * clic destro sul filo: lo elimini;
 * `Shift` + trascina una porta: la sposti lungo il bordo del blocco.
+* I fili girano da soli intorno ai blocchi. Doppio clic su un filo: aggiungi uno snodo e lo modelli a mano; `↻ Reinstrada` (nell'Ispettore o nella barra del canvas) lo riporta automatico.
 * `Shift` + trascina un pin quadrato: lo sposti dentro il blocco, verso il blocco a cui va il suo filo. `↺ Riposiziona i pin` nell'Ispettore li rimette in fila.
 
 ---

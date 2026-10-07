@@ -68,6 +68,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'barra.proprieta': { titolo: 'Pannello destro', testo: "Mostra o nasconde l'ispettore." },
     'barra.filtri': { titolo: 'Filtri', testo: "Filtra blocchi e fili per classe (capacità o tipologia di interfaccia), documento, categoria e sottocategoria. Gli esclusi si attenuano o si nascondono; i filtri restano attivi entrando e uscendo dai blocchi." },
     'barra.matrice': { titolo: 'Matrice Requisiti', testo: "Apre la matrice di tracciabilità: ogni derivazione padre → figlio con i documenti di ciascun lato, filtrabile ed esportabile in Markdown." },
+    'barra.reinstrada': { titolo: 'Reinstrada il livello', testo: "Toglie gli snodi messi a mano da tutti i fili di questo livello (chiede conferma): i fili tornano al percorso automatico intorno ai blocchi." },
     'barra.immagine': { titolo: 'Immagine del livello', testo: "Scarica il livello aperto come immagine: SVG (vettoriale, nitido a ogni zoom) o PNG. L'immagine mostra blocchi, porte, fili e blocchi tondi, senza filtri, evidenze o selezione. Gli stessi diagrammi entrano da soli nei documenti Word e PDF." },
     'barra.documenti': { titolo: 'Documenti', testo: "Genera un documento MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD) in Markdown, con i testi dei requisiti nei capitoli giusti. Ogni testo entra solo se il suo documento è ammesso per il tipo del requisito." },
     'barra.coerenza': { titolo: 'Verifica Coerenza', testo: "Accende o spegne il controllo: evidenzia in rosso i requisiti senza padre o senza figli e apre la scheda Coerenza con l'elenco dei problemi." },
@@ -116,6 +117,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'coll.classe': { titolo: 'Classe', testo: "Capacità o tipologia di interfaccia del requisito: i due estremi devono avere la stessa." },
     'coll.metodo': { titolo: 'Metodo di verifica', testo: "Il metodo di verifica del requisito, preso dal blocco di libreria." },
     'coll.testi': { titolo: 'Testi da esportare', testo: "I testi del requisito con il documento in cui finiscono." },
+    'coll.reinstrada': { titolo: 'Reinstrada', testo: "Toglie gli snodi messi a mano da questo filo: l'app torna a farlo girare intorno ai blocchi da sola, e lo aggiorna quando sposti i blocchi." },
     'coll.elimina': { titolo: 'Elimina collegamento', testo: "Toglie questo filo dal modello. Puoi rimediare con Annulla." },
 
     // Filtri
@@ -181,6 +183,7 @@ export const TOUR: Record<string, PassoTour[]> = {
         { area: '#btnReqMatrix', titolo: 'Matrice e Documenti', prepara: 'pannello:canvas', testo: "Matrice Requisiti: la tabella di tracciabilità padre → figlio, esportabile. Documenti: genera i documenti MIL-STD-498 in Markdown. Si aprono come pannelli sotto il canvas e si aggiornano mentre modelli; ognuno ha un ❓ con la sua guida." },
         { area: '#btnDRC', titolo: 'Verifica Coerenza', prepara: 'pannello:canvas', testo: "Evidenzia in rosso cosa manca: requisiti cliente senza figli, requisiti di blocco senza padre, fili rotti. L'elenco compare nella scheda Coerenza; un clic su una voce ti porta lì." },
         { area: '#btnGerarchia', titolo: 'Gerarchia', prepara: 'pannello:canvas', testo: "Accendila e clicca un pin: vedi tutta la catena dei suoi antenati e discendenti attraverso i livelli, sul canvas e nella scheda Gerarchia." },
+        { area: '#btnReinstrada', titolo: 'Fili automatici', prepara: 'pannello:canvas', testo: "I fili girano da soli intorno ai blocchi e si aggiornano quando sposti qualcosa. Un doppio clic su un filo lo modella a mano; Reinstrada toglie gli snodi messi a mano da tutti i fili del livello." },
         { area: '#btnResetView', titolo: 'Vista e pannelli', prepara: 'pannello:canvas', testo: "Reset Vista riporta zoom e spostamento all'inizio. I pulsanti ☰ ai lati della barra chiudono e riaprono i pannelli Libreria e Ispettore." },
         { area: '#propertiesPanel', titolo: 'Ispettore', prepara: 'pannelloDestro', testo: "Mostra e modifica quello che selezioni: un blocco con i suoi requisiti, un requisito cliente o un filo. + Nuovo Blocco crea un tipo di blocco nella libreria." },
         { area: null, titolo: 'Fatto!', testo: "Ora conosci l'interfaccia. Accanto ai campi trovi le icone (i): passaci sopra con il mouse (o arrivaci con Tab) per sapere cosa rappresenta ogni campo. Matrice, Documenti, Import cliente e Filtri hanno un ❓ con una guida dedicata. Puoi rifare questo tour dal menu ❓ Aiuto." }

@@ -1,7 +1,7 @@
 /* --- CONTROLLER PRINCIPALE E INIZIALIZZAZIONE --- */
 
 import { loadSettings, pathStack, getCurrentLevel, appState, setActiveNodeId, appSettings } from './state.js';
-import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, puntoCanvas, evidenziaCliente } from './renderer.js';
+import { render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, puntoCanvas, evidenziaCliente, reinstradaLivello } from './renderer.js';
 import { initLibrary, loadLibraryFromPath } from './builder.js';
 import { renderNewBlockForm } from './inspector.js';
 import { avviaProgetti, aggiornaPercorsoLibreria } from './progetto.js';
@@ -122,6 +122,7 @@ export async function initApp(): Promise<void> {
 
     document.getElementById('btnNewBlockFromScratch')?.addEventListener('click', renderNewBlockForm);
     document.getElementById('btnResetView')?.addEventListener('click', resetView);
+    document.getElementById('btnReinstrada')?.addEventListener('click', reinstradaLivello);
 
     document.getElementById('libSearchInput')?.addEventListener('input', (e) => {
         appState.librarySearchQuery = (e.target as HTMLInputElement).value;

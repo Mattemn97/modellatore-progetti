@@ -26,10 +26,11 @@ I quadratini dei requisiti di capacità dentro il rettangolo di un blocco si pos
 - [x] Design it (spec): [0032](../specs/0032-pin-capacita-spostabili.md)
 - [x] Build it: `posizioniCapacita()` / `puntoPin()` in `src/renderer/diagramma.ts`, Shift+trascina in `renderer.ts`, `↺ Riposiziona i pin` in `inspector.ts`, test in `tests/unit/regole.test.ts` e `tests/e2e/ui/editor.spec.ts`
 
-### 60. Instradamento automatico dei fili · needs a decision
+### 60. Instradamento automatico dei fili · done
 I fili non passano mai sotto i blocchi: l'app li fa girare intorno con tratti ad angolo retto. I punti che hai messo a mano su un filo vincono sempre; un comando "Reinstrada" li toglie e lascia fare all'app. Si appoggia alle posizioni dei pin della voce 59, per questo viene dopo.
 **Done when:** un filo senza punti manuali non attraversa nessun blocco del livello (né i blocchi tondi) e si aggiorna da solo quando sposti un blocco; un filo con punti manuali resta com'è finché non scegli "Reinstrada" (su un filo o su tutto il livello); trascinare blocchi su un livello affollato resta fluido; le immagini dei diagrammi mostrano gli stessi percorsi del canvas.
-- [ ] Design it (spec): `/architect instradamento automatico dei fili`
+- [x] Design it (spec): [0033](../specs/0033-instradamento-fili.md)
+- [x] Build it: `src/renderer/instradamento.ts` (A* sulla griglia di Hanan, cache), `contestoFili()` / `percorsoFilo()` in `diagramma.ts`, `↻ Reinstrada` in `renderer.ts`, `inspector.ts` e nella barra del canvas, test in `tests/unit/instradamento.test.ts` e `tests/e2e/ui/editor.spec.ts`
 
 ### 61. Blocchi di libreria con l'interno (matrioska) · needs a decision
 Un blocco di libreria può salvare anche il suo interno: i blocchi figli, i fili e le posizioni dei blocchi tondi. Ogni nuova istanza trascinata dalla libreria nasce già con quella struttura dentro, così un sottosistema ricorrente si costruisce una volta sola. Il comando deve essere evidente (per esempio "Salva l'interno in libreria" dall'Ispettore di un'istanza).

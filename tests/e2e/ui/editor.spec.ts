@@ -84,13 +84,13 @@ test('un blocco rilasciato con lo zoom cade sotto il cursore', async () => {
 test('tour al primo avvio con la tastiera e suggerimento della (i)', async () => {
     const { pagina, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA });
     try {
-        await expect(pagina.getByText('Passo 1 di 17')).toBeVisible({ timeout: 20_000 });
+        await expect(pagina.getByText('Passo 1 di 18')).toBeVisible({ timeout: 20_000 });
         await pagina.keyboard.press('ArrowRight');
-        await expect(pagina.getByText('Passo 2 di 17')).toBeVisible();
+        await expect(pagina.getByText('Passo 2 di 18')).toBeVisible();
         await pagina.keyboard.press('ArrowLeft');
-        await expect(pagina.getByText('Passo 1 di 17')).toBeVisible();
+        await expect(pagina.getByText('Passo 1 di 18')).toBeVisible();
         await pagina.keyboard.press('Escape');
-        await expect(pagina.getByText('Passo 1 di 17')).toBeHidden();
+        await expect(pagina.getByText('Passo 1 di 18')).toBeHidden();
 
         await pagina.locator('.icona-aiuto[data-aiuto="libreria.ricerca"]').hover();
         await expect(pagina.locator('#suggerimento')).toBeVisible();
@@ -99,7 +99,7 @@ test('tour al primo avvio con la tastiera e suggerimento della (i)', async () =>
         // Il menu Aiuto fa ripartire il tour
         await pagina.locator('#btnMenuAiuto').click();
         await pagina.locator('[data-aiuto-azione="tour"]').click();
-        await expect(pagina.getByText('Passo 1 di 17')).toBeVisible();
+        await expect(pagina.getByText('Passo 1 di 18')).toBeVisible();
     } finally {
         await chiudi();
     }
@@ -133,6 +133,61 @@ test('pin di capacità: Shift+trascina lo sposta dentro il blocco, Riposiziona i
         await riposiziona.click();
         await expect(riposiziona).toBeDisabled();
         await expect.poll(() => alimentatore()).not.toHaveProperty('capabilityPositions');
+    } finally {
+        await chiudi();
+    }
+});
+
+test('instradamento automatico: il filo gira intorno a un blocco, il doppio clic lo fa a mano, Reinstrada lo riporta automatico (spec 0033)', async () => {
+    // Un sensore proprio fra alimentatore (porta a sinistra in 100, 130) e centralina (porta a sinistra in 500, 130)
+    const progetto = progettoCollegato() as { workspace: { nodes: unknown[] } };
+    progetto.workspace.nodes.push({ id: 'node_s', type: 'sensore', label: 'Sensore', width: 160, height: 60, position: { x: 300, y: 100 }, internal_graph: { nodes: [], edges: [] } });
+    const { pagina, cartella, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progetto }, ultimo: 'sistema' });
+    const dialoghi = registraDialoghi(pagina);
+    type ConFili = { workspace: { edges: Array<{ id: string; waypoints: Array<{ x: number; y: number }> }> } };
+    const file = path.join(cartella, 'progetti', 'sistema.json');
+    const snodi = () => leggiJson<ConFili>(file).workspace.edges[0]?.waypoints;
+    try {
+        await pronta(pagina);
+        const filo = pagina.locator('#edgesLayer path.edge-path').first();
+        await expect(filo).toHaveClass(/filo-automatico/);
+        const d = (await filo.getAttribute('d')) ?? '';
+        const numeri = d.replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number);
+        const punti = numeri.reduce<Array<{ x: number; y: number }>>((acc, n, i) => (i % 2 ? acc : [...acc, { x: n, y: numeri[i + 1]! }]), []);
+        expect(punti.length).toBeGreaterThan(2);
+        // Nessun tratto passa dentro il sensore (300..460 × 100..160) e tutti sono orizzontali o verticali
+        punti.slice(0, -1).forEach((a, i) => {
+            const b = punti[i + 1]!;
+            expect(a.x === b.x || a.y === b.y).toBe(true);
+            const dentro = a.y === b.y
+                ? a.y > 100 && a.y < 160 && Math.max(a.x, b.x) > 300 && Math.min(a.x, b.x) < 460
+                : a.x > 300 && a.x < 460 && Math.max(a.y, b.y) > 100 && Math.min(a.y, b.y) < 160;
+            expect(dentro).toBe(false);
+        });
+        // L'apertura non scrive nulla: il percorso automatico non si salva
+        expect(snodi()).toEqual([]);
+
+        // Doppio clic: il filo diventa a mano con gli angoli di adesso più il nuovo snodo
+        await filo.dispatchEvent('dblclick');
+        await expect.poll(() => snodi()?.length ?? 0).toBeGreaterThanOrEqual(punti.length - 2);
+        await expect(pagina.locator('#edgesLayer path.edge-path').first()).toHaveClass(/filo-a-mano/);
+
+        // Reinstrada dal dettaglio del filo
+        await pagina.locator('#edgesLayer path.edge-path').first().dispatchEvent('click');
+        const reinstradaFilo = pagina.locator('#btnReinstradaFilo');
+        await expect(reinstradaFilo).toBeEnabled();
+        await reinstradaFilo.click();
+        await expect.poll(snodi).toEqual([]);
+        await expect(reinstradaFilo).toBeDisabled();
+
+        // Reinstrada del livello: senza fili a mano lo dice, con un filo a mano chiede conferma
+        await pagina.locator('#btnReinstrada').click();
+        await expect.poll(() => dialoghi.at(-1)).toBe('Nessun filo con punti messi a mano in questo livello.');
+        await pagina.locator('#edgesLayer path.edge-path').first().dispatchEvent('dblclick');
+        await expect.poll(() => snodi()?.length ?? 0).toBeGreaterThan(0);
+        await pagina.locator('#btnReinstrada').click();
+        await expect.poll(() => dialoghi.at(-1)).toBe('Togliere i punti messi a mano da 1 filo di questo livello?');
+        await expect.poll(snodi).toEqual([]);
     } finally {
         await chiudi();
     }
