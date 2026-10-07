@@ -29,10 +29,21 @@ Nella colonna sinistra apri la scheda `Cliente`.
    | Sezione | no | Il capitolo o gruppo del documento del cliente; diventa un filtro nella scheda |
    | Tipologia | no | Se c'è, il requisito è di interfaccia di quella tipologia; se è vuota, è di capacità |
 
-3. Guarda l'**anteprima** (vedi sotto) e scegli la **modalità**.
-4. Premi **`Conferma import`**.
+3. Se il file mescola requisiti, titoli di capitolo e note, imposta il **Filtro righe** (vedi sotto).
+4. Guarda l'**anteprima** (vedi sotto) e scegli la **modalità**.
+5. Premi **`Conferma import`**.
 
 Il progetto si salva subito dopo la conferma. Tutto l'import è un solo passo di Annulla: se il risultato non ti piace, `Ctrl+Z` lo toglie interamente.
+
+### Filtro righe
+
+Molti file dei clienti hanno una colonna che dice cos'è ogni riga, per esempio `Tipo` con `Requirement`, `Heading` o `Note`. Nella riga **Filtro righe** scegli quella **Colonna** e scrivi nel campo **contiene** il testo che hanno le righe dei requisiti: diventano requisiti cliente solo le righe in cui quella colonna lo contiene.
+
+* Maiuscole e minuscole non contano, e nemmeno gli spazi ai bordi.
+* Più valori separati da `;` valgono in alternativa: `Requirement; Req` fa passare le righe che contengono l'uno o l'altro.
+* L'anteprima dice quante righe passano il filtro e quante sono escluse; la scheda **Esclusi** elenca le escluse con il valore della colonna filtro.
+* Le righe escluse non sono scartate: semplicemente non fanno parte del file. Con la modalità `Sostituisci`, un requisito già importato che ora è escluso diventa ritirato come chi manca nel file.
+* Il filtro si ricorda con l'ultimo import, come le colonne. Con `(nessun filtro)` o con il campo vuoto si importano tutte le righe.
 
 ### Che file vanno bene
 
@@ -44,9 +55,10 @@ Non sono supportati i vecchi `.xls` né i file protetti da password: l'app ti ch
 
 ### L'anteprima
 
-Prima di confermare vedi esattamente cosa succederà. In alto ci sono i conteggi: nuovi, modificati, riattivati, ritirati, invariati, scartati e fili che si perdono. Sotto, quattro schede:
+Prima di confermare vedi esattamente cosa succederà. In alto ci sono i conteggi: nuovi, modificati, riattivati, ritirati, invariati, scartati e fili che si perdono (più gli esclusi, quando usi il filtro). Sotto, quattro schede (cinque con il filtro):
 
 * **Scartati**: le righe che non entrano, con numero di riga, ID e motivo;
+* **Esclusi**: solo con il filtro, le righe che il filtro lascia fuori;
 * **Modificati**: il prima e dopo di testo, titolo e tipologia;
 * **Ritirati**: i requisiti che spariranno dall'insieme attivo;
 * **Nuovi**: i requisiti che entrano (le prime 200 righe, poi "e altri N").

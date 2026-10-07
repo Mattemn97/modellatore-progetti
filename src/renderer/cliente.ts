@@ -73,6 +73,7 @@ interface Scartata {
 }
 
 export interface Conteggi {
+    esclusi?: number;
     nuovi: number;
     modificati: number;
     riattivati: number;
@@ -255,12 +256,53 @@ function trovaColonna(colonne: Colonna[], riferimento: Riferimento | null | unde
     return colonne.find((c) => c.lettera === riferimento.lettera)?.indice ?? null;
 }
 
-// Righe dati sotto l'intestazione, mappate sui campi; le righe del tutto vuote sono ignorate
-export function estraiRighe(foglio: Foglio, rigaIntestazione: number, colonne: Colonne): RigaImport[] {
+// Filtro delle righe (spec 0030): la cella della colonna deve contenere il testo, o uno dei valori separati da ";"
+export interface FiltroRighe {
+    colonna: number | null;
+    testo: string;
+}
+
+export interface Esclusa {
+    riga: number;
+    idCliente: string | null;
+    valore: string;
+}
+
+function valoriFiltro(testo: string): string[] {
+    return testo.split(';').map((v) => v.trim().toLowerCase()).filter((v) => v !== '');
+}
+
+export function filtroAttivo(filtro: FiltroRighe | null | undefined): filtro is FiltroRighe & { colonna: number } {
+    return !!filtro && filtro.colonna !== null && valoriFiltro(filtro.testo).length > 0;
+}
+
+// Senza maiuscole e minuscole e senza spazi ai lati; un testo vuoto lascia passare tutto
+export function passaFiltro(cella: string, testo: string): boolean {
+    const valori = valoriFiltro(testo);
+    if (valori.length === 0) return true;
+    const contenuto = cella.trim().toLowerCase();
+    return valori.some((v) => contenuto.includes(v));
+}
+
+// Righe dati sotto l'intestazione, mappate sui campi; le righe del tutto vuote sono ignorate,
+// quelle che non passano il filtro finiscono fra le escluse
+export function estraiRighe(foglio: Foglio, rigaIntestazione: number, colonne: Colonne,
+    filtro: FiltroRighe | null = null): { righe: RigaImport[]; escluse: Esclusa[] } {
     const righe: RigaImport[] = [];
+    const escluse: Esclusa[] = [];
+    const attivo = filtroAttivo(filtro);
     for (let i = rigaIntestazione; i < foglio.righe.length; i++) {
         const celle = foglio.righe[i] ?? [];
         if (!celle.some((c) => String(c ?? '').trim() !== '')) continue;
+        if (attivo) {
+            const valore = String(celle[filtro.colonna] ?? '');
+            if (!passaFiltro(valore, filtro.testo)) {
+                const indiceId = colonne.id;
+                const id = indiceId === null || indiceId === undefined ? '' : String(celle[indiceId] ?? '').trim();
+                escluse.push({ riga: i + 1, idCliente: id || null, valore: valore.trim() });
+                continue;
+            }
+        }
         const valore = (chiave: ChiaveCampo): string | null => {
             const indice = colonne[chiave];
             if (indice === null || indice === undefined) return null;
@@ -276,7 +318,7 @@ export function estraiRighe(foglio: Foglio, rigaIntestazione: number, colonne: C
             tipologia: valore('tipologia')
         });
     }
-    return righe;
+    return { righe, escluse };
 }
 
 // Scarta una riga per il primo motivo che vale: ID vuoto, testo vuoto, tipologia sconosciuta, ID ripetuto, id della libreria
@@ -408,7 +450,7 @@ async function applicaImport(risultato: RisultatoImport, prefisso: string, ultim
 const modale = document.getElementById('importClienteModal');
 const contenutoModale = document.getElementById('importClienteContenuto');
 
-type SchedaImport = 'scartati' | 'modificati' | 'ritirati' | 'nuovi';
+type SchedaImport = 'scartati' | 'esclusi' | 'modificati' | 'ritirati' | 'nuovi';
 
 // Stato della finestra: file letto, foglio, riga di intestazione, colonne, modalità e ultimo risultato
 interface StatoImport {
@@ -420,10 +462,14 @@ interface StatoImport {
     // Riferimenti { nome, lettera } da cui ricostruire le colonne quando cambiano foglio o riga
     riferimenti: Partial<Record<ChiaveCampo, Riferimento | null>>;
     colonne: Colonne;
+    // Filtro delle righe (spec 0030): riferimento della colonna, indice nel foglio di adesso e testo
+    riferimentoFiltro: Riferimento | null;
+    filtro: FiltroRighe;
     modalita: 'sostituisci' | 'aggiungi';
     scheda: SchedaImport;
     risultato: RisultatoImport | null;
     validazione: { valide: RigaValida[]; scartate: Scartata[] } | null;
+    escluse: Esclusa[];
 }
 
 let imp: StatoImport | null = null;
@@ -469,10 +515,13 @@ function apriFinestraImport(nomeFile: string, dati: FileLetto): void {
         riga: ultimo && Number.isInteger(ultimo.rigaIntestazione) && ultimo.rigaIntestazione >= 1 ? ultimo.rigaIntestazione : 1,
         riferimenti: (ultimo?.colonne as StatoImport['riferimenti'] | undefined) || {},
         colonne: {},
+        riferimentoFiltro: ultimo?.filtro?.colonna ?? null,
+        filtro: { colonna: null, testo: typeof ultimo?.filtro?.testo === 'string' ? ultimo.filtro.testo : '' },
         modalita: 'sostituisci',
         scheda: 'scartati',
         risultato: null,
-        validazione: null
+        validazione: null,
+        escluse: []
     };
     ricostruisciColonne(imp);
     if (modale) modale.style.display = 'flex';
@@ -493,16 +542,18 @@ function ricostruisciColonne(s: StatoImport): void {
     const colonne = colonneCorrenti(s);
     s.colonne = {};
     CAMPI.forEach(({ chiave }) => { s.colonne[chiave] = trovaColonna(colonne, s.riferimenti[chiave]); });
+    s.filtro.colonna = trovaColonna(colonne, s.riferimentoFiltro);
+}
+
+function riferimentoDi(s: StatoImport, indice: number | null | undefined): Riferimento | null {
+    const c = colonneCorrenti(s).find((col) => col.indice === indice);
+    return c ? { nome: c.nome, lettera: c.lettera } : null;
 }
 
 // Riferimenti { nome, lettera } delle colonne scelte, per ultimoImport e per ricostruire i menu
 function riferimentiScelti(s: StatoImport): Record<ChiaveCampo, Riferimento | null> {
-    const colonne = colonneCorrenti(s);
     const riferimenti = {} as Record<ChiaveCampo, Riferimento | null>;
-    CAMPI.forEach(({ chiave }) => {
-        const c = colonne.find((col) => col.indice === s.colonne[chiave]);
-        riferimenti[chiave] = c ? { nome: c.nome, lettera: c.lettera } : null;
-    });
+    CAMPI.forEach(({ chiave }) => { riferimenti[chiave] = riferimentoDi(s, s.colonne[chiave]); });
     return riferimenti;
 }
 
@@ -514,12 +565,15 @@ function mappaturaCompleta(s: StatoImport): boolean {
 function calcolaAnteprima(s: StatoImport): void {
     s.risultato = null;
     s.validazione = null;
+    s.escluse = [];
     if (!mappaturaCompleta(s) || s.riga > foglioCorrente(s).righe.length) return;
     const prefisso = prefissoInUso();
-    const righe = estraiRighe(foglioCorrente(s), s.riga, s.colonne);
+    const { righe, escluse } = estraiRighe(foglioCorrente(s), s.riga, s.colonne, s.filtro);
     const validazione = validaRighe(righe, prefisso, appState.library);
     const risultato = calcolaImport(appState.cliente, validazione.valide, s.modalita, prefisso, pathStack[0]!.graph);
     risultato.conteggi.scartati = validazione.scartate.length;
+    if (filtroAttivo(s.filtro)) risultato.conteggi.esclusi = escluse.length;
+    s.escluse = escluse;
     s.validazione = validazione;
     s.risultato = risultato;
 }
@@ -553,6 +607,16 @@ function disegnaFinestra(s: StatoImport): void {
         </div>
         ${oltreLaFine ? `<p class="elenco-avviso">Il foglio ha solo ${foglio.righe.length} righe</p>` : ''}
         <div class="import-campi">${CAMPI.map(menuCampo).join('')}</div>
+        <div class="import-filtro">
+            <span class="campo-import"><span>Filtro righe</span></span>
+            <label class="campo-import"><span>Colonna${iconaAiuto('import.filtro.colonna')}</span>
+                <select id="impFiltroColonna" ${oltreLaFine ? 'disabled' : ''}>
+                    <option value="" ${s.filtro.colonna === null ? 'selected' : ''}>(nessun filtro)</option>
+                    ${colonne.map((c) => `<option value="${c.indice}" ${c.indice === s.filtro.colonna ? 'selected' : ''}>${escapeHtml(`${c.lettera}: ${c.nome || '(senza nome)'}`)}</option>`).join('')}
+                </select></label>
+            <label class="campo-import"><span>contiene${iconaAiuto('import.filtro.testo')}</span>
+                <input type="text" id="impFiltroTesto" value="${escapeHtml(s.filtro.testo)}" placeholder="es. Requirement; Req" ${oltreLaFine ? 'disabled' : ''}></label>
+        </div>
         <div class="import-modalita">
             <span class="campo-import"><span>Modalità${iconaAiuto('import.modalita')}</span></span>
             <label><input type="radio" name="impModalita" value="sostituisci" ${s.modalita === 'sostituisci' ? 'checked' : ''}> Sostituisci l'insieme <small>(chi manca nel file diventa ritirato)</small></label>
@@ -586,6 +650,13 @@ function contenutoScheda(s: StatoImport, risultato: RisultatoImport): string {
         case 'scartati': {
             const righe = (s.validazione?.scartate ?? []).map((sc) => `<tr>${cella(sc.riga)}${cella(sc.idCliente)}${cella(sc.motivo)}</tr>`);
             return righe.length ? tabella(['Riga', 'ID', 'Motivo'], righe) : '<p class="empty-props">Nessuna riga scartata.</p>';
+        }
+        case 'esclusi': {
+            const limite = appSettings.cliente.righeAnteprima;
+            const righe = s.escluse.slice(0, limite).map((e) => `<tr>${cella(e.riga)}${cella(e.idCliente)}${cella(e.valore)}</tr>`);
+            const altri = s.escluse.length - limite;
+            if (!righe.length) return '<p class="empty-props">Nessuna riga esclusa dal filtro.</p>';
+            return tabella(['Riga', 'ID', 'Valore della colonna filtro'], righe) + (altri > 0 ? `<p class="empty-props">e altre ${altri}</p>` : '');
         }
         case 'modificati': {
             const righe = liste.modificati.map(({ prima, dopo }) =>
@@ -626,7 +697,16 @@ function disegnaAnteprima(s: StatoImport): void {
     ];
     const schede: Array<[SchedaImport, string, number]> = [['scartati', 'Scartati', c.scartati], ['modificati', 'Modificati', c.modificati],
         ['ritirati', 'Ritirati', c.ritirati], ['nuovi', 'Nuovi', c.nuovi]];
+    const esclusi = c.esclusi;
+    if (esclusi !== undefined) {
+        voci.push(['Esclusi', esclusi]);
+        schede.splice(1, 0, ['esclusi', 'Esclusi', esclusi]);
+    } else if (s.scheda === 'esclusi') s.scheda = 'scartati';
+    const passano = (s.validazione?.valide.length ?? 0) + (s.validazione?.scartate.length ?? 0);
+    const esitoFiltro = esclusi === undefined ? ''
+        : `<p class="import-esito-filtro" id="impEsitoFiltro">${passano} ${passano === 1 ? 'riga passa' : 'righe passano'} il filtro, ${esclusi} ${esclusi === 1 ? 'esclusa' : 'escluse'}</p>`;
     anteprima.innerHTML = `
+        ${esitoFiltro}
         <div class="import-conteggi">${voci.map(([nome, n]) =>
             `<span class="conteggio-import${n > 0 && (nome === 'Scartati' || nome === 'Fili che si perdono') ? ' conteggio-attenzione' : ''}"><strong>${n}</strong> ${nome.toLowerCase()}</span>`).join('')}</div>
         <div class="schede-import">${schede.map(([chiave, nome, n]) =>
@@ -648,13 +728,14 @@ async function confermaImport(s: StatoImport): Promise<void> {
         rigaIntestazione: s.riga,
         modalita: s.modalita,
         colonne: riferimentiScelti(s) as unknown as UltimoImport['colonne'],
+        filtro: filtroAttivo(s.filtro) ? { colonna: riferimentoDi(s, s.filtro.colonna), testo: s.filtro.testo.trim() } : null,
         conteggi: { ...risultato.conteggi }
     };
     chiudiImport();
     await applicaImport(risultato, prefisso, ultimoImport);
 }
 
-const SCHEDE_IMPORT = new Set<string>(['scartati', 'modificati', 'ritirati', 'nuovi']);
+const SCHEDE_IMPORT = new Set<string>(['scartati', 'esclusi', 'modificati', 'ritirati', 'nuovi']);
 
 function installaEventiImport(): void {
     if (!contenutoModale) return;
@@ -665,6 +746,7 @@ function installaEventiImport(): void {
         if (t.id === 'impFoglio' || t.id === 'impRiga') {
             // I menu si ricostruiscono tenendo le colonne scelte (per nome, se no per lettera)
             s.riferimenti = riferimentiScelti(s);
+            s.riferimentoFiltro = riferimentoDi(s, s.filtro.colonna);
             if (t.id === 'impFoglio') s.foglio = Number(t.value);
             else s.riga = Math.max(1, Math.floor(Number(t.value)) || 1);
             ricostruisciColonne(s);
@@ -672,10 +754,21 @@ function installaEventiImport(): void {
         } else if (t.dataset.campo) {
             s.colonne[t.dataset.campo as ChiaveCampo] = t.value === '' ? null : Number(t.value);
             disegnaAnteprima(s);
+        } else if (t.id === 'impFiltroColonna') {
+            s.filtro.colonna = t.value === '' ? null : Number(t.value);
+            disegnaAnteprima(s);
         } else if ((t as HTMLInputElement).name === 'impModalita') {
             s.modalita = t.value === 'aggiungi' ? 'aggiungi' : 'sostituisci';
             disegnaAnteprima(s);
         }
+    });
+    // Il testo del filtro aggiorna l'anteprima mentre scrivi, senza ridisegnare il campo
+    contenutoModale.addEventListener('input', (e) => {
+        const s = imp;
+        const t = e.target as HTMLInputElement;
+        if (!s || t.id !== 'impFiltroTesto') return;
+        s.filtro.testo = t.value;
+        disegnaAnteprima(s);
     });
     contenutoModale.addEventListener('click', (e) => {
         const s = imp;

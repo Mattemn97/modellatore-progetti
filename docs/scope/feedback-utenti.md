@@ -8,10 +8,11 @@ Livello predefinito di questo blocco: **Beta** (dopo `/develop`, `/check verify`
 
 ## Blocco G · Feedback degli utenti
 
-### 57. Filtro delle righe nell'import cliente · needs a decision
+### 57. Filtro delle righe nell'import cliente · done
 Nella finestra di import dei requisiti cliente, un campo in più da mappare: scegli una colonna e un testo, e diventano requisiti cliente solo le righe in cui quella colonna contiene quel testo (per esempio colonna "Tipo" contiene "Requirement"). Oggi ogni riga con id e testo viene importata, anche titoli e note.
 **Done when:** scegli colonna e testo nella finestra di import, l'anteprima dice quante righe passano e quante sono escluse, l'import porta dentro solo le righe che passano; il filtro si ricorda con l'ultimo import (come le colonne) e senza filtro tutto funziona come oggi.
-- [ ] Design it (spec): `/architect filtro delle righe nell'import cliente`
+- [x] Design it (spec): [0030](../specs/0030-filtro-righe-import-cliente.md)
+- [x] Build it: `src/renderer/cliente.ts` (`passaFiltro()`, `estraiRighe()` con il filtro, scheda Esclusi), test in `tests/unit/import-cliente.test.ts` e `tests/e2e/ui/cliente.spec.ts`
 
 ### 58. Filtri per colonna nella Matrice · needs a decision
 Filtri come in Excel sulla tabella della Matrice di tracciabilità: ogni intestazione ha un menu ▼ con l'elenco dei valori da spuntare, una casella di ricerca e l'ordinamento, così trovi al volo quello che ti serve senza combinare a mano i filtri globali.

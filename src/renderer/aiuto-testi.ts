@@ -149,6 +149,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'import.colonna.note': { titolo: 'Colonna Note', testo: "Facoltativa. Note del cliente, visibili nel dettaglio." },
     'import.colonna.sezione': { titolo: 'Colonna Sezione', testo: "Facoltativa. La sezione del documento del cliente, per filtrare l'elenco." },
     'import.colonna.tipologia': { titolo: 'Colonna Tipologia', testo: "Facoltativa. Una tipologia di interfaccia; vuota vuol dire capacità." },
+    'import.filtro.colonna': { titolo: 'Filtro righe: colonna', testo: "Facoltativa. La colonna da guardare per decidere quali righe sono requisiti, per esempio \"Tipo\". Con (nessun filtro) si importano tutte le righe con ID e testo." },
+    'import.filtro.testo': { titolo: 'Filtro righe: contiene', testo: "Passano solo le righe in cui la colonna scelta contiene questo testo (maiuscole e minuscole uguali). Più valori separati da ; valgono in alternativa, es. \"Requirement; Req\". Le righe escluse non diventano requisiti e non contano come scartate." },
     'import.modalita': { titolo: 'Modalità', testo: "Sostituisci: il file è l'insieme completo, chi manca diventa ritirato. Aggiungi e aggiorna: aggiunge i nuovi e aggiorna gli esistenti, nessuno viene ritirato." },
 
     // Changelog
