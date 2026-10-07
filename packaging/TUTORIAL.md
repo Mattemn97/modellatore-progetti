@@ -158,6 +158,8 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 * doppio clic su un punto del filo: aggiungi uno snodo da trascinare per dargli forma;
 * clic destro sul filo: lo elimini;
 * `Shift` + trascina una porta: la sposti lungo il bordo del blocco.
+* I fili girano da soli intorno ai blocchi. Doppio clic su un filo: aggiungi uno snodo e lo modelli a mano; `↻ Reinstrada` (nell'Ispettore o nella barra del canvas) lo riporta automatico.
+* `Shift` + trascina un pin quadrato: lo sposti dentro il blocco, verso il blocco a cui va il suo filo. `↺ Riposiziona i pin` nell'Ispettore li rimette in fila.
 
 ---
 
@@ -171,6 +173,8 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 6. Torna su con **`← Indietro`** in alto a sinistra, oppure con un clic su `Impianto di prova` nel percorso.
 
 Ora la catena è completa: cliente → Centralina → Pompa.
+
+**Riusa l'interno (facoltativo).** Seleziona la Centralina e, nell'Ispettore, sezione *Questa istanza*, premi `📦 Salva l'interno in libreria`: d'ora in poi ogni nuova Centralina trascinata dalla libreria nasce già con la Pompa e i due fili dentro. Nell'albero la Centralina ha il segno 📦.
 
 ---
 

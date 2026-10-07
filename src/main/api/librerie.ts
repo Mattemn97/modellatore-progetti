@@ -127,6 +127,21 @@ function controllaBlocco(blocco: unknown): asserts blocco is Oggetto & { id: str
     }
 }
 
+// Un grafo di un interno standard (spec 0034) con il tipo vecchio dei nodi, a ogni livello, sostituito dal nuovo
+export function rinominaTipoNegliInterni(grafo: unknown, vecchio: string, nuovo: string): unknown {
+    if (!eOggetto(grafo) || !Array.isArray(grafo.nodes)) return grafo;
+    return {
+        ...grafo,
+        nodes: grafo.nodes.map((n: unknown) => {
+            if (!eOggetto(n)) return n;
+            const copia: Oggetto = { ...n };
+            if (copia.type === vecchio) copia.type = nuovo;
+            if ('internal_graph' in copia) copia.internal_graph = rinominaTipoNegliInterni(copia.internal_graph, vecchio, nuovo);
+            return copia;
+        })
+    };
+}
+
 // os.path.normcase su Windows: minuscole e barre rovesciate
 function normcase(p: string): string {
     return process.platform === 'win32' ? p.replace(/\//g, '\\').toLowerCase() : p;
@@ -493,8 +508,14 @@ export class ArchivioLibrerie {
         }
         const { changelog, voci } = this.allinea(op.f, op.oggetto, op.dati, op.contenuto, op.changelog);
         const blocco = { ...(op.contenuto[op.idBlocco] as Oggetto), id: nuovoId };
-        // Stesso posto nell'ordine del file
-        const libraryNuova = Object.fromEntries(Object.entries(op.contenuto).map(([k, v]) => (k === op.idBlocco ? [nuovoId, blocco] : [k, v])));
+        // Stesso posto nell'ordine del file; le istanze del blocco dentro gli interni standard seguono il nuovo id (spec 0034)
+        const libraryNuova = Object.fromEntries(Object.entries(op.contenuto).map(([k, v]) => {
+            const valore = k === op.idBlocco ? blocco : v;
+            const conInterni = eOggetto(valore) && 'interno' in valore
+                ? { ...valore, interno: rinominaTipoNegliInterni(valore.interno, op.idBlocco, nuovoId) }
+                : valore;
+            return [k === op.idBlocco ? nuovoId : k, conInterni];
+        }));
         const modifica: Modifica = {
             blocco: nuovoId, idPrecedente: op.idBlocco, titolo: titoloDi(blocco, nuovoId), tipo: 'rinominato', campiBlocco: ['id'], requisiti: []
         };

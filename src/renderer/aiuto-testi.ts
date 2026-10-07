@@ -46,6 +46,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
 
     // Libreria (pannello sinistro)
     'libreria.titolo': { titolo: 'Libreria Blocchi', testo: "I tipi di blocco che puoi usare nel progetto, salvati su disco. Il numero accanto è la versione della libreria: sale da sola a ogni modifica (patch, minor o major) e ogni passo finisce nel Changelog." },
+    'libreria.interno': { titolo: 'Interno standard', testo: "📦: il blocco ha un interno standard e le sue nuove istanze nascono con i blocchi e i fili dentro. ⚠ accanto: l'interno usa blocchi che la libreria non ha più, che al rilascio vengono saltati." },
     'libreria.nonAmmessi': { titolo: 'Testi su documenti non ammessi', testo: "Questo blocco ha testi in un documento che il tipo del requisito non ammette (regola documentiPerClasse di settings.json). Aprilo: i testi sbagliati sono in rosso. Finché non li correggi il blocco non si salva e quei testi restano fuori dai documenti." },
     'libreria.changelog': { titolo: 'Changelog', testo: "Elenco di tutte le modifiche alla libreria: quando, quale blocco, quali requisiti e con quale livello di versione." },
     'libreria.solaLettura': { titolo: 'Sola lettura', testo: "La libreria non si può modificare (file protetto o versione futura). Puoi usarne i blocchi, ma non salvarli." },
@@ -68,6 +69,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'barra.proprieta': { titolo: 'Pannello destro', testo: "Mostra o nasconde l'ispettore." },
     'barra.filtri': { titolo: 'Filtri', testo: "Filtra blocchi e fili per classe (capacità o tipologia di interfaccia), documento, categoria e sottocategoria. Gli esclusi si attenuano o si nascondono; i filtri restano attivi entrando e uscendo dai blocchi." },
     'barra.matrice': { titolo: 'Matrice Requisiti', testo: "Apre la matrice di tracciabilità: ogni derivazione padre → figlio con i documenti di ciascun lato, filtrabile ed esportabile in Markdown." },
+    'barra.reinstrada': { titolo: 'Reinstrada il livello', testo: "Toglie gli snodi messi a mano da tutti i fili di questo livello (chiede conferma): i fili tornano al percorso automatico intorno ai blocchi." },
     'barra.immagine': { titolo: 'Immagine del livello', testo: "Scarica il livello aperto come immagine: SVG (vettoriale, nitido a ogni zoom) o PNG. L'immagine mostra blocchi, porte, fili e blocchi tondi, senza filtri, evidenze o selezione. Gli stessi diagrammi entrano da soli nei documenti Word e PDF." },
     'barra.documenti': { titolo: 'Documenti', testo: "Genera un documento MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD) in Markdown, con i testi dei requisiti nei capitoli giusti. Ogni testo entra solo se il suo documento è ammesso per il tipo del requisito." },
     'barra.coerenza': { titolo: 'Verifica Coerenza', testo: "Accende o spegne il controllo: evidenzia in rosso i requisiti senza padre o senza figli e apre la scheda Coerenza con l'elenco dei problemi." },
@@ -96,6 +98,10 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'ispettore.salva': { titolo: 'Salva in libreria', testo: "Scrive il blocco nella libreria su disco, alza la versione e aggiunge una voce al Changelog. La modifica vale per tutte le istanze del blocco nel progetto." },
     'ispettore.copia': { titolo: 'Nuovo blocco simile', testo: "Salva una copia come nuovo tipo di blocco, con un nuovo ID e nuovi ID dei requisiti. Il blocco originale non cambia." },
     'ispettore.eliminaLibreria': { titolo: 'Elimina dalla libreria', testo: "Toglie il tipo di blocco dalla libreria. Non è possibile se il progetto aperto lo usa: prima ti mostra dove." },
+    'ispettore.istanza': { titolo: 'Questa istanza', testo: "Comandi che valgono solo per il blocco selezionato sul canvas, non per il tipo di blocco in libreria." },
+    'ispettore.riposizionaPin': { titolo: 'Riposiziona i pin', testo: "Rimette in fila sul bordo inferiore i pin di capacità che hai spostato con Shift+trascina in questa istanza." },
+    'ispettore.salvaInterno': { titolo: "Salva l'interno in libreria", testo: "Copia l'interno di questa istanza (blocchi, fili, blocchi tondi, a ogni livello) come interno standard del blocco: ogni nuova istanza trascinata dalla libreria nascerà già con questa struttura. Le istanze già nel progetto non cambiano." },
+    'ispettore.togliInterno': { titolo: "Togli l'interno dalla libreria", testo: "Le nuove istanze di questo blocco torneranno a nascere vuote. Le istanze già nel progetto non cambiano." },
     'ispettore.eliminaGrafico': { titolo: 'Elimina dal grafico', testo: "Toglie solo questa istanza dal canvas, con i suoi fili. Il tipo di blocco resta in libreria." },
 
     // Ispettore: requisito cliente
@@ -114,6 +120,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'coll.classe': { titolo: 'Classe', testo: "Capacità o tipologia di interfaccia del requisito: i due estremi devono avere la stessa." },
     'coll.metodo': { titolo: 'Metodo di verifica', testo: "Il metodo di verifica del requisito, preso dal blocco di libreria." },
     'coll.testi': { titolo: 'Testi da esportare', testo: "I testi del requisito con il documento in cui finiscono." },
+    'coll.reinstrada': { titolo: 'Reinstrada', testo: "Toglie gli snodi messi a mano da questo filo: l'app torna a farlo girare intorno ai blocchi da sola, e lo aggiorna quando sposti i blocchi." },
     'coll.elimina': { titolo: 'Elimina collegamento', testo: "Toglie questo filo dal modello. Puoi rimediare con Annulla." },
 
     // Filtri
@@ -130,6 +137,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'matrice.classe': { titolo: 'Classe', testo: "Mostra solo le derivazioni di una classe: capacità o una tipologia di interfaccia." },
     'matrice.ricerca': { titolo: 'Ricerca', testo: "Filtra per ID o titolo, del padre o del figlio. Un clic su un requisito della tabella lo apre nella Gerarchia." },
     'matrice.esporta': { titolo: 'Esporta .md', testo: "Scarica la matrice filtrata come tabella Markdown." },
+    'matrice.colonna': { titolo: 'Filtra e ordina la colonna', testo: "Come in Excel: ordina A→Z o Z→A, cerca un valore e spunta quelli da vedere. I filtri di più colonne si sommano a Documento, Classe e Ricerca. Una colonna filtrata ha il pulsante blu." },
+    'matrice.pulisci': { titolo: 'Pulisci filtri', testo: "Toglie tutti i filtri della Matrice, anche quelli delle colonne, e gli ordinamenti." },
 
     // Documenti
     'documenti.documento': { titolo: 'Documento', testo: "Il tipo di documento MIL-STD-498 da generare, con i capitoli del suo DID (Data Item Description, la traccia ufficiale del documento)." },
@@ -149,6 +158,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'import.colonna.note': { titolo: 'Colonna Note', testo: "Facoltativa. Note del cliente, visibili nel dettaglio." },
     'import.colonna.sezione': { titolo: 'Colonna Sezione', testo: "Facoltativa. La sezione del documento del cliente, per filtrare l'elenco." },
     'import.colonna.tipologia': { titolo: 'Colonna Tipologia', testo: "Facoltativa. Una tipologia di interfaccia; vuota vuol dire capacità." },
+    'import.filtro.colonna': { titolo: 'Filtro righe: colonna', testo: "Facoltativa. La colonna da guardare per decidere quali righe sono requisiti, per esempio \"Tipo\". Con (nessun filtro) si importano tutte le righe con ID e testo." },
+    'import.filtro.testo': { titolo: 'Filtro righe: contiene', testo: "Passano solo le righe in cui la colonna scelta contiene questo testo (maiuscole e minuscole uguali). Più valori separati da ; valgono in alternativa, es. \"Requirement; Req\". Le righe escluse non diventano requisiti e non contano come scartate." },
     'import.modalita': { titolo: 'Modalità', testo: "Sostituisci: il file è l'insieme completo, chi manca diventa ritirato. Aggiungi e aggiorna: aggiunge i nuovi e aggiorna gli esistenti, nessuno viene ritirato." },
 
     // Changelog
@@ -170,11 +181,12 @@ export const TOUR: Record<string, PassoTour[]> = {
         { area: '#schedaLibreria', titolo: 'Libreria', prepara: 'pannello:libreria', testo: "I blocchi disponibili, divisi per categoria e sottocategoria. Trascinane uno sul canvas per usarlo, cliccalo per modificarlo. In alto la versione della libreria e il Changelog; sotto il percorso del file e la ricerca." },
         { area: '#schedaCliente', titolo: 'Requisiti cliente', prepara: 'pannello:cliente', testo: "Importa da Excel o CSV le frasi del cliente. Ognuna diventa un requisito che trascini sulla radice come blocco tondo: da lì tiri i fili verso i requisiti dei blocchi di sistema." },
         { area: '#workspaceSvg', titolo: 'Il canvas', prepara: 'pannello:canvas', testo: "Il piano di lavoro. Rotella: zoom verso il cursore. Trascina lo sfondo: sposta la vista. Trascina da un pin a un altro pin della stessa classe per creare un filo. Doppio clic su un blocco per entrare, clic per selezionarlo." },
-        { area: '#aiutoCanvas', titolo: 'I gesti senza pulsante', prepara: 'pannello:canvas', testo: "Questa riga ricorda i gesti nascosti: Shift+trascina per spostare una porta lungo il bordo, doppio clic su un filo per aggiungere uno snodo, clic destro per eliminarlo." },
+        { area: '#aiutoCanvas', titolo: 'I gesti senza pulsante', prepara: 'pannello:canvas', testo: "Questa riga ricorda i gesti nascosti: Shift+trascina per spostare una porta lungo il bordo o un pin di capacità dentro il blocco, doppio clic su un filo per aggiungere uno snodo, clic destro per eliminarlo." },
         { area: '#btnFiltri', titolo: 'Filtri', prepara: 'pannello:canvas', testo: "Attenua o nascondi blocchi e fili per classe, documento, categoria e sottocategoria. Dentro il pannello trovi un ❓ con la sua guida." },
         { area: '#btnReqMatrix', titolo: 'Matrice e Documenti', prepara: 'pannello:canvas', testo: "Matrice Requisiti: la tabella di tracciabilità padre → figlio, esportabile. Documenti: genera i documenti MIL-STD-498 in Markdown. Si aprono come pannelli sotto il canvas e si aggiornano mentre modelli; ognuno ha un ❓ con la sua guida." },
         { area: '#btnDRC', titolo: 'Verifica Coerenza', prepara: 'pannello:canvas', testo: "Evidenzia in rosso cosa manca: requisiti cliente senza figli, requisiti di blocco senza padre, fili rotti. L'elenco compare nella scheda Coerenza; un clic su una voce ti porta lì." },
         { area: '#btnGerarchia', titolo: 'Gerarchia', prepara: 'pannello:canvas', testo: "Accendila e clicca un pin: vedi tutta la catena dei suoi antenati e discendenti attraverso i livelli, sul canvas e nella scheda Gerarchia." },
+        { area: '#btnReinstrada', titolo: 'Fili automatici', prepara: 'pannello:canvas', testo: "I fili girano da soli intorno ai blocchi e si aggiornano quando sposti qualcosa. Un doppio clic su un filo lo modella a mano; Reinstrada toglie gli snodi messi a mano da tutti i fili del livello." },
         { area: '#btnResetView', titolo: 'Vista e pannelli', prepara: 'pannello:canvas', testo: "Reset Vista riporta zoom e spostamento all'inizio. I pulsanti ☰ ai lati della barra chiudono e riaprono i pannelli Libreria e Ispettore." },
         { area: '#propertiesPanel', titolo: 'Ispettore', prepara: 'pannelloDestro', testo: "Mostra e modifica quello che selezioni: un blocco con i suoi requisiti, un requisito cliente o un filo. + Nuovo Blocco crea un tipo di blocco nella libreria." },
         { area: null, titolo: 'Fatto!', testo: "Ora conosci l'interfaccia. Accanto ai campi trovi le icone (i): passaci sopra con il mouse (o arrivaci con Tab) per sapere cosa rappresenta ogni campo. Matrice, Documenti, Import cliente e Filtri hanno un ❓ con una guida dedicata. Puoi rifare questo tour dal menu ❓ Aiuto." }
@@ -183,7 +195,7 @@ export const TOUR: Record<string, PassoTour[]> = {
         { area: null, titolo: 'Matrice di tracciabilità', testo: "Ogni riga è una derivazione: un requisito padre e un figlio che ne deriva, con i documenti di ciascun lato. I padri senza figli e i figli senza padre sono segnalati." },
         { area: '#matriceFiltri', titolo: 'Filtri', testo: "Restringi per documento (e su quale lato deve stare), per classe, o cerca per ID e titolo." },
         { area: '#matriceConteggi', titolo: 'Conteggi', testo: "Quante derivazioni e quanti problemi ci sono con i filtri di adesso." },
-        { area: '#matriceContenuto', titolo: 'Tabella', testo: "Le derivazioni raggruppate per padre. Clicca un requisito per aprirlo nella Gerarchia." },
+        { area: '#matriceContenuto', titolo: 'Tabella', testo: "Le derivazioni raggruppate per padre. Clicca un requisito per aprirlo nella Gerarchia. Il ▾ di ogni intestazione filtra e ordina la colonna come in Excel; Pulisci filtri azzera tutto." },
         { area: '#btnEsportaMatrice', titolo: 'Esporta', testo: "Scarica la matrice filtrata come file Markdown (.md)." }
     ],
     documenti: [

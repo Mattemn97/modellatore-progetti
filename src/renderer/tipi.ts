@@ -23,6 +23,8 @@ export interface Blocco {
     categoria: string;
     sottocategoria: string;
     requisiti: RequisitoLibreria[];
+    // Interno standard (spec 0034): le nuove istanze nascono con una copia di questo grafo; assente = interno vuoto
+    interno?: Grafo;
 }
 
 // Chiave = id del blocco
@@ -50,6 +52,8 @@ export interface UltimoImport {
     rigaIntestazione: number;
     modalita: 'sostituisci' | 'aggiungi';
     colonne: Record<string, string | null>;
+    // Filtro delle righe (spec 0030); assente nei progetti della 2.1.0
+    filtro?: { colonna: { nome: string; lettera: string } | null; testo: string } | null;
     conteggi: Record<string, number>;
 }
 
@@ -99,6 +103,8 @@ export interface Nodo {
     position: Punto;
     internal_graph: Grafo;
     pinPositions?: Record<string, PosizionePorta>;
+    // Centri dei pin di capacità spostati a mano, relativi all'angolo del blocco (spec 0032); assente = disposizione automatica
+    capabilityPositions?: Record<string, Punto>;
 }
 
 export interface Grafo {

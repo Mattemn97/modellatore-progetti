@@ -62,17 +62,30 @@ Per restare veloce anche con modelli grandi, la finestra mostra 300 gruppi alla 
 
 I filtri restano quelli dell'ultima volta quando riapri la finestra, finché la pagina resta aperta.
 
+### Filtri e ordinamento per colonna
+
+Ogni intestazione delle due tabelle ha un pulsante **▾**, come i filtri di Excel. Il menu che apre ha:
+
+* **Ordina A→Z** e **Ordina Z→A**. Sulle colonne del padre e su Note si ordinano i gruppi; sulle colonne del figlio, Classe e Istanze si ordinano le righe dentro ogni gruppo, e i gruppi seguono la loro prima riga. Scegliere di nuovo lo stesso ordinamento lo toglie. Una colonna ordinata ha ↑ o ↓ accanto al nome.
+* Una casella **Cerca…** che restringe l'elenco dei valori.
+* L'elenco dei **valori** della colonna da spuntare, con **(Seleziona tutto)**. Le celle vuote compaiono come `(vuote)`; nelle colonne Documenti c'è un valore per documento. L'elenco mostra solo i valori delle righe che passano gli altri filtri.
+* **OK** applica (con una ricerca attiva valgono solo i valori spuntati fra quelli visibili; `Invio` nella ricerca vale OK), **Annulla** o `Esc` chiudono senza cambiare nulla. Su una colonna già filtrata c'è anche **✕ Togli il filtro della colonna**.
+
+Una riga resta se il suo valore è fra quelli spuntati; i filtri di più colonne valgono tutti insieme, e insieme a Documento, Classe e Ricerca. Una colonna filtrata ha il pulsante blu e l'intestazione colorata. **`✕ Pulisci filtri`** toglie tutto: filtri in testa, filtri delle colonne e ordinamenti.
+
+Come in Excel, il filtro ricorda i valori scelti: un requisito nuovo con un valore non spuntato resta nascosto finché non togli il filtro.
+
 ## Dalla matrice alla Gerarchia
 
 Un clic sull'ID o sul titolo di un requisito chiude la finestra, accende la [Gerarchia](09-gerarchia.md), apre il livello dell'istanza e sceglie quel requisito. Per un padre senza figli ti porta alla prima istanza senza figli; per un requisito senza padre alla prima istanza senza padre. Così passi subito dal "cosa manca" al "dove sistemarlo".
 
 ## Esportare
 
-**`⬇ Esporta .md`** scarica un file Markdown con tutto il risultato filtrato:
+**`⬇ Esporta .md`** scarica un file Markdown con tutto il risultato filtrato, nell'ordine che vedi:
 
 * il titolo `# Matrice di tracciabilità: <nome del progetto>`;
 * la data e la libreria con la sua versione;
-* i filtri usati (oppure "Filtri: nessuno") e i conteggi;
+* i filtri usati, compresi quelli delle colonne e l'ordinamento (oppure "Filtri: nessuno"), e i conteggi;
 * la sezione `## Derivazioni` con la tabella;
 * la sezione `## Senza padre` con la sua tabella.
 

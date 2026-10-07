@@ -193,7 +193,7 @@ export function normalizzaBlocco(chiave: string, raw: unknown): Blocco {
 
     const requisiti = primoDefinito(r.requisiti, r.requirements, r.req);
 
-    return {
+    const blocco: Blocco = {
         id: chiave,
         titolo: comeTesto(primoDefinito(r.titolo, r.title, r.name, chiave)),
         descrizione: comeTesto(primoDefinito(r.descrizione, r.description)),
@@ -201,6 +201,24 @@ export function normalizzaBlocco(chiave: string, raw: unknown): Blocco {
         sottocategoria,
         requisiti: Array.isArray(requisiti) ? requisiti.map(normalizzaRequisito) : []
     };
+    // Interno standard (spec 0034): si conserva così com'è, solo se ha la forma di un grafo
+    const interno = normalizzaGrafo(r.interno);
+    if (interno) blocco.interno = interno;
+    return blocco;
+}
+
+// Un grafo letto da un file: nodi ed elenchi di fili a ogni livello, altrimenti undefined
+export function normalizzaGrafo(raw: unknown): Grafo | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+    const g = raw as Grafo;
+    if (!Array.isArray(g.nodes)) return undefined;
+    if (!Array.isArray(g.edges)) g.edges = [];
+    g.nodes = g.nodes.filter((n) => n && typeof n === 'object' && typeof n.id === 'string' && typeof n.type === 'string' && n.position);
+    g.nodes.forEach((n) => {
+        n.internal_graph = normalizzaGrafo(n.internal_graph) ?? { nodes: [], edges: [] };
+    });
+    g.edges.forEach((e) => { if (!Array.isArray(e.waypoints)) e.waypoints = []; });
+    return g;
 }
 
 // Accetta { library: {...} }, { libreria: {...} } oppure la mappa nuda
@@ -480,6 +498,10 @@ export function aggiornaRiferimentiRequisiti(
                 // Le porte sul bordo esistono solo per i requisiti di interfaccia
                 const mappa = riallineaMappa(node.pinPositions, (req) => isInterfaccia(req));
                 if (mappa) node.pinPositions = mappa;
+                // I pin di capacità spostati (spec 0032) esistono solo per i requisiti di capacità
+                const capacita = riallineaMappa(node.capabilityPositions, (req) => Boolean(req) && !isInterfaccia(req));
+                if (capacita && Object.keys(capacita).length) node.capabilityPositions = capacita;
+                else delete node.capabilityPositions;
             }
             if (node.internal_graph) visita(node.internal_graph, node.type);
         });

@@ -71,6 +71,8 @@ svg { width: 100%; flex: 1; display: block; }
 /* Documenti ammessi per classe (spec 0027) */
 .lib-item-segni { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .lib-item-avviso { color: #c0392b; font-size: 12px; cursor: help; }
+.lib-item-interno { font-size: 12px; cursor: help; }
+.info-interno { color: #555; font-size: 11px; }
 select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b; }
 .motivo-non-ammesso { font-size: 10px; color: #c0392b; margin: 2px 0; }
 .elenco-non-ammessi { font-size: 12px; margin: 4px 0; color: #c0392b; }
@@ -96,6 +98,10 @@ select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b
 .req-testo { display: flex; flex-direction: column; gap: 2px; }
 
 .prop-item { margin-bottom: 8px; font-size: 12px; }
+.sezione-istanza { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid #dde3ea; border-radius: 4px; background: #f8f9fa; font-size: 12px; }
+.pulsante-istanza { background: white; color: #333; border: 1px solid #b0bac5; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; text-align: left; }
+.pulsante-istanza:hover:not(:disabled) { background: #e1e9f1; }
+.pulsante-istanza:disabled { color: #999; cursor: default; }
 .prop-item strong { display: block; color: #666; font-size: 11px; text-transform: uppercase; }
 .empty-props { color: #888; font-style: italic; font-size: 13px; }
 
@@ -132,6 +138,7 @@ select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b
 .menu-progetto-voci button:disabled { color: #aaa; cursor: default; }
 .menu-progetto-voci hr { border: none; border-top: 1px solid #eee; margin: 4px 0; }
 .pulsante-immagine { background: #0078d4; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.pulsante-reinstrada { background: #7f8c8d; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
 .menu-immagine { left: 0; right: auto; min-width: 150px; }
 
 .banner-progetto { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 13px; z-index: 9; }
@@ -216,6 +223,9 @@ ins { color: #1e8449; text-decoration: none; }
 .campo-import { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .campo-import span { font-weight: bold; color: #555; font-size: 11px; }
 .campo-import select, .campo-import input { padding: 4px; font-size: 12px; min-width: 150px; }
+.import-filtro { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 8px; background: #f8f9fa; border: 1px solid #e3e6ea; border-radius: 4px; }
+.import-filtro > .campo-import:first-child { align-self: center; min-width: 80px; }
+.import-esito-filtro { margin: 0; font-size: 12px; color: #555; }
 .import-modalita { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; }
 .import-conteggi { display: flex; flex-wrap: wrap; gap: 6px; }
 .conteggio-import { background: #eef2f6; border-radius: 10px; padding: 2px 10px; font-size: 12px; }
@@ -329,6 +339,26 @@ span.segno-ramo { cursor: default; }
 .tabella-matrice .vai-matrice { cursor: pointer; }
 .tabella-matrice .vai-matrice:hover { background: #e1e9f1; text-decoration: underline; }
 .tabella-matrice .ritirato-matrice { text-decoration: line-through; color: #999; }
+/* Menu delle colonne della Matrice (spec 0031) */
+.intestazione-matrice { display: inline-flex; align-items: center; gap: 4px; }
+.ordine-colonna { color: #0078d4; font-weight: bold; }
+.menu-colonna { border: 1px solid #c8d1db; background: white; color: #555; border-radius: 3px; padding: 0 4px; font-size: 10px; line-height: 16px; cursor: pointer; }
+.menu-colonna:hover { background: #e1e9f1; }
+.menu-colonna.filtrata { background: #0078d4; border-color: #0078d4; color: white; }
+.tabella-matrice th.colonna-filtrata { background: #dcebf8; }
+.menu-colonna-matrice { position: fixed; z-index: 50; width: 260px; max-height: 380px; display: flex; flex-direction: column; gap: 4px; padding: 8px; box-sizing: border-box;
+    background: white; border: 1px solid #b0bac5; border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); font-size: 12px; }
+.menu-colonna-matrice[hidden] { display: none; }
+.menu-colonna-matrice:focus { outline: none; }
+.titolo-menu-colonna { font-weight: bold; color: #333; padding-bottom: 2px; border-bottom: 1px solid #eee; }
+.voce-menu-colonna { text-align: left; background: none; border: none; padding: 3px 4px; border-radius: 3px; font-size: 12px; cursor: pointer; }
+.voce-menu-colonna:hover { background: #eef2f6; }
+.voce-menu-colonna.attivo { color: #0078d4; font-weight: bold; }
+.cerca-menu-colonna { padding: 4px; font-size: 12px; }
+.valori-menu-colonna { flex: 1; min-height: 60px; overflow-y: auto; border: 1px solid #e3e6ea; padding: 2px 4px; }
+.valore-menu-colonna { display: flex; align-items: center; gap: 4px; padding: 1px 0; white-space: nowrap; }
+.valore-menu-colonna span { overflow: hidden; text-overflow: ellipsis; }
+.pulsanti-menu-colonna { display: flex; justify-content: flex-end; gap: 6px; }
 .titolo-sezione-matrice { font-size: 13px; font-weight: bold; color: #333; margin: 14px 0 6px; }
 .altri-matrice { margin: 8px 0; }
 .disattivato { color: #999; cursor: not-allowed; pointer-events: auto; }
@@ -337,7 +367,7 @@ span.segno-ramo { cursor: default; }
 .aiuto-canvas { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: rgba(255, 255, 255, 0.92); border: 1px solid #ddd; border-radius: 4px; font-size: 11px; color: #555; pointer-events: none; z-index: 5; box-sizing: border-box; }
 .aiuto-canvas[hidden] { display: none; }
 .aiuto-canvas button { pointer-events: auto; border: none; background: none; cursor: pointer; font-size: 12px; color: #777; padding: 0 2px; }
-.shift-premuto .porta-interfaccia { cursor: move; }
+.shift-premuto .porta-interfaccia, .shift-premuto .pin-capacita { cursor: move; }
 
 /* Aiuto contestuale: icone (i), suggerimento, menu Aiuto (spec 0012) */
 .icona-aiuto { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; margin-left: 4px; border-radius: 50%; background: #0078d4; color: white; font: italic bold 9px Georgia, 'Times New Roman', serif; text-transform: none; vertical-align: middle; cursor: help; flex: 0 0 auto; user-select: none; }

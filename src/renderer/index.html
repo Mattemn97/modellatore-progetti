@@ -155,6 +155,7 @@
                             <button data-formato="png" role="menuitem">PNG</button>
                         </div>
                     </div>
+                    <button id="btnReinstrada" class="pulsante-reinstrada" data-aiuto="barra.reinstrada">↻ Reinstrada</button>
                     <button id="btnResetView" data-aiuto="barra.resetVista" style="background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔍 Reset Vista</button>
                 </div>
 
@@ -177,7 +178,7 @@
             </svg>
             <!-- Riga di aiuto con i gesti senza pulsante (spec 0011) -->
             <div id="aiutoCanvas" class="aiuto-canvas">
-                <span>Shift+trascina una porta per spostarla lungo il bordo · Doppio clic su un filo: aggiungi snodo · Clic destro su un filo: elimina · Doppio clic su un blocco: entra</span>
+                <span>Shift+trascina una porta lungo il bordo o un pin di capacità dentro il blocco · Doppio clic su un filo: aggiungi snodo · Clic destro su un filo: elimina · Doppio clic su un blocco: entra</span>
                 <button id="btnChiudiAiuto" title="Nascondi l'aiuto">✕</button>
             </div>
         </div>
@@ -206,6 +207,7 @@
                 </label>
                 <label class="campo-import"><span>Classe<span class="icona-aiuto" data-aiuto="matrice.classe" tabindex="0" role="button" aria-label="Informazioni">i</span></span><select id="matriceClasse"></select></label>
                 <label class="campo-import campo-ricerca-matrice"><span>Ricerca<span class="icona-aiuto" data-aiuto="matrice.ricerca" tabindex="0" role="button" aria-label="Informazioni">i</span></span><input type="text" id="matriceRicerca" placeholder="🔍 ID o titolo di padre o figlio..."></label>
+                <button id="btnPulisciMatrice" class="pulsante-progetto" data-aiuto="matrice.pulisci" disabled>✕ Pulisci filtri</button>
                 <button id="btnEsportaMatrice" class="pulsante-progetto" data-aiuto="matrice.esporta" disabled>⬇ Esporta .md</button>
             </div>
             <div id="matriceConteggi" class="import-conteggi"></div>
