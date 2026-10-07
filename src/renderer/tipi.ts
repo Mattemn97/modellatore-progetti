@@ -50,6 +50,8 @@ export interface UltimoImport {
     rigaIntestazione: number;
     modalita: 'sostituisci' | 'aggiungi';
     colonne: Record<string, string | null>;
+    // Filtro delle righe (spec 0030); assente nei progetti della 2.1.0
+    filtro?: { colonna: { nome: string; lettera: string } | null; testo: string } | null;
     conteggi: Record<string, number>;
 }
 
