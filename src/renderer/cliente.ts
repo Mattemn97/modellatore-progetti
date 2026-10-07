@@ -746,7 +746,6 @@ function installaEventiImport(): void {
         if (t.id === 'impFoglio' || t.id === 'impRiga') {
             // I menu si ricostruiscono tenendo le colonne scelte (per nome, se no per lettera)
             s.riferimenti = riferimentiScelti(s);
-            s.riferimentoFiltro = riferimentoDi(s, s.filtro.colonna);
             if (t.id === 'impFoglio') s.foglio = Number(t.value);
             else s.riga = Math.max(1, Math.floor(Number(t.value)) || 1);
             ricostruisciColonne(s);
@@ -756,6 +755,7 @@ function installaEventiImport(): void {
             disegnaAnteprima(s);
         } else if (t.id === 'impFiltroColonna') {
             s.filtro.colonna = t.value === '' ? null : Number(t.value);
+            s.riferimentoFiltro = riferimentoDi(s, s.filtro.colonna);
             disegnaAnteprima(s);
         } else if ((t as HTMLInputElement).name === 'impModalita') {
             s.modalita = t.value === 'aggiungi' ? 'aggiungi' : 'sostituisci';

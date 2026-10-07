@@ -180,6 +180,7 @@ function cerca(s: Punto, e: Punto, partenza: number, arrivo: number, ostacoli: R
     const totale = nx * ny * 4;
     const costi = new Float64Array(totale).fill(Infinity);
     const padri = new Int32Array(totale).fill(-1);
+    const chiusi = new Uint8Array(totale);
     const coda = new Coda();
     const stima = (i: number, j: number) => Math.abs(xs[i]! - e.x) + Math.abs(ys[j]! - e.y);
     const inizio = (js * nx + is) * 4 + partenza;
@@ -191,6 +192,8 @@ function cerca(s: Punto, e: Punto, partenza: number, arrivo: number, ostacoli: R
 
     while (!coda.vuota && coda.minimo < migliore) {
         const stato = coda.togli();
+        if (chiusi[stato]) continue;
+        chiusi[stato] = 1;
         const d = stato & 3;
         const cella = stato >> 2;
         const i = cella % nx;

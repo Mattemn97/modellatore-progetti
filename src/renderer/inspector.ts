@@ -431,9 +431,11 @@ function renderEditorForm(data: DatiForm): void {
             render();
             // Il form riaperto riporta Livello e Motivo ai valori predefiniti
             openLibraryBlock(blockId, data.nodeId || null);
-            const fili = filiRimossi > 0
+            const fili = (filiRimossi > 0
                 ? ` ${filiRimossi} collegamenti rimossi perché i requisiti sono stati eliminati o non sono più compatibili.`
-                : '';
+                : '') + (filiInternoTolti > 0
+                ? ` Dall'interno standard ${filiInternoTolti === 1 ? 'è stato tolto 1 filo non più valido' : `sono stati tolti ${filiInternoTolti} fili non più validi`}.`
+                : '');
             alert(risposta.voce
                 ? `Blocco salvato. Libreria v${risposta.versione} (${risposta.voce.livello}).${fili}`
                 : `Blocco salvato. ${risposta.avviso}.${fili}`);
@@ -442,8 +444,11 @@ function renderEditorForm(data: DatiForm): void {
         // L'interno standard (spec 0034) resta nel blocco, con i requisiti rinominati seguiti anche lì
         const bloccoNuovo: Blocco = { id: blockId, ...campi, requisiti };
         const internoAttuale = data.isNew ? undefined : appState.library[blockId]?.interno;
+        let filiInternoTolti = 0;
         if (internoAttuale) {
-            bloccoNuovo.interno = rinominaNellInterno(blockId, internoAttuale, { ...appState.library, [blockId]: bloccoNuovo }, mappaRinomina).interno;
+            const aggiornato = rinominaNellInterno(blockId, internoAttuale, { ...appState.library, [blockId]: bloccoNuovo }, mappaRinomina);
+            bloccoNuovo.interno = aggiornato.interno;
+            filiInternoTolti = aggiornato.filiTolti;
         }
 
         const esito = await salvaBloccoLibreria({
