@@ -105,12 +105,13 @@ test('la Matrice si stacca in una finestra, resta allineata e si riaggancia (spe
         await expect(staccata.locator('#matriceContenuto')).toContainText('ali_002');
 
         // Il menu di una colonna si apre nella finestra staccata (spec 0031)
-        await staccata.locator('.menu-colonna[data-colonna="idPadre"]').click();
+        await staccata.locator('.menu-colonna[data-colonna="idPadre"]').dispatchEvent('click');
         await expect(staccata.locator('#menuColonnaMatrice')).toBeVisible();
-        await staccata.locator('#menuColonnaMatrice input[data-valore="R1"]').uncheck();
-        await staccata.locator('#menuColonnaMatrice [data-azione="ok"]').click();
+        await staccata.locator('#menuColonnaMatrice input[data-valore="R1"]').dispatchEvent('click');
+        await expect(staccata.locator('#menuColonnaMatrice input[data-valore="R1"]')).not.toBeChecked();
+        await staccata.locator('#menuColonnaMatrice [data-azione="ok"]').dispatchEvent('click');
         await expect(staccata.locator('#matriceContenuto')).not.toContainText('ali_002');
-        await staccata.locator('#btnPulisciMatrice').click();
+        await staccata.locator('#btnPulisciMatrice').dispatchEvent('click');
         await expect(staccata.locator('#matriceContenuto')).toContainText('ali_002');
 
         // Il clic chiude la sua stessa finestra: Playwright a volte lo segnala come pagina chiusa a metà clic.

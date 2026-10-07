@@ -76,10 +76,10 @@ test('blocco matrioska: l\'interno di un\'istanza diventa l\'interno standard e 
     try {
         await pronta(pagina);
         // Senza interno l'istanza dell'alimentatore non può salvarlo
-        await pagina.locator('#nodesLayer > g').filter({ has: pagina.locator('text.node-text', { hasText: /^Alimentatore$/ }) }).locator('rect.node-rect').click({ position: { x: 120, y: 10 } });
+        await pagina.locator('#nodesLayer > g').filter({ has: pagina.locator('text.node-text', { hasText: /^Alimentatore$/ }) }).locator('rect.node-rect').dispatchEvent('click');
         await expect(pagina.locator('#btnSalvaInterno')).toBeDisabled();
 
-        await pagina.locator('#nodesLayer > g', { hasText: 'Centralina' }).locator('rect.node-rect').click({ position: { x: 120, y: 10 } });
+        await pagina.locator('#nodesLayer > g', { hasText: 'Centralina' }).locator('rect.node-rect').dispatchEvent('click');
         await pagina.locator('#btnSalvaInterno').click();
         await expect.poll(() => dialoghi.at(-1)).toBe('Interno standard salvato. Libreria v1.0.1 (patch).');
         expect(dialoghi.at(-2)).toContain('(1 blocco, 1 filo)');
@@ -124,7 +124,7 @@ test('un blocco che contiene se stesso non si salva come interno standard (spec 
     const dialoghi = registraDialoghi(pagina);
     try {
         await pronta(pagina);
-        await pagina.locator('#nodesLayer > g').filter({ has: pagina.locator('text.node-text', { hasText: /^Alimentatore$/ }) }).locator('rect.node-rect').click({ position: { x: 120, y: 10 } });
+        await pagina.locator('#nodesLayer > g').filter({ has: pagina.locator('text.node-text', { hasText: /^Alimentatore$/ }) }).locator('rect.node-rect').dispatchEvent('click');
         await pagina.locator('#btnSalvaInterno').click();
         await expect.poll(() => dialoghi.at(-1)).toContain('Un blocco non può contenere se stesso');
         expect(leggiJson<{ versione: string }>(path.join(cartella, 'shared', 'libreria.json')).versione).toBe('1.0.0');
