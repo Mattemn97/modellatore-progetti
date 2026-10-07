@@ -15,7 +15,8 @@ import {
 import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from './cliente.js';
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
 import { iconaAiuto } from './aiuto.js';
-import type { EstremoDescritto, Filo, Nodo, RequisitoCliente, RequisitoLibreria } from './tipi.js';
+import { contieneSeStesso, copiaGrafo, descriviRiassunto, interniCheUsano, riassuntoInterno, rinominaNellInterno, tipiMancanti } from './matrioska.js';
+import type { Blocco, EstremoDescritto, Filo, Nodo, RequisitoCliente, RequisitoLibreria } from './tipi.js';
 
 const propsContent = document.getElementById('propsContent') as HTMLElement;
 
@@ -215,6 +216,13 @@ function renderEditorForm(data: DatiForm): void {
                     <div class="sezione-istanza">
                         <strong>Questa istanza${iconaAiuto('ispettore.istanza')}</strong>
                         <button id="btnRiposizionaPin" class="pulsante-istanza" data-aiuto="ispettore.riposizionaPin">↺ Riposiziona i pin</button>
+                        ${!data.isNew ? `
+                            <button id="btnSalvaInterno" class="pulsante-istanza" data-aiuto="ispettore.salvaInterno">📦 Salva l'interno in libreria</button>
+                            ${data.blockId && appState.library[data.blockId]?.interno ? `
+                                <div class="info-interno" id="infoInterno">Interno standard in libreria: ${escapeHtml(descriviRiassunto(riassuntoInterno(appState.library[data.blockId]!.interno!)))}</div>
+                                <button id="btnTogliInterno" class="pulsante-istanza" data-aiuto="ispettore.togliInterno">✕ Togli l'interno dalla libreria</button>
+                            ` : ''}
+                        ` : ''}
                     </div>
                     <button id="btnDeleteNode" data-aiuto="ispettore.eliminaGrafico" style="background:#e74c3c; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         🗑️ Elimina Blocco dal Grafico
@@ -225,6 +233,12 @@ function renderEditorForm(data: DatiForm): void {
     `;
 
     propsContent.innerHTML = html;
+    // Salva l'interno: ha senso solo con un interno non vuoto (spec 0034)
+    const btnSalvaInterno = document.getElementById('btnSalvaInterno');
+    if (btnSalvaInterno) {
+        const nodo = data.nodeId ? getCurrentLevel().graph.nodes.find((n) => n.id === data.nodeId) : undefined;
+        btnSalvaInterno.dataset.motivoProprio = nodo?.internal_graph?.nodes?.length ? '' : "L'interno di questa istanza è vuoto: entra nel blocco (doppio clic) e costruiscilo";
+    }
     // Sola lettura, conflitto della libreria o salvataggio in corso
     aggiornaPulsantiLibreria();
 
@@ -425,8 +439,15 @@ function renderEditorForm(data: DatiForm): void {
                 : `Blocco salvato. ${risposta.avviso}.${fili}`);
         };
 
+        // L'interno standard (spec 0034) resta nel blocco, con i requisiti rinominati seguiti anche lì
+        const bloccoNuovo: Blocco = { id: blockId, ...campi, requisiti };
+        const internoAttuale = data.isNew ? undefined : appState.library[blockId]?.interno;
+        if (internoAttuale) {
+            bloccoNuovo.interno = rinominaNellInterno(blockId, internoAttuale, { ...appState.library, [blockId]: bloccoNuovo }, mappaRinomina).interno;
+        }
+
         const esito = await salvaBloccoLibreria({
-            blocco: { id: blockId, ...campi, requisiti },
+            blocco: bloccoNuovo,
             nuovo: data.isNew,
             rinomine: mappaRinomina,
             ...opzioniVersione()
@@ -456,6 +477,13 @@ function renderEditorForm(data: DatiForm): void {
         if (data.nodeId) deleteNodeFromGraph(data.nodeId);
     });
 
+    document.getElementById('btnSalvaInterno')?.addEventListener('click', () => {
+        if (data.blockId && data.nodeId) void salvaInterno(data.blockId, data.nodeId, opzioniVersione());
+    });
+    document.getElementById('btnTogliInterno')?.addEventListener('click', () => {
+        if (data.blockId) void togliInterno(data.blockId, data.nodeId || null, opzioniVersione());
+    });
+
     // Riposiziona i pin (spec 0032): attivo solo se l'istanza ha pin di capacità spostati
     const pulsanteRiposiziona = document.getElementById('btnRiposizionaPin') as HTMLButtonElement | null;
     const istanza = () => (data.nodeId ? getCurrentLevel().graph.nodes.find((n) => n.id === data.nodeId) : undefined);
@@ -481,6 +509,60 @@ function renderEditorForm(data: DatiForm): void {
         if ((e.currentTarget as HTMLElement).getAttribute('aria-disabled') === 'true' || !data.blockId) return;
         void rinominaBlocco(data.blockId, data.nodeId || null, opzioniVersione());
     });
+}
+
+/* --- INTERNO STANDARD DI UN BLOCCO DI LIBRERIA (spec 0034) --- */
+
+// Salva in libreria, come interno standard del blocco, una copia dell'interno dell'istanza nodeId
+async function salvaInterno(idBlocco: string, nodeId: string, opzioni: Record<string, unknown>): Promise<void> {
+    const def = appState.library[idBlocco];
+    const nodo = getCurrentLevel().graph.nodes.find((n) => n.id === nodeId);
+    if (!def || !nodo?.internal_graph?.nodes?.length) return;
+    const interno = copiaGrafo(nodo.internal_graph);
+    const titolo = def.titolo || idBlocco;
+    if (contieneSeStesso(idBlocco, interno, appState.library)) {
+        alert(`L'interno non si può salvare: contiene un'istanza di "${titolo}" (anche più in profondità, o dentro l'interno standard di un altro blocco). Un blocco non può contenere se stesso: togli quell'istanza e riprova.`);
+        return;
+    }
+    const mancanti = tipiMancanti(interno, appState.library);
+    if (mancanti.length) {
+        alert(`L'interno non si può salvare: usa blocchi che la libreria non ha (${mancanti.join(', ')}). Salvali prima in libreria, oppure toglili dall'interno.`);
+        return;
+    }
+    const riassunto = descriviRiassunto(riassuntoInterno(interno));
+    const sostituisce = def.interno ? ' Sostituisce l\'interno standard di adesso.' : '';
+    if (!confirm(`Salvare l'interno di questa istanza (${riassunto}) come interno standard di "${titolo}"? Le nuove istanze trascinate dalla libreria nasceranno con questo interno; quelle già nel progetto non cambiano.${sostituisce}`)) return;
+
+    const esito = await salvaBloccoLibreria({
+        blocco: { ...def, interno },
+        nuovo: false,
+        rinomine: {},
+        ...opzioni
+    }, (risposta) => {
+        openLibraryBlock(idBlocco, nodeId);
+        if (risposta.invariata) {
+            alert("L'interno standard in libreria è già uguale a questo.");
+            return;
+        }
+        alert(risposta.voce
+            ? `Interno standard salvato. Libreria v${risposta.versione} (${risposta.voce.livello}).`
+            : `Interno standard salvato. ${risposta.avviso}.`);
+    }, { blockId: idBlocco, nodeId });
+    if (!esito.ok && !esito.conflitto) alert(`Interno non salvato: ${esito.messaggio}`);
+}
+
+async function togliInterno(idBlocco: string, nodeId: string | null, opzioni: Record<string, unknown>): Promise<void> {
+    const def = appState.library[idBlocco];
+    if (!def?.interno) return;
+    if (!confirm(`Togliere l'interno standard di "${def.titolo || idBlocco}" dalla libreria? Le nuove istanze nasceranno vuote; quelle già nel progetto non cambiano.`)) return;
+    const { interno: _tolto, ...senza } = def;
+    const esito = await salvaBloccoLibreria({ blocco: senza, nuovo: false, rinomine: {}, ...opzioni }, (risposta) => {
+        openLibraryBlock(idBlocco, nodeId);
+        alert(risposta.voce
+            ? `Interno standard tolto. Libreria v${risposta.versione} (${risposta.voce.livello}).`
+            : `Interno standard tolto. ${risposta.avviso}.`);
+    }, { blockId: idBlocco, nodeId });
+    if (!esito.ok && !esito.conflitto) alert(`Interno non tolto: ${esito.messaggio}`);
 }
 
 /* --- ELIMINA E RINOMINA UN BLOCCO DI LIBRERIA (spec 0010) --- */
@@ -513,7 +595,11 @@ async function eliminaBlocco(idBlocco: string, opzioni: Record<string, unknown>)
         alert(`Il blocco "${titolo}" è usato in ${istanze.length} istanze nel progetto e non si può eliminare. Togli prima le istanze:\n${righe.join('\n')}`);
         return;
     }
-    if (!confirm(`Eliminare il blocco "${titolo}" (${idBlocco}) dalla libreria? La libreria passa a una nuova versione major; gli altri progetti che lo usano lo vedranno come blocco senza definizione.`)) return;
+    const interni = interniCheUsano(idBlocco, appState.library);
+    const nota = interni.length
+        ? ` È usato nell'interno standard di: ${interni.join(', ')}. Le nuove istanze di quei blocchi lo salteranno, con un avviso.`
+        : '';
+    if (!confirm(`Eliminare il blocco "${titolo}" (${idBlocco}) dalla libreria? La libreria passa a una nuova versione major; gli altri progetti che lo usano lo vedranno come blocco senza definizione.${nota}`)) return;
 
     const esito = await eliminaBloccoLibreria(idBlocco, opzioni, (risposta) => {
         setActiveNodeId(null);

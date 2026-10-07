@@ -17,6 +17,7 @@ import { initAiuto, avviaTourPrimoAvvio } from './aiuto.js';
 import { avviaAggiornamenti } from './aggiornamento.js';
 import { initImpostazioni } from './impostazioni.js';
 import { generaId } from './utils.js';
+import { istanziaInterno } from './matrioska.js';
 import { avviaPannelli, commutaPannello } from './pannelli.js';
 import type { Nodo } from './tipi.js';
 
@@ -156,9 +157,18 @@ export async function initApp(): Promise<void> {
                 },
                 internal_graph: { nodes: [], edges: [] }
             };
+            // Blocco matrioska (spec 0034): nasce con una copia dell'interno standard della libreria
+            const avvisi: string[] = [];
+            if (blockDef.interno) {
+                const { grafo, mancanti, filiTolti } = istanziaInterno(typeId, newNode.id, appState.library);
+                newNode.internal_graph = grafo;
+                if (mancanti.length) avvisi.push(`questi blocchi non sono nella libreria e sono stati saltati: ${mancanti.join(', ')}`);
+                if (filiTolti) avvisi.push(`${filiTolti === 1 ? '1 filo non più valido è stato tolto' : `${filiTolti} fili non più validi sono stati tolti`}`);
+            }
 
             getCurrentLevel().graph.nodes.push(newNode);
             render();
+            if (avvisi.length) alert(`Interno standard di "${blockDef.titolo}": ${avvisi.join('; ')}. Per sistemarlo, correggi l'interno di questa istanza e salvalo di nuovo in libreria.`);
             return;
         }
         // Una riga della scheda Cliente: diventa un blocco tondo della radice, centrato sul punto di griglia più vicino

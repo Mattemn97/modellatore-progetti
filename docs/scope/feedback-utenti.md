@@ -32,10 +32,11 @@ I fili non passano mai sotto i blocchi: l'app li fa girare intorno con tratti ad
 - [x] Design it (spec): [0033](../specs/0033-instradamento-fili.md)
 - [x] Build it: `src/renderer/instradamento.ts` (A* sulla griglia di Hanan, cache), `contestoFili()` / `percorsoFilo()` in `diagramma.ts`, `↻ Reinstrada` in `renderer.ts`, `inspector.ts` e nella barra del canvas, test in `tests/unit/instradamento.test.ts` e `tests/e2e/ui/editor.spec.ts`
 
-### 61. Blocchi di libreria con l'interno (matrioska) · needs a decision
+### 61. Blocchi di libreria con l'interno (matrioska) · done
 Un blocco di libreria può salvare anche il suo interno: i blocchi figli, i fili e le posizioni dei blocchi tondi. Ogni nuova istanza trascinata dalla libreria nasce già con quella struttura dentro, così un sottosistema ricorrente si costruisce una volta sola. Il comando deve essere evidente (per esempio "Salva l'interno in libreria" dall'Ispettore di un'istanza).
 **Done when:** da un'istanza salvi il suo interno come contenuto standard del blocco; una nuova istanza lo riceve già pronto a ogni livello di annidamento; le istanze già presenti nel progetto non cambiano da sole; il changelog della libreria registra la modifica; si impedisce un blocco che contiene se stesso; le librerie e i progetti della 2.1.0 si aprono come prima; un blocco figlio usato dentro ma assente dalla libreria viene segnalato.
-- [ ] Design it (spec): `/architect blocchi di libreria con l'interno`
+- [x] Design it (spec): [0034](../specs/0034-blocchi-matrioska.md)
+- [x] Build it: `src/renderer/matrioska.ts` (istanziazione, controlli), `Blocco.interno` conservato da `normalizzaBlocco()` e dal salvataggio dell'Ispettore, Salva / Togli l'interno in `inspector.ts`, 📦 e ⚠ in `builder.ts`, rinomina negli interni in `src/main/api/librerie.ts`; test in `tests/unit/matrioska.test.ts`, `tests/e2e/ui/libreria.spec.ts`, `tests/e2e/api/libreria.spec.ts`
 
 ### 62. Rilascio 2.2.0
 Chiude il blocco come descritto in [index.md](index.md): `version` 2.2.0, note in `packaging/note/2.2.0.md`, `packaging/TUTORIAL.md` e `docs/guida/` aggiornati (pin, fili, matrioska, filtri della Matrice, filtro dell'import), aiuto contestuale e tour allineati, merge di `develop` in `main`.

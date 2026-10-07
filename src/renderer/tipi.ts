@@ -23,6 +23,8 @@ export interface Blocco {
     categoria: string;
     sottocategoria: string;
     requisiti: RequisitoLibreria[];
+    // Interno standard (spec 0034): le nuove istanze nascono con una copia di questo grafo; assente = interno vuoto
+    interno?: Grafo;
 }
 
 // Chiave = id del blocco

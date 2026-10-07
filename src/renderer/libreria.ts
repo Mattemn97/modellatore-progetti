@@ -71,7 +71,8 @@ const ETICHETTE_LIVELLO: Record<string, string> = { major: 'Major', minor: 'Mino
 const ETICHETTE_CAMPO: Record<string, string> = {
     metodoVerifica: 'metodo di verifica',
     testiExport: 'testi da esportare',
-    ordineRequisiti: 'ordine dei requisiti'
+    ordineRequisiti: 'ordine dei requisiti',
+    interno: 'interno standard'
 };
 
 // Stato della libreria in memoria: cambia solo quando un caricamento o un salvataggio riesce.
@@ -339,6 +340,14 @@ export function aggiornaPulsantiLibreria(): void {
         lnkRinomina.setAttribute('aria-disabled', motivo ? 'true' : 'false');
         lnkRinomina.dataset.titoloNativo = motivo;
     }
+    // Interno standard (spec 0034): come Salva, più un motivo proprio del pulsante (es. interno vuoto)
+    ['btnSalvaInterno', 'btnTogliInterno'].forEach((id) => {
+        const pulsante = document.getElementById(id) as HTMLButtonElement | null;
+        if (!pulsante) return;
+        const ragione = motivo || pulsante.dataset.motivoProprio || '';
+        pulsante.disabled = !!ragione;
+        pulsante.dataset.titoloNativo = ragione;
+    });
 }
 
 /* --- FINESTRA CHANGELOG --- */

@@ -202,6 +202,28 @@ test.describe.serial('contratto /api/libreria', () => {
         expect((await api(a.pagina, 'POST', '/api/libreria/rinomina', { ...base, idBlocco: 'assente', nuovoId: 'x' })).stato).toBe(404);
     });
 
+    test('interno standard (spec 0034): salvato come campo del blocco, la rinomina di un blocco lo segue', async () => {
+        const centralina = await blocco('centralina');
+        centralina.interno = {
+            nodes: [{ id: 'n1', type: 'termometro', label: 'T', width: 160, height: 60, position: { x: 0, y: 0 },
+                internal_graph: { nodes: [{ id: 'n2', type: 'termometro', label: 'T2', width: 160, height: 60, position: { x: 0, y: 0 }, internal_graph: { nodes: [], edges: [] } }], edges: [] } }],
+            edges: []
+        };
+        const salvato = await salva(centralina);
+        expect(salvato.stato).toBe(200);
+        expect(salvato.corpo.voce).toMatchObject({ livello: 'patch', modifiche: [{ blocco: 'centralina', tipo: 'modificato', campiBlocco: ['interno'], requisiti: [] }] });
+
+        const r = await api<Salvataggio>(a.pagina, 'POST', '/api/libreria/rinomina', { percorso: PERCORSO, idBlocco: 'termometro', nuovoId: 'sonda', livello: 'auto', nota: '', improntaAttesa: impronta });
+        expect(r.stato).toBe(200);
+        impronta = r.corpo.impronta;
+        type ConInterno = { nodes: Array<{ type: string; internal_graph: { nodes: Array<{ type: string }> } }> };
+        const interno = r.corpo.libreria.library.centralina?.interno as ConInterno;
+        expect(interno.nodes[0]?.type).toBe('sonda');
+        expect(interno.nodes[0]?.internal_graph.nodes[0]?.type).toBe('sonda');
+        expect(r.corpo.voce?.modifiche).toEqual([{ blocco: 'sonda', idPrecedente: 'termometro', titolo: expect.any(String), tipo: 'rinominato', campiBlocco: ['id'], requisiti: [] }]);
+        expect(leggiJson<{ library: Record<string, Blocco> }>(file('shared', 'libreria.json')).library.centralina?.interno).toEqual(interno);
+    });
+
     test('elimina un blocco: voce eliminato major con i requisiti rimossi', async () => {
         const r = await api<Salvataggio>(a.pagina, 'POST', '/api/libreria/elimina', { percorso: PERCORSO, idBlocco: 'alimentatore', livello: 'auto', nota: '', improntaAttesa: impronta });
         expect(r.stato).toBe(200);

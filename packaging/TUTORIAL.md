@@ -174,6 +174,8 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 
 Ora la catena è completa: cliente → Centralina → Pompa.
 
+**Riusa l'interno (facoltativo).** Seleziona la Centralina e, nell'Ispettore, sezione *Questa istanza*, premi `📦 Salva l'interno in libreria`: d'ora in poi ogni nuova Centralina trascinata dalla libreria nasce già con la Pompa e i due fili dentro. Nell'albero la Centralina ha il segno 📦.
+
 ---
 
 ## Parte 9. Controlla cosa manca

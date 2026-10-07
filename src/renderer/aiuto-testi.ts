@@ -46,6 +46,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
 
     // Libreria (pannello sinistro)
     'libreria.titolo': { titolo: 'Libreria Blocchi', testo: "I tipi di blocco che puoi usare nel progetto, salvati su disco. Il numero accanto è la versione della libreria: sale da sola a ogni modifica (patch, minor o major) e ogni passo finisce nel Changelog." },
+    'libreria.interno': { titolo: 'Interno standard', testo: "📦: il blocco ha un interno standard e le sue nuove istanze nascono con i blocchi e i fili dentro. ⚠ accanto: l'interno usa blocchi che la libreria non ha più, che al rilascio vengono saltati." },
     'libreria.nonAmmessi': { titolo: 'Testi su documenti non ammessi', testo: "Questo blocco ha testi in un documento che il tipo del requisito non ammette (regola documentiPerClasse di settings.json). Aprilo: i testi sbagliati sono in rosso. Finché non li correggi il blocco non si salva e quei testi restano fuori dai documenti." },
     'libreria.changelog': { titolo: 'Changelog', testo: "Elenco di tutte le modifiche alla libreria: quando, quale blocco, quali requisiti e con quale livello di versione." },
     'libreria.solaLettura': { titolo: 'Sola lettura', testo: "La libreria non si può modificare (file protetto o versione futura). Puoi usarne i blocchi, ma non salvarli." },
@@ -99,6 +100,8 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'ispettore.eliminaLibreria': { titolo: 'Elimina dalla libreria', testo: "Toglie il tipo di blocco dalla libreria. Non è possibile se il progetto aperto lo usa: prima ti mostra dove." },
     'ispettore.istanza': { titolo: 'Questa istanza', testo: "Comandi che valgono solo per il blocco selezionato sul canvas, non per il tipo di blocco in libreria." },
     'ispettore.riposizionaPin': { titolo: 'Riposiziona i pin', testo: "Rimette in fila sul bordo inferiore i pin di capacità che hai spostato con Shift+trascina in questa istanza." },
+    'ispettore.salvaInterno': { titolo: "Salva l'interno in libreria", testo: "Copia l'interno di questa istanza (blocchi, fili, blocchi tondi, a ogni livello) come interno standard del blocco: ogni nuova istanza trascinata dalla libreria nascerà già con questa struttura. Le istanze già nel progetto non cambiano." },
+    'ispettore.togliInterno': { titolo: "Togli l'interno dalla libreria", testo: "Le nuove istanze di questo blocco torneranno a nascere vuote. Le istanze già nel progetto non cambiano." },
     'ispettore.eliminaGrafico': { titolo: 'Elimina dal grafico', testo: "Toglie solo questa istanza dal canvas, con i suoi fili. Il tipo di blocco resta in libreria." },
 
     // Ispettore: requisito cliente
