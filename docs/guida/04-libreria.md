@@ -66,6 +66,23 @@ Dopo ogni salvataggio riuscito i due campi tornano ai valori predefiniti.
 
 `📋 Salva come Nuovo Blocco Simile` prepara un blocco nuovo con gli stessi dati, il titolo con " Copia" in fondo e **id nuovi** per tutti i requisiti (perché gli id devono restare unici). Modifica quello che vuoi e premi `💾 Salva in Libreria`.
 
+## Interno standard (blocchi matrioska)
+
+Un blocco di libreria può portarsi dietro il suo **interno**: i blocchi figli, i fili e le posizioni dei blocchi tondi, a ogni livello. Così un sottosistema che usi spesso lo costruisci una volta sola.
+
+1. Costruisci l'interno in un'istanza: doppio clic sul blocco, aggiungi figli e fili, torna su.
+2. Seleziona l'istanza e, nella sezione **Questa istanza** dell'Ispettore, premi **`📦 Salva l'interno in libreria`**. L'app ti chiede conferma con il riepilogo (per esempio `2 blocchi, 3 fili`). Il salvataggio usa Livello e Motivo del form, come ogni modifica della libreria, e nel changelog compare come campo `interno standard`.
+3. Da qui in poi, **ogni nuova istanza** trascinata dalla libreria nasce con una copia di quell'interno. Le istanze già presenti nei progetti **non cambiano**.
+
+Altre regole:
+
+* Nell'albero della libreria un blocco con interno standard ha il segno **📦**; passando il mouse vedi il riepilogo.
+* Un figlio che dentro l'interno è vuoto, ma che ha a sua volta un interno standard in libreria, lo riceve anche lui (le matrioske una dentro l'altra).
+* Un blocco **non può contenere se stesso**, nemmeno più in profondità o dentro l'interno standard di un altro blocco: l'app rifiuta il salvataggio e te lo dice.
+* Un interno con blocchi che la libreria non ha non si salva (l'app li elenca). Se un blocco usato in un interno standard sparisce dopo dalla libreria, nell'albero compare **⚠** accanto a 📦 e, al rilascio di una nuova istanza, quel blocco viene saltato con un avviso. Lo stesso per i fili diventati non validi: si tolgono, con un avviso. Correggi l'interno di un'istanza e salvalo di nuovo.
+* Rinominando i requisiti del blocco dall'Ispettore, il suo interno standard li segue. Rinominando l'id di un blocco, le sue istanze dentro gli interni standard degli altri blocchi prendono il nuovo id.
+* **`✕ Togli l'interno dalla libreria`**, nella stessa sezione, toglie l'interno standard: le nuove istanze torneranno a nascere vuote.
+
 ## Rinominare l'id di un blocco
 
 Nel form di un blocco esistente, accanto a "ID Blocco di Libreria", c'è il collegamento `✏️ Rinomina ID`.
@@ -81,7 +98,7 @@ La rinomina è sempre una modifica major: gli altri progetti che usano il vecchi
 Nel form di un blocco esistente premi `🗑 Elimina dalla libreria`.
 
 * Se il blocco è **usato nel progetto aperto**, l'app non lo elimina e ti mostra l'elenco delle istanze con il loro percorso (fino a 20). Toglile prima dal canvas.
-* Se **non è usato**, ti chiede conferma ricordandoti che è una modifica major e che gli altri progetti che lo usano lo vedranno senza definizione. Confermando il blocco sparisce dalla libreria.
+* Se **non è usato**, ti chiede conferma ricordandoti che è una modifica major e che gli altri progetti che lo usano lo vedranno senza definizione; se compare nell'interno standard di altri blocchi, la conferma li elenca. Confermando il blocco sparisce dalla libreria.
 
 Non confondere questo pulsante con `🗑️ Elimina Blocco dal Grafico`, che toglie solo l'istanza dal canvas.
 

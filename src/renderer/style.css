@@ -71,6 +71,8 @@ svg { width: 100%; flex: 1; display: block; }
 /* Documenti ammessi per classe (spec 0027) */
 .lib-item-segni { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .lib-item-avviso { color: #c0392b; font-size: 12px; cursor: help; }
+.lib-item-interno { font-size: 12px; cursor: help; }
+.info-interno { color: #555; font-size: 11px; }
 select.documento-non-ammesso { border: 1px solid #c0392b; outline-color: #c0392b; }
 .motivo-non-ammesso { font-size: 10px; color: #c0392b; margin: 2px 0; }
 .elenco-non-ammessi { font-size: 12px; margin: 4px 0; color: #c0392b; }

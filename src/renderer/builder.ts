@@ -7,6 +7,7 @@ import { normalizzaLibreria, testiNonAmmessi, trovaIdRequisitiDuplicati } from '
 import { escapeHtml } from './utils.js';
 import { apriLibreria } from './libreria.js';
 import { riallineaFiltri } from './filtri.js';
+import { descriviRiassunto, riassuntoInterno, tipiMancanti } from './matrioska.js';
 import type { Blocco } from './tipi.js';
 
 // Sostituisce la libreria corrente convertendola al formato attuale; segnala gli id requisito duplicati
@@ -90,7 +91,17 @@ export function initLibrary(): void {
                     const avviso = k
                         ? `<span class="lib-item-avviso" data-aiuto="libreria.nonAmmessi" data-titolo-nativo="${k === 1 ? '1 testo su un documento non ammesso' : `${k} testi su documenti non ammessi`}">⚠</span>`
                         : '';
-                    div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-segni"><span class="lib-item-count">${blockDef.requisiti.length}</span>${avviso}</span>`;
+                    // Interno standard (spec 0034): 📦, con ⚠ se usa blocchi che la libreria non ha
+                    let interno = '';
+                    if (blockDef.interno) {
+                        const mancanti = tipiMancanti(blockDef.interno, appState.library);
+                        const riassunto = descriviRiassunto(riassuntoInterno(blockDef.interno));
+                        interno = `<span class="lib-item-interno" data-aiuto="libreria.interno" data-titolo-nativo="Interno standard: ${escapeHtml(riassunto)}">📦</span>`
+                            + (mancanti.length
+                                ? `<span class="lib-item-avviso lib-item-avviso-interno" data-aiuto="libreria.interno" data-titolo-nativo="${escapeHtml(`L'interno standard usa blocchi assenti dalla libreria: ${mancanti.join(', ')}`)}">⚠</span>`
+                                : '');
+                    }
+                    div.innerHTML = `<span>${escapeHtml(blockDef.titolo)}</span><span class="lib-item-segni">${interno}<span class="lib-item-count">${blockDef.requisiti.length}</span>${avviso}</span>`;
 
                     div.addEventListener('dragstart', (e) => e.dataTransfer?.setData('blockType', typeId));
                     div.addEventListener('click', () => openLibraryBlock(typeId));
