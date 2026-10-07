@@ -1,7 +1,7 @@
 /* --- ISPETTORE: MODIFICA DI BLOCCHI DI LIBRERIA, REQUISITI E TESTI DA ESPORTARE --- */
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
-import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo } from './renderer.js';
+import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo, riposizionaPinCapacita } from './renderer.js';
 import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
@@ -212,6 +212,10 @@ function renderEditorForm(data: DatiForm): void {
                     </button>
                 ` : ''}
                 ${data.nodeId ? `
+                    <div class="sezione-istanza">
+                        <strong>Questa istanza${iconaAiuto('ispettore.istanza')}</strong>
+                        <button id="btnRiposizionaPin" class="pulsante-istanza" data-aiuto="ispettore.riposizionaPin">↺ Riposiziona i pin</button>
+                    </div>
                     <button id="btnDeleteNode" data-aiuto="ispettore.eliminaGrafico" style="background:#e74c3c; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
                         🗑️ Elimina Blocco dal Grafico
                     </button>
@@ -451,6 +455,22 @@ function renderEditorForm(data: DatiForm): void {
     document.getElementById('btnDeleteNode')?.addEventListener('click', () => {
         if (data.nodeId) deleteNodeFromGraph(data.nodeId);
     });
+
+    // Riposiziona i pin (spec 0032): attivo solo se l'istanza ha pin di capacità spostati
+    const pulsanteRiposiziona = document.getElementById('btnRiposizionaPin') as HTMLButtonElement | null;
+    const istanza = () => (data.nodeId ? getCurrentLevel().graph.nodes.find((n) => n.id === data.nodeId) : undefined);
+    if (pulsanteRiposiziona) {
+        const spostati = Object.keys(istanza()?.capabilityPositions ?? {}).length > 0;
+        pulsanteRiposiziona.disabled = !spostati;
+        pulsanteRiposiziona.dataset.titoloNativo = spostati ? '' : 'Nessun pin di capacità spostato in questa istanza (Shift+trascina un pin)';
+        pulsanteRiposiziona.addEventListener('click', () => {
+            const nodo = istanza();
+            if (!nodo) return;
+            riposizionaPinCapacita(nodo);
+            pulsanteRiposiziona.disabled = true;
+            pulsanteRiposiziona.dataset.titoloNativo = 'Nessun pin di capacità spostato in questa istanza (Shift+trascina un pin)';
+        });
+    }
 
     // Gestione completa della libreria (spec 0010)
     document.getElementById('btnEliminaBloccoLib')?.addEventListener('click', () => {

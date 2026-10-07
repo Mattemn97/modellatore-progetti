@@ -104,3 +104,36 @@ test('tour al primo avvio con la tastiera e suggerimento della (i)', async () =>
         await chiudi();
     }
 });
+
+test('pin di capacità: Shift+trascina lo sposta dentro il blocco, Riposiziona i pin lo rimette in fila (spec 0032)', async () => {
+    const { pagina, cartella, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progettoCollegato() }, ultimo: 'sistema' });
+    type ConPin = { workspace: { nodes: Array<{ id: string; capabilityPositions?: Record<string, { x: number; y: number }> }>; edges: unknown[] } };
+    const file = path.join(cartella, 'progetti', 'sistema.json');
+    const alimentatore = () => leggiJson<ConPin>(file).workspace.nodes.find((n) => n.id === 'node_a');
+    try {
+        await pronta(pagina);
+        expect(alimentatore()).not.toHaveProperty('capabilityPositions');
+        const svg = await pagina.locator('#workspaceSvg').boundingBox();
+        const pin = await pagina.locator('#nodesLayer rect.pin-capacita').first().boundingBox();
+        if (!svg || !pin) throw new Error('canvas o pin senza dimensioni');
+        // Alimentatore in (100, 100), zoom 1: il pin va in (40, 20) relativo al blocco
+        await pagina.mouse.move(pin.x + pin.width / 2, pin.y + pin.height / 2);
+        await pagina.keyboard.down('Shift');
+        await pagina.mouse.down();
+        await pagina.mouse.move(svg.x + 145, svg.y + 118, { steps: 5 });
+        await pagina.mouse.up();
+        await pagina.keyboard.up('Shift');
+        await expect.poll(() => alimentatore()?.capabilityPositions).toEqual({ ali_002: { x: 40, y: 20 } });
+        // Nessun filo nuovo: con Shift il pin si sposta e basta
+        expect(leggiJson<ConPin>(file).workspace.edges).toHaveLength(1);
+
+        await pagina.locator('#nodesLayer > g', { hasText: 'Alimentatore' }).locator('rect.node-rect').click({ position: { x: 120, y: 10 } });
+        const riposiziona = pagina.locator('#btnRiposizionaPin');
+        await expect(riposiziona).toBeEnabled();
+        await riposiziona.click();
+        await expect(riposiziona).toBeDisabled();
+        await expect.poll(() => alimentatore()).not.toHaveProperty('capabilityPositions');
+    } finally {
+        await chiudi();
+    }
+});

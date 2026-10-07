@@ -321,3 +321,65 @@ describe('filtri', () => {
         expect(f.filtriAttivi()).toBe(0);
     });
 });
+
+describe('pin di capacità spostabili (spec 0032)', () => {
+    const imp = { node: { width: 160, height: 60, selectedBorderColor: '#000' }, parentBlock: { radius: 28 }, grid: { size: 20 }, requirements: { radius: 7, capabilityColor: '#000', typeColors: {} } };
+    const nodo = (capabilityPositions?: Record<string, { x: number; y: number }>) => ({
+        id: 'n', type: 't', label: '', width: 160, height: 60, position: { x: 100, y: 200 }, internal_graph: { nodes: [], edges: [] },
+        ...(capabilityPositions ? { capabilityPositions } : {})
+    });
+    const ids = ['a', 'b', 'c'];
+
+    it('senza posizioni salvate è la disposizione automatica di sempre', () => {
+        const n = nodo();
+        const pos = m.diagramma.posizioniCapacita(n, ids, imp);
+        expect(ids.map((id) => pos[id])).toEqual(ids.map((_, i) => m.diagramma.posizioneCapacita(n, i, 3, imp)));
+        expect(n).not.toHaveProperty('capabilityPositions');
+    });
+
+    it('una posizione salvata vince e resta dentro il rettangolo, anche dopo un ridimensionamento', () => {
+        const n = nodo({ b: { x: 40, y: 20 } });
+        expect(m.diagramma.posizioniCapacita(n, ids, imp).b).toEqual({ x: 40, y: 20 });
+        n.width = 30;
+        n.height = 20;
+        const dentro = m.diagramma.posizioniCapacita(n, ['b'], imp).b!;
+        expect(dentro.x).toBeLessThanOrEqual(30 - 9);
+        expect(dentro.y).toBeLessThanOrEqual(20 - 9);
+        expect(n.capabilityPositions).toEqual({ b: { x: 40, y: 20 } });
+        expect(m.diagramma.limitaDentro({ x: -50, y: 500 }, nodo(), imp)).toEqual({ x: 9, y: 51 });
+    });
+
+    it('nessuna sovrapposizione: un automatico sopra un pin spostato va sulla casella libera più vicina', () => {
+        const n = nodo();
+        const automatico = m.diagramma.posizioneCapacita(n, 0, 3, imp);
+        n.capabilityPositions = { c: { ...automatico } };
+        const pos = m.diagramma.posizioniCapacita(n, ids, imp);
+        expect(pos.c).toEqual(automatico);
+        expect(m.diagramma.pinSovrapposti(pos.a!, pos.c!, imp)).toBe(false);
+        const tutti = ids.map((id) => pos[id]!);
+        tutti.forEach((p, i) => tutti.slice(i + 1).forEach((q) => expect(m.diagramma.pinSovrapposti(p, q, imp)).toBe(false)));
+    });
+
+    it('il punto assoluto di un pin usa la posizione salvata; il diagramma la disegna lì', () => {
+        const n = nodo({ ali_cap: { x: 20, y: 20 } });
+        n.type = 'alimentatore';
+        expect(m.diagramma.puntoPin(n, LIB.alimentatore!, 'ali_cap', imp)).toEqual({ x: 120, y: 220 });
+        const d = m.diagramma.svgDiagramma({ nodes: [n], edges: [] }, null, LIB, null, imp);
+        // Pin quadrato di lato 14 centrato in (120, 220): angolo in (113, 213), prima della traslazione del margine
+        expect(d?.svg).toContain('<rect x="113" y="213" width="14" height="14"');
+    });
+
+    it('rinominare un requisito di capacità porta con sé la posizione; diventare interfaccia la toglie', () => {
+        const { radice, cliente } = modello();
+        const sistema = radice.nodes[0]!;
+        const ali = sistema.internal_graph.nodes[0]!;
+        ali.capabilityPositions = { ali_cap: { x: 20, y: 20 } };
+        const lib: Libreria = JSON.parse(JSON.stringify(LIB));
+        lib.alimentatore!.requisiti[0]!.id = 'ali_cap2';
+        m.model.aggiornaRiferimentiRequisiti(radice, lib, 'alimentatore', { ali_cap: 'ali_cap2' }, (t, id) => (t === null ? cliente.requisiti.find((r) => r.id === id) ?? null : lib[t]?.requisiti.find((r) => r.id === id) ?? null));
+        expect(ali.capabilityPositions).toEqual({ ali_cap2: { x: 20, y: 20 } });
+        lib.alimentatore!.requisiti[0]!.tipologia = 'Elettrica';
+        m.model.aggiornaRiferimentiRequisiti(radice, lib, 'alimentatore', {}, (t, id) => (t === null ? cliente.requisiti.find((r) => r.id === id) ?? null : lib[t]?.requisiti.find((r) => r.id === id) ?? null));
+        expect(ali).not.toHaveProperty('capabilityPositions');
+    });
+});
