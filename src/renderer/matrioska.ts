@@ -4,6 +4,7 @@
 
 import { aggiornaRiferimentiRequisiti, isInterfaccia, verificaCompatibilita, type Estremo } from './model.js';
 import { generaId } from './utils.js';
+import { percorsoDestinazione, percorsoSorgente, risolviPorta } from './porte.js';
 import type { Filo, Grafo, Libreria, Nodo, Requisito, TipoEstremo } from './tipi.js';
 
 // Oltre questa profondità un interno standard non si apre più (difesa contro i cicli)
@@ -105,14 +106,33 @@ function filtraMappa<V>(mappa: Record<string, V> | undefined, tieni: (id: string
  * che diventa il proprietario dei blocchi tondi del suo interno. Un figlio con l'interno vuoto prende l'interno
  * standard del suo tipo, se c'è.
  */
+// Id vecchio → nuovo di ogni nodo creato, livello per livello (per i percorsi delle porte propagate, spec 0035)
+interface MappaId {
+    id: string;
+    sotto: Map<string, MappaId>;
+}
+
+// Un percorso di nodi interni con gli id nuovi, o null se un nodo non è stato creato
+function rimappaPercorso(percorso: readonly string[], mappa: Map<string, MappaId> | undefined): string[] | null {
+    const esito: string[] = [];
+    let livello = mappa;
+    for (const id of percorso) {
+        const voce = livello?.get(id);
+        if (!voce) return null;
+        esito.push(voce.id);
+        livello = voce.sotto;
+    }
+    return esito;
+}
+
 export function istanziaInterno(tipo: string, idIstanza: string, libreria: Libreria): InternoIstanziato {
     const mancanti = new Set<string>();
     let filiTolti = 0;
 
-    function costruisci(tipoContenitore: string, sorgente: Grafo | undefined, idContenitore: string, profondita: number, catena: Set<string>): Grafo {
-        if (!haContenuto(sorgente) || profondita > PROFONDITA_MAX) return vuoto();
+    function costruisci(tipoContenitore: string, sorgente: Grafo | undefined, idContenitore: string, profondita: number, catena: Set<string>): { grafo: Grafo; mappa: Map<string, MappaId> } {
+        const nuoviId = new Map<string, MappaId>();
+        if (!haContenuto(sorgente) || profondita > PROFONDITA_MAX) return { grafo: vuoto(), mappa: nuoviId };
         const requisitiContenitore = libreria[tipoContenitore]?.requisiti ?? [];
-        const nuoviId = new Map<string, string>();
         const nodi: Nodo[] = [];
 
         (sorgente.nodes ?? []).forEach((n) => {
@@ -122,17 +142,28 @@ export function istanziaInterno(tipo: string, idIstanza: string, libreria: Libre
                 return;
             }
             const id = generaId('node');
-            nuoviId.set(n.id, id);
             const dentro = new Set([...catena, n.type]);
             const interno = haContenuto(n.internal_graph)
                 ? costruisci(n.type, n.internal_graph, id, profondita + 1, dentro)
-                : catena.has(n.type) ? vuoto() : costruisci(n.type, def.interno, id, profondita + 1, dentro);
+                : catena.has(n.type) ? { grafo: vuoto(), mappa: new Map<string, MappaId>() } : costruisci(n.type, def.interno, id, profondita + 1, dentro);
+            nuoviId.set(n.id, { id, sotto: interno.mappa });
             const requisito = (reqId: string) => def.requisiti.find((r) => r.id === reqId);
+            // Lati delle righe (spec 0035): del blocco, per i suoi requisiti, e delle porte propagate, con gli id nuovi
+            const lati: Record<string, NonNullable<Nodo['pinPositions']>[string]> = {};
+            Object.entries(n.pinPositions ?? {}).forEach(([chiave, valore]) => {
+                const due = chiave.lastIndexOf(':');
+                if (due < 0) {
+                    if (requisito(chiave)) lati[chiave] = { ...valore };
+                    return;
+                }
+                const nuovo = rimappaPercorso(chiave.slice(0, due).split('/'), interno.mappa);
+                if (nuovo) lati[`${nuovo.join('/')}:${chiave.slice(due + 1)}`] = { ...valore };
+            });
             const nodo: Nodo = {
                 id, type: n.type, label: n.label, width: n.width, height: n.height,
                 position: { x: n.position.x, y: n.position.y },
-                internal_graph: interno,
-                pinPositions: filtraMappa(n.pinPositions, (r) => isInterfaccia(requisito(r))) ?? {}
+                internal_graph: interno.grafo,
+                pinPositions: lati
             };
             const capacita = filtraMappa(n.capabilityPositions, (r) => { const req = requisito(r); return !!req && !isInterfaccia(req); });
             if (capacita) nodo.capabilityPositions = capacita;
@@ -140,40 +171,48 @@ export function istanziaInterno(tipo: string, idIstanza: string, libreria: Libre
         });
 
         const perId = new Map(nodi.map((n) => [n.id, n]));
-        const estremo = (ownerType: TipoEstremo, ownerId: string, reqId: string): Estremo | null => {
+        const estremo = (ownerType: TipoEstremo, ownerId: string, reqId: string, percorso: string[]): Estremo | null => {
             if (ownerType === 'parent') {
                 const req = requisitiContenitore.find((r) => r.id === reqId) ?? null;
                 return { ownerId: idContenitore, reqId, ownerType, req };
             }
-            const nuovo = nuoviId.get(ownerId);
-            const nodo = nuovo ? perId.get(nuovo) : undefined;
-            if (!nodo) return null;
+            const voce = nuoviId.get(ownerId);
+            const nodo = voce ? perId.get(voce.id) : undefined;
+            if (!nodo || !voce) return null;
+            if (percorso.length) {
+                const nuovo = rimappaPercorso(percorso, voce.sotto);
+                const risolta = nuovo ? risolviPorta(nodo, reqId, nuovo, libreria) : null;
+                return nuovo && risolta ? { ownerId: nodo.id, reqId, ownerType, percorso: nuovo, req: risolta.req } : null;
+            }
             const req = libreria[nodo.type]?.requisiti.find((r) => r.id === reqId) ?? null;
             return { ownerId: nodo.id, reqId, ownerType, req };
         };
         const fili: Filo[] = [];
         (sorgente.edges ?? []).forEach((e) => {
-            const a = estremo(e.sourceType, e.source, e.sourceHandle);
-            const b = estremo(e.targetType, e.target, e.targetHandle);
+            const a = estremo(e.sourceType, e.source, e.sourceHandle, percorsoSorgente(e));
+            const b = estremo(e.targetType, e.target, e.targetHandle, percorsoDestinazione(e));
             if (!a || !b || !a.req || !b.req || verificaCompatibilita(a, b)) {
                 filiTolti++;
                 return;
             }
-            fili.push({
+            const filo: Filo = {
                 id: generaId('edge'),
                 source: a.ownerId, sourceHandle: e.sourceHandle, sourceType: e.sourceType,
                 target: b.ownerId, targetHandle: e.targetHandle, targetType: e.targetType,
                 waypoints: (e.waypoints ?? []).map((p) => ({ x: p.x, y: p.y }))
-            });
+            };
+            if (a.percorso?.length) filo.sourcePercorso = a.percorso;
+            if (b.percorso?.length) filo.targetPercorso = b.percorso;
+            fili.push(filo);
         });
 
         const grafo: Grafo = { nodes: nodi, edges: fili, parentReqPositions: {} };
         Object.entries(sorgente.parentReqPositions ?? {}).forEach(([reqId, p]) => {
             if (requisitiContenitore.some((r) => r.id === reqId)) grafo.parentReqPositions![reqId] = { x: p.x, y: p.y };
         });
-        return grafo;
+        return { grafo, mappa: nuoviId };
     }
 
-    const grafo = costruisci(tipo, libreria[tipo]?.interno, idIstanza, 0, new Set([tipo]));
+    const { grafo } = costruisci(tipo, libreria[tipo]?.interno, idIstanza, 0, new Set([tipo]));
     return { grafo, mancanti: [...mancanti].sort((a, b) => a.localeCompare(b, 'it')), filiTolti };
 }

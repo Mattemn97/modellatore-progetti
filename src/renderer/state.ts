@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: Impostazioni = {
     matrice: { gruppiVisibili: 300 },
     documentiExport: { anteprimaCaratteri: 200000, modello: { azienda: '', logo: '', classificazione: '', piePagina: '', autore: '' } },
     grid: { size: 20 },
-    node: { width: 160, height: 60, selectedBorderColor: '#0078d4' },
+    node: { width: 220, height: 60, selectedBorderColor: '#1d5fbf' },
     parentBlock: { radius: 28 },
     requirements: {
         radius: 7,

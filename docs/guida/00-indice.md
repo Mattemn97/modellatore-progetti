@@ -8,7 +8,7 @@ Questa guida descrive tutto quello che l'app sa fare oggi. È scritta per chi la
 |---|---|---|
 | 1 | [Concetti di base](01-concetti.md) | Blocchi, requisiti, livelli, fili, regole di collegamento. Leggilo per primo. |
 | 2 | [Installazione e avvio](02-installazione-e-avvio.md) | Come si avvia, dove finiscono i dati, come si aggiorna |
-| 3 | [Interfaccia e canvas](03-interfaccia-e-canvas.md) | Le tre colonne, il canvas, zoom, fili, porte, snodi, ispettore dei collegamenti, tasti |
+| 3 | [Interfaccia e lavagna](03-interfaccia-e-canvas.md) | Testata e sezioni, tabelle e Dashboard, la lavagna in stile IDV, zoom, blocchi, porte e porte propagate, fili ed etichette, ispettore dei collegamenti, tasti |
 | 4 | [Libreria dei blocchi](04-libreria.md) | Creare e modificare blocchi, versioni, changelog, rinominare, eliminare |
 | 5 | [Progetti](05-progetti.md) | Salvataggio automatico, Annulla e Ripeti, menu Progetto, conflitti |
 | 6 | [Requisiti cliente](06-requisiti-cliente.md) | Importare da Excel o CSV, reimportare una revisione, portare i requisiti sul canvas |
@@ -27,7 +27,7 @@ Ecco come puoi usare l'app dall'inizio alla fine. Ogni passo rimanda al capitolo
 2. **Dai un nome al progetto** dal menu `Progetto ▾` › `Rinomina…`. ([Progetti](05-progetti.md))
 3. **Prepara la libreria**: crea i blocchi del tuo sistema (per esempio "Centralina", "Pompa", "Sensore") con `+ Nuovo Blocco`, e per ognuno i requisiti con tipologia, metodo di verifica e testi da esportare. ([Libreria](04-libreria.md))
 4. **Importa i requisiti del cliente** dalla scheda Cliente, scegliendo un file Excel o CSV e indicando quali colonne sono ID e testo. ([Requisiti cliente](06-requisiti-cliente.md))
-5. **Costruisci il modello**: trascina i blocchi sul canvas, trascina i requisiti cliente alla radice, tira i fili dai requisiti cliente ai requisiti dei blocchi. Entra in un blocco con un doppio clic e ripeti al livello di sotto. ([Interfaccia e canvas](03-interfaccia-e-canvas.md))
+5. **Costruisci il modello**: trascina i blocchi sul canvas, trascina i requisiti cliente alla radice, tira i fili dai requisiti cliente ai requisiti dei blocchi. Entra in un blocco con un doppio clic e ripeti al livello di sotto. ([Interfaccia e lavagna](03-interfaccia-e-canvas.md))
 6. **Controlla cosa manca** con `⚠️ Verifica Coerenza`: ti elenca i requisiti cliente non ancora coperti e i requisiti dei blocchi che non derivano da nulla. ([Coerenza](08-coerenza.md))
 7. **Segui una catena** con `🌳 Gerarchia` quando vuoi capire da dove viene un requisito o fin dove arriva. ([Gerarchia](09-gerarchia.md))
 8. **Esporta la tracciabilità** con `📊 Matrice Requisiti` › `⬇ Esporta .md`. ([Matrice](10-matrice.md))

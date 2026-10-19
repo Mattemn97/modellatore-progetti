@@ -1,7 +1,7 @@
 /* --- ISPETTORE: MODIFICA DI BLOCCHI DI LIBRERIA, REQUISITI E TESTI DA ESPORTARE --- */
 
 import { getCurrentLevel, setActiveNodeId, appState, appSettings, pathStack } from './state.js';
-import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo, riposizionaPinCapacita, reinstradaFilo } from './renderer.js';
+import { render, centraVista, evidenziaCliente, descriviEstremo, eliminaFilo, togliSelezioneFilo, riposizionaPorte, haPorteSpostate, reinstradaFilo } from './renderer.js';
 import { chiediTesto, escapeHtml, slugifyId } from './utils.js';
 import {
     getTipologie, idRequisitoLibero, aggiornaRiferimentiRequisiti, getClasseRequisito, ID_CLIENTE,
@@ -16,6 +16,7 @@ import { trovaRequisitoCliente, contaFiliCliente, impostaSelezioneCliente } from
 import { rinominaSceltaGerarchia, mostraGerarchiaCliente } from './gerarchia.js';
 import { iconaAiuto } from './aiuto.js';
 import { contieneSeStesso, copiaGrafo, descriviRiassunto, interniCheUsano, riassuntoInterno, rinominaNellInterno, tipiMancanti } from './matrioska.js';
+import { motivoPortaNonValida } from './porte.js';
 import type { Blocco, EstremoDescritto, Filo, Nodo, RequisitoCliente, RequisitoLibreria } from './tipi.js';
 
 const propsContent = document.getElementById('propsContent') as HTMLElement;
@@ -215,7 +216,7 @@ function renderEditorForm(data: DatiForm): void {
                 ${data.nodeId ? `
                     <div class="sezione-istanza">
                         <strong>Questa istanza${iconaAiuto('ispettore.istanza')}</strong>
-                        <button id="btnRiposizionaPin" class="pulsante-istanza" data-aiuto="ispettore.riposizionaPin">↺ Riposiziona i pin</button>
+                        <button id="btnRiposizionaPin" class="pulsante-istanza" data-aiuto="ispettore.riposizionaPin">↺ Riposiziona le porte</button>
                         ${!data.isNew ? `
                             <button id="btnSalvaInterno" class="pulsante-istanza" data-aiuto="ispettore.salvaInterno">📦 Salva l'interno in libreria</button>
                             ${data.blockId && appState.library[data.blockId]?.interno ? `
@@ -489,19 +490,20 @@ function renderEditorForm(data: DatiForm): void {
         if (data.blockId) void togliInterno(data.blockId, data.nodeId || null, opzioniVersione());
     });
 
-    // Riposiziona i pin (spec 0032): attivo solo se l'istanza ha pin di capacità spostati
+    // Riposiziona le porte (spec 0032, 0035): attivo solo se l'istanza ha porte spostate di lato
     const pulsanteRiposiziona = document.getElementById('btnRiposizionaPin') as HTMLButtonElement | null;
     const istanza = () => (data.nodeId ? getCurrentLevel().graph.nodes.find((n) => n.id === data.nodeId) : undefined);
+    const nessunaSpostata = "Nessuna porta spostata in questa istanza (Shift+trascina una porta sull'altro lato)";
     if (pulsanteRiposiziona) {
-        const spostati = Object.keys(istanza()?.capabilityPositions ?? {}).length > 0;
-        pulsanteRiposiziona.disabled = !spostati;
-        pulsanteRiposiziona.dataset.titoloNativo = spostati ? '' : 'Nessun pin di capacità spostato in questa istanza (Shift+trascina un pin)';
+        const spostate = haPorteSpostate(istanza());
+        pulsanteRiposiziona.disabled = !spostate;
+        pulsanteRiposiziona.dataset.titoloNativo = spostate ? '' : nessunaSpostata;
         pulsanteRiposiziona.addEventListener('click', () => {
             const nodo = istanza();
             if (!nodo) return;
-            riposizionaPinCapacita(nodo);
+            riposizionaPorte(nodo);
             pulsanteRiposiziona.disabled = true;
-            pulsanteRiposiziona.dataset.titoloNativo = 'Nessun pin di capacità spostato in questa istanza (Shift+trascina un pin)';
+            pulsanteRiposiziona.dataset.titoloNativo = nessunaSpostata;
         });
     }
 
@@ -783,7 +785,10 @@ function bloccoEstremo(e: EstremoPresente): string {
     if (e.tondo) return `Blocco padre: ${e.parentNode?.label || e.parentNode?.id || ''}`;
     const etichetta = e.nodo.label || e.nodo.id;
     const titolo = e.def.titolo || e.def.id;
-    return etichetta === titolo ? etichetta : `${etichetta} (${titolo})`;
+    const blocco = etichetta === titolo ? etichetta : `${etichetta} (${titolo})`;
+    // Porta propagata (spec 0035): il blocco interno che ha il requisito, dentro il blocco del livello
+    if (e.etichettePercorso?.length) return `${blocco} › ${e.etichettePercorso.join(' › ')}`;
+    return blocco;
 }
 
 function htmlTesti(e: EstremoPresente): string {
@@ -814,15 +819,21 @@ function htmlLato(titolo: string, e: EstremoDescritto): string {
 // Dettaglio del filo del livello di adesso; il contenitore porta data-filo per riconoscerlo dopo
 export function mostraDettaglioCollegamento(edge: Filo): void {
     impostaSelezioneCliente(null);
-    const a: EstremoDescritto = descriviEstremo(edge.source, edge.sourceHandle, edge.sourceType);
-    const b: EstremoDescritto = descriviEstremo(edge.target, edge.targetHandle, edge.targetType);
+    const a: EstremoDescritto = descriviEstremo(edge.source, edge.sourceHandle, edge.sourceType, edge.sourcePercorso ?? []);
+    const b: EstremoDescritto = descriviEstremo(edge.target, edge.targetHandle, edge.targetType, edge.targetPercorso ?? []);
     const derivazione = isDerivazione(edge);
     const lati: Array<[string, EstremoDescritto]> = !derivazione ? [['Da', a], ['A', b]]
         : edge.sourceType === 'parent' ? [['Padre', a], ['Figlio', b]] : [['Padre', b], ['Figlio', a]];
-    const motivo = !a.mancante && !b.mancante
-        ? verificaCompatibilita({ ownerId: a.ownerId, reqId: a.reqId, ownerType: a.ownerType, req: a.req },
-            { ownerId: b.ownerId, reqId: b.reqId, ownerType: b.ownerType, req: b.req })
-        : null;
+    // Una porta propagata che non sale più (collegata dentro, o sparita) rende il filo da riparare (spec 0035)
+    const motivoPorta = (e: EstremoDescritto): string | null => {
+        if (!e.percorso?.length || e.ownerType !== 'node') return null;
+        const nodo = getCurrentLevel().graph.nodes.find((n) => n.id === e.ownerId);
+        return nodo ? motivoPortaNonValida(nodo, e.reqId, e.percorso, appState.library) : null;
+    };
+    const motivo = motivoPorta(a) ?? motivoPorta(b) ?? (!a.mancante && !b.mancante
+        ? verificaCompatibilita({ ownerId: a.ownerId, reqId: a.reqId, ownerType: a.ownerType, percorso: a.percorso, req: a.req },
+            { ownerId: b.ownerId, reqId: b.reqId, ownerType: b.ownerType, percorso: b.percorso, req: b.req })
+        : null);
 
     propsContent.innerHTML = `
         <div data-filo="${escapeHtml(edge.id)}" style="display:flex; flex-direction:column; gap:4px;">

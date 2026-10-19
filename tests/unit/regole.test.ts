@@ -269,16 +269,17 @@ describe('documenti ammessi per classe (spec 0027)', () => {
 });
 
 describe('diagrammi (spec 0029)', () => {
-    it('livello interno: blocco, blocchi tondi del padre, filo di derivazione tratteggiato; livello vuoto null', () => {
+    it('livello interno: blocco, blocchi tondi del padre, filo di derivazione puntinato; livello vuoto null', () => {
         const { radice, cliente } = modello();
         const sistema = radice.nodes[0]!;
         const d = m.diagramma.svgDiagramma(sistema.internal_graph, sistema, LIB, cliente);
         expect(d).not.toBeNull();
         expect(d!.svg).toContain('>Alim 1</text>');
         expect(d!.svg.match(/r="28"/g)).toHaveLength(2);
-        expect(d!.svg).toContain('stroke-dasharray="8,4"');
+        // Derivazione puntinata (spec 0035): l'IDV tratteggia le interfacce
+        expect(d!.svg).toContain('stroke-dasharray="2,4"');
         expect(d!.svg).not.toContain('class=');
-        expect(d!.larghezza).toBeGreaterThan(160);
+        expect(d!.larghezza).toBeGreaterThan(200);
         // Alla radice i requisiti cliente senza posizione non si disegnano, né i loro fili
         const r = m.diagramma.svgDiagramma(radice, null, LIB, cliente)!;
         expect(r.svg).toContain('>Sistema 1</text>');
@@ -322,51 +323,52 @@ describe('filtri', () => {
     });
 });
 
-describe('pin di capacità spostabili (spec 0032)', () => {
+describe('blocchi in stile IDV: righe e lati delle porte (spec 0035)', () => {
     const imp = { node: { width: 160, height: 60, selectedBorderColor: '#000' }, parentBlock: { radius: 28 }, grid: { size: 20 }, requirements: { radius: 7, capabilityColor: '#000', typeColors: {} } };
-    const nodo = (capabilityPositions?: Record<string, { x: number; y: number }>) => ({
-        id: 'n', type: 't', label: '', width: 160, height: 60, position: { x: 100, y: 200 }, internal_graph: { nodes: [], edges: [] },
-        ...(capabilityPositions ? { capabilityPositions } : {})
-    });
-    const ids = ['a', 'b', 'c'];
-
-    it('senza posizioni salvate è la disposizione automatica di sempre', () => {
-        const n = nodo();
-        const pos = m.diagramma.posizioniCapacita(n, ids, imp);
-        expect(ids.map((id) => pos[id])).toEqual(ids.map((_, i) => m.diagramma.posizioneCapacita(n, i, 3, imp)));
-        expect(n).not.toHaveProperty('capabilityPositions');
+    const nodo = (id: string, type: string, x: number, y: number, pinPositions: Record<string, { side: 'left' | 'right' | 'top' | 'bottom'; ratio: number }> = {}) => ({
+        id, type, label: id, width: 160, height: 60, position: { x, y }, internal_graph: { nodes: [], edges: [] }, pinPositions
     });
 
-    it('una posizione salvata vince e resta dentro il rettangolo, anche dopo un ridimensionamento', () => {
-        const n = nodo({ b: { x: 40, y: 20 } });
-        expect(m.diagramma.posizioniCapacita(n, ids, imp).b).toEqual({ x: 40, y: 20 });
-        n.width = 30;
-        n.height = 20;
-        const dentro = m.diagramma.posizioniCapacita(n, ['b'], imp).b!;
-        expect(dentro.x).toBeLessThanOrEqual(30 - 9);
-        expect(dentro.y).toBeLessThanOrEqual(20 - 9);
-        expect(n.capabilityPositions).toEqual({ b: { x: 40, y: 20 } });
-        expect(m.diagramma.limitaDentro({ x: -50, y: 500 }, nodo(), imp)).toEqual({ x: 9, y: 51 });
+    it("una riga per requisito nell'ordine della libreria, larghezza minima 200, altezza dalle righe", async () => {
+        const blocco = await import('../../src/renderer/blocco');
+        const f = blocco.formaBlocco(nodo('a', 'alimentatore', 0, 0), LIB.alimentatore!, LIB, imp);
+        expect(f.larghezza).toBe(200);
+        expect(f.righe.map((r) => [r.reqId, r.interfaccia, r.y])).toEqual([['ali_cap', false, 60], ['ali_ele', true, 80]]);
+        expect(f.altezza).toBe(blocco.ALTEZZA_TESTA + 2 * blocco.ALTEZZA_RIGA + 4);
+        expect(f.inizioPropagate).toBeNull();
     });
 
-    it('nessuna sovrapposizione: un automatico sopra un pin spostato va sulla casella libera più vicina', () => {
-        const n = nodo();
-        const automatico = m.diagramma.posizioneCapacita(n, 0, 3, imp);
-        n.capabilityPositions = { c: { ...automatico } };
-        const pos = m.diagramma.posizioniCapacita(n, ids, imp);
-        expect(pos.c).toEqual(automatico);
-        expect(m.diagramma.pinSovrapposti(pos.a!, pos.c!, imp)).toBe(false);
-        const tutti = ids.map((id) => pos[id]!);
-        tutti.forEach((p, i) => tutti.slice(i + 1).forEach((q) => expect(m.diagramma.pinSovrapposti(p, q, imp)).toBe(false)));
+    it("lato della porta: verso l'altro capo del filo, quello salvato vince, i vecchi top/bottom vanno al lato più vicino", () => {
+        const a = nodo('a', 'alimentatore', 400, 0);
+        const b = nodo('b', 'alimentatore', 0, 0);
+        const graph = { nodes: [a, b], edges: [{ id: 'e', source: 'a', sourceHandle: 'ali_ele', sourceType: 'node' as const, target: 'b', targetHandle: 'ali_ele', targetType: 'node' as const, waypoints: [] }] };
+        const c = m.diagramma.contestoFili(graph, null, LIB, null, imp);
+        expect(c.lato('a', 'ali_ele')).toBe('left');
+        expect(c.lato('b', 'ali_ele')).toBe('right');
+        // Senza filo: a destra
+        expect(c.lato('a', 'ali_cap')).toBe('right');
+        // Interfaccia sul bordo, capacità appena dentro
+        expect(c.centro('node', 'a', 'ali_ele')).toEqual({ x: 400, y: 80 });
+        expect(c.centro('node', 'a', 'ali_cap')).toEqual({ x: 400 + 200 - 9, y: 60 });
+        a.pinPositions = { ali_ele: { side: 'right', ratio: 0.5 }, ali_cap: { side: 'top', ratio: 0.2 } };
+        const salvato = m.diagramma.contestoFili(graph, null, LIB, null, imp);
+        expect(salvato.lato('a', 'ali_ele')).toBe('right');
+        expect(salvato.lato('a', 'ali_cap')).toBe('left');
+        expect(salvato.estremo('node', 'a', 'ali_ele')?.direzione).toBe('destra');
     });
 
-    it('il punto assoluto di un pin usa la posizione salvata; il diagramma la disegna lì', () => {
-        const n = nodo({ ali_cap: { x: 20, y: 20 } });
-        n.type = 'alimentatore';
-        expect(m.diagramma.puntoPin(n, LIB.alimentatore!, 'ali_cap', imp)).toEqual({ x: 120, y: 220 });
-        const d = m.diagramma.svgDiagramma({ nodes: [n], edges: [] }, null, LIB, null, imp);
-        // Pin quadrato di lato 14 centrato in (120, 220): angolo in (113, 213), prima della traslazione del margine
-        expect(d?.svg).toContain('<rect x="113" y="213" width="14" height="14"');
+    it("il diagramma disegna intestazione, righe e porte; l'etichetta del filo fra blocchi porta id e classe", () => {
+        const a = nodo('a', 'alimentatore', 400, 0);
+        const b = nodo('b', 'alimentatore', 0, 0);
+        const graph = { nodes: [a, b], edges: [{ id: 'e', source: 'a', sourceHandle: 'ali_ele', sourceType: 'node' as const, target: 'b', targetHandle: 'ali_ele', targetType: 'node' as const, waypoints: [] }] };
+        const d = m.diagramma.svgDiagramma(graph, null, LIB, null, imp)!;
+        expect(d.svg).toContain('stroke-dasharray="8,4"');
+        expect(d.svg).toContain('>Elettrica · Potenza</text>');
+        expect(d.svg).toContain('> Elettrica</tspan>');
+        expect(d.svg).toContain('>ELE</text>');
+        expect(d.svg).toContain('>CAP</text>');
+        expect(d.svg).not.toContain('class=');
+        expect(m.diagramma.svgDiagramma(graph, null, LIB, null, imp, { etichette: false })!.svg).not.toContain('<tspan');
     });
 
     it('rinominare un requisito di capacità porta con sé la posizione; diventare interfaccia la toglie', () => {

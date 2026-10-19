@@ -6,7 +6,7 @@
 // solo in questo modulo e non finiscono mai nel file del progetto.
 
 import { appState, appSettings, pathStack, getCurrentLevel, setActiveNodeId } from './state.js';
-import { render, centraVista, evidenziaCliente } from './renderer.js';
+import { render, centraVista, centroNodo, evidenziaCliente } from './renderer.js';
 import { selectNode, openLibraryBlock, mostraDettaglioCliente } from './inspector.js';
 import { impostaSelezioneCliente } from './cliente.js';
 import { mostraPannello, chiudiPannello, pannelloVisibile, allaVista, allaChiusura, aperturaDalMenu } from './pannelli.js';
@@ -448,10 +448,7 @@ export function rinominaSceltaGerarchia(blockId: string, mappaRinomina: Record<s
 /* --- NAVIGAZIONE DA UNA RIGA (AC-9) --- */
 
 function centroBlocco(nodo: Nodo): { x: number; y: number } {
-    return {
-        x: nodo.position.x + (nodo.width || appSettings.node.width) / 2,
-        y: nodo.position.y + (nodo.height || appSettings.node.height) / 2
-    };
+    return centroNodo(nodo);
 }
 
 export function vaiAOccorrenza(chiave: string): void {

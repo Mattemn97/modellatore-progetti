@@ -4,7 +4,7 @@
 // Modalità e risultato vivono solo in questo modulo: non finiscono mai nel file del progetto.
 
 import { appState, appSettings, pathStack, getCurrentLevel, setActiveNodeId } from './state.js';
-import { render, centraVista, evidenziaCliente, posizioneInColonna } from './renderer.js';
+import { render, centraVista, centroNodo, evidenziaCliente, posizioneInColonna } from './renderer.js';
 import { renderUI } from './app.js';
 import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { impostaSelezioneCliente } from './cliente.js';
@@ -456,10 +456,7 @@ export function vaiAlProblema(chiave: string): void {
     setActiveNodeId(null);
     const livello = getCurrentLevel();
     const graph = livello.graph;
-    const centroBlocco = (nodo: Nodo) => ({
-        x: nodo.position.x + (nodo.width || appSettings.node.width) / 2,
-        y: nodo.position.y + (nodo.height || appSettings.node.height) / 2
-    });
+    const centroBlocco = (nodo: Nodo) => centroNodo(nodo);
 
     if (p.tipo === 'senzaPadre' || p.tipo === 'bloccoSenzaDefinizione') {
         const nodo = graph.nodes.find((n) => n.id === (p.ownerId ?? p.nodeId));
