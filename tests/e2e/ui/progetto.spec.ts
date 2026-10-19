@@ -96,8 +96,9 @@ test('file cambiato a mano: badge Conflitto, Ricarica dal disco mostra il conten
         expect(leggiJson<Progetto>(file).workspace.nodes).toHaveLength(1);
         await pagina.locator('#bannerProgetto [data-banner="ricarica"]').click();
         await expect(pagina.locator('#badgeSalvataggio')).toHaveText('Salvato');
-        await expect(pagina.locator('#nodesLayer text', { hasText: 'Centralina' })).toHaveCount(0);
-        await expect(pagina.locator('#nodesLayer text', { hasText: 'Alimentatore' })).toHaveCount(1);
+        // Il nome del blocco (il badge del tipo ripete l'id di libreria in maiuscolo)
+        await expect(pagina.locator('#nodesLayer text.node-text', { hasText: 'Centralina' })).toHaveCount(0);
+        await expect(pagina.locator('#nodesLayer text.node-text', { hasText: 'Alimentatore' })).toHaveCount(1);
     } finally {
         await chiudi();
     }

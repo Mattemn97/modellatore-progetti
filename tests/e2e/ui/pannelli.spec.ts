@@ -76,7 +76,7 @@ test('il pannello Coerenza segue la modalità e la ✕ la spegne', async () => {
         await pagina.locator('#btnMenuAiuto').click();
         await pagina.locator('[data-aiuto-azione="tour"]').click();
         for (let i = 0; i < 8; i++) await pagina.keyboard.press('ArrowRight');
-        await expect(pagina.getByText('Il canvas', { exact: true })).toBeVisible();
+        await expect(pagina.getByText('La lavagna', { exact: true })).toBeVisible();
         await expect(pagina.locator('#workspaceSvg')).toBeVisible();
         await pagina.keyboard.press('Escape');
         await expect(pagina.locator('#schedaCliente')).toBeVisible();

@@ -105,26 +105,29 @@ test('tour al primo avvio con la tastiera e suggerimento della (i)', async () =>
     }
 });
 
-test('pin di capacità: Shift+trascina lo sposta dentro il blocco, Riposiziona i pin lo rimette in fila (spec 0032)', async () => {
+test('porte: Shift+trascina porta il pin di capacità sull\'altro lato, Riposiziona le porte torna al lato automatico (spec 0032, 0035)', async () => {
     const { pagina, cartella, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progettoCollegato() }, ultimo: 'sistema' });
-    type ConPin = { workspace: { nodes: Array<{ id: string; capabilityPositions?: Record<string, { x: number; y: number }> }>; edges: unknown[] } };
+    type ConPin = { workspace: { nodes: Array<{ id: string; pinPositions?: Record<string, { side: string; ratio: number }> }>; edges: unknown[] } };
     const file = path.join(cartella, 'progetti', 'sistema.json');
     const alimentatore = () => leggiJson<ConPin>(file).workspace.nodes.find((n) => n.id === 'node_a');
+    const pinCapacita = pagina.locator('#nodesLayer g.pin[data-nodo="node_a"][data-porta="ali_002"] rect.pin-capacita');
     try {
         await pronta(pagina);
-        expect(alimentatore()).not.toHaveProperty('capabilityPositions');
         const svg = await pagina.locator('#workspaceSvg').boundingBox();
-        const pin = await pagina.locator('#nodesLayer rect.pin-capacita').first().boundingBox();
+        const pin = await pinCapacita.boundingBox();
         if (!svg || !pin) throw new Error('canvas o pin senza dimensioni');
-        // Alimentatore in (100, 100), zoom 1: il pin va in (40, 20) relativo al blocco
+        // Alimentatore in (100, 100), largo 200: senza fili la capacità sta a destra, appena dentro il bordo
+        expect(pin.x + pin.width / 2 - svg.x).toBeGreaterThan(250);
         await pagina.mouse.move(pin.x + pin.width / 2, pin.y + pin.height / 2);
         await pagina.keyboard.down('Shift');
         await pagina.mouse.down();
-        await pagina.mouse.move(svg.x + 145, svg.y + 118, { steps: 5 });
+        await pagina.mouse.move(svg.x + 130, pin.y + pin.height / 2, { steps: 5 });
         await pagina.mouse.up();
         await pagina.keyboard.up('Shift');
-        await expect.poll(() => alimentatore()?.capabilityPositions).toEqual({ ali_002: { x: 40, y: 20 } });
-        // Nessun filo nuovo: con Shift il pin si sposta e basta
+        await expect.poll(() => alimentatore()?.pinPositions?.ali_002).toEqual({ side: 'left', ratio: 0.5 });
+        const spostato = await pinCapacita.boundingBox();
+        expect((spostato?.x ?? 999) + (spostato?.width ?? 0) / 2 - svg.x).toBeLessThan(150);
+        // Nessun filo nuovo: con Shift la porta cambia lato e basta
         expect(leggiJson<ConPin>(file).workspace.edges).toHaveLength(1);
 
         await pagina.locator('#nodesLayer > g', { hasText: 'Alimentatore' }).locator('rect.node-rect').dispatchEvent('click');
@@ -132,16 +135,18 @@ test('pin di capacità: Shift+trascina lo sposta dentro il blocco, Riposiziona i
         await expect(riposiziona).toBeEnabled();
         await riposiziona.click();
         await expect(riposiziona).toBeDisabled();
-        await expect.poll(() => alimentatore()).not.toHaveProperty('capabilityPositions');
+        await expect.poll(() => alimentatore()?.pinPositions).toEqual({});
     } finally {
         await chiudi();
     }
 });
 
 test('instradamento automatico: il filo gira intorno a un blocco, il doppio clic lo fa a mano, Reinstrada lo riporta automatico (spec 0033)', async () => {
-    // Un sensore proprio fra alimentatore (porta a sinistra in 100, 130) e centralina (porta a sinistra in 500, 130)
-    const progetto = progettoCollegato() as { workspace: { nodes: unknown[] } };
-    progetto.workspace.nodes.push({ id: 'node_s', type: 'sensore', label: 'Sensore', width: 160, height: 60, position: { x: 300, y: 100 }, internal_graph: { nodes: [], edges: [] } });
+    // Blocchi IDV larghi 200 (spec 0035): alimentatore in 100..300, centralina spostata in 800; le due porte Elettrica
+    // stanno alla prima riga (y 160) e un sensore in 420..620 × 100..174 sbarra la strada dritta
+    const progetto = progettoCollegato() as { workspace: { nodes: Array<Record<string, unknown> & { position: { x: number; y: number } }> } };
+    progetto.workspace.nodes[1]!.position.x = 800;
+    progetto.workspace.nodes.push({ id: 'node_s', type: 'sensore', label: 'Sensore', width: 160, height: 60, position: { x: 420, y: 100 }, internal_graph: { nodes: [], edges: [] } });
     const { pagina, cartella, chiudi } = await apriApp({ libreria: LIBRERIA_PROVA, progetti: { sistema: progetto }, ultimo: 'sistema' });
     const dialoghi = registraDialoghi(pagina);
     type ConFili = { workspace: { edges: Array<{ id: string; waypoints: Array<{ x: number; y: number }> }> } };
@@ -155,13 +160,13 @@ test('instradamento automatico: il filo gira intorno a un blocco, il doppio clic
         const numeri = d.replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number);
         const punti = numeri.reduce<Array<{ x: number; y: number }>>((acc, n, i) => (i % 2 ? acc : [...acc, { x: n, y: numeri[i + 1]! }]), []);
         expect(punti.length).toBeGreaterThan(2);
-        // Nessun tratto passa dentro il sensore (300..460 × 100..160) e tutti sono orizzontali o verticali
+        // Nessun tratto passa dentro il sensore (420..620 × 100..174) e tutti sono orizzontali o verticali
         punti.slice(0, -1).forEach((a, i) => {
             const b = punti[i + 1]!;
             expect(a.x === b.x || a.y === b.y).toBe(true);
             const dentro = a.y === b.y
-                ? a.y > 100 && a.y < 160 && Math.max(a.x, b.x) > 300 && Math.min(a.x, b.x) < 460
-                : a.x > 300 && a.x < 460 && Math.max(a.y, b.y) > 100 && Math.min(a.y, b.y) < 160;
+                ? a.y > 100 && a.y < 174 && Math.max(a.x, b.x) > 420 && Math.min(a.x, b.x) < 620
+                : a.x > 420 && a.x < 620 && Math.max(a.y, b.y) > 100 && Math.min(a.y, b.y) < 174;
             expect(dentro).toBe(false);
         });
         // L'apertura non scrive nulla: il percorso automatico non si salva

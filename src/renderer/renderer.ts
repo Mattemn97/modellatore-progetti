@@ -1,4 +1,6 @@
 /* --- MOTORE DI RENDERING, ZOOM/PAN, BLOCCHI TONDI DEL PADRE E COLLEGAMENTI --- */
+// Dalla spec 0035 la lavagna ha lo stile dell'IDV Interface Manager: blocchi come componenti con intestazione e una
+// riga per requisito, porte ai lati, fili tratteggiati per classe con l'etichetta, legenda e strumenti di vista.
 
 import { appState, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId, appSettings } from './state.js';
 import { selectNode, mostraDettaglioCliente, mostraDettaglioCollegamento, aggiornaDettaglioCollegamento, chiudiDettaglioCollegamento } from './inspector.js';
@@ -16,13 +18,19 @@ import {
     isInterfaccia, isRequisitoCliente, getClasseRequisito, getColoreRequisito, descriviRequisito,
     verificaCollegamento, isDerivazione, requisitoPadre, requisitiPadre, titoloRequisito, ID_CLIENTE, type Estremo
 } from './model.js';
-import { generaId } from './utils.js';
+import { escapeHtml, generaId } from './utils.js';
 import {
-    contestoFili, limitaDentro, percorsoFilo, pinSovrapposti, posizioniCapacita, posizioneInColonna as posizioneInColonnaDiagramma,
-    posizionePorta, puntoPin, type ContestoFili
+    contestoFili, percorsoFilo, posizioneInColonna as posizioneInColonnaDiagramma, puntoEtichetta, stileFilo, testoEtichetta,
+    type ContestoFili
 } from './diagramma.js';
+import {
+    ALTEZZA_RIGA, ALTEZZA_TESTA, coloreDaTesto, formaBlocco, larghezzaTesto, latoDalPunto, puntoRigaRelativo, siglaClasse,
+    tagliaTesto, type FormaBlocco, type RigaBlocco
+} from './blocco.js';
+import { chiavePorta, estremiUsati, percorsoDestinazione, percorsoSorgente, risolviPorta } from './porte.js';
 import { trattoPiuVicino } from './instradamento.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
+import { segnaTabelleDaAggiornare } from './tabelle.js';
 import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -31,10 +39,13 @@ const viewport = document.getElementById('viewport') as unknown as SVGGElement;
 const nodesLayer = document.getElementById('nodesLayer') as unknown as SVGGElement;
 const edgesLayer = document.getElementById('edgesLayer') as unknown as SVGGElement;
 const parentLayer = document.getElementById('parentLayer') as unknown as SVGGElement;
+const labelsLayer = document.getElementById('labelsLayer') as unknown as SVGGElement | null;
 
 interface Proprietario {
     ownerId: string;
     ownerType: TipoEstremo;
+    // Porta propagata (spec 0035): nodi interni fino al proprietario del requisito
+    percorso?: string[];
 }
 
 export let isDrawingEdge = false;
@@ -48,6 +59,44 @@ let startPan = { x: 0, y: 0 };
 
 // Requisito cliente evidenziato sul canvas dal dettaglio nell'ispettore
 let idClienteEvidenziato: string | null = null;
+
+// Contesto dei fili dell'ultimo disegno: forme dei blocchi, lati delle porte, percorsi (spec 0033, 0035)
+let contestoCorrente: ContestoFili | null = null;
+
+/* --- VISTA DELLA LAVAGNA: SOLO PREFERENZE DI QUESTO PC, MAI NEL PROGETTO (spec 0035) --- */
+
+const CHIAVE_VISTA = 'modellatore.vistaLavagna';
+const vista = { etichette: true, legenda: true };
+
+function leggiVista(): void {
+    try {
+        const v = JSON.parse(localStorage.getItem(CHIAVE_VISTA) || '{}') as Partial<typeof vista>;
+        if (typeof v.etichette === 'boolean') vista.etichette = v.etichette;
+        if (typeof v.legenda === 'boolean') vista.legenda = v.legenda;
+    } catch {
+        // Preferenze illeggibili: quelle predefinite
+    }
+}
+
+function scriviVista(): void {
+    try {
+        localStorage.setItem(CHIAVE_VISTA, JSON.stringify(vista));
+    } catch {
+        // Senza localStorage la scelta vale fino alla chiusura
+    }
+}
+
+export function commutaVista(chiave: keyof typeof vista): void {
+    vista[chiave] = !vista[chiave];
+    scriviVista();
+    render();
+}
+
+export function vistaAttiva(chiave: keyof typeof vista): boolean {
+    return vista[chiave];
+}
+
+leggiVista();
 
 /* --- FILO SELEZIONATO (spec 0009): per id, mai per oggetto --- */
 
@@ -136,6 +185,11 @@ export function evidenziaCliente(id: string | null): void {
     idClienteEvidenziato = id;
 }
 
+/* --- ZOOM, PAN, ADATTA --- */
+
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 3;
+
 // Sposta la vista (zoom invariato) per mettere al centro il punto x, y del canvas
 export function centraVista(x: number, y: number): void {
     const rect = svg.getBoundingClientRect();
@@ -149,14 +203,76 @@ export function resetView(): void {
     updateViewportTransform();
 }
 
+// Zoom di un fattore intorno al centro della lavagna (pulsanti − e +)
+export function zoomaDi(fattore: number): void {
+    const rect = svg.getBoundingClientRect();
+    zoomaIntorno(fattore, rect.width / 2, rect.height / 2);
+}
+
+function zoomaIntorno(fattore: number, mx: number, my: number): void {
+    const nuova = Math.min(Math.max(ZOOM_MIN, zoomState.scale * fattore), ZOOM_MAX);
+    zoomState.x = mx - (mx - zoomState.x) * (nuova / zoomState.scale);
+    zoomState.y = my - (my - zoomState.y) * (nuova / zoomState.scale);
+    zoomState.scale = nuova;
+    updateViewportTransform();
+}
+
+// Adatta: tutto il livello aperto nella finestra, con un margine, senza ingrandire oltre il 150%
+export function adattaVista(): void {
+    const livello = getCurrentLevel();
+    const contesto = contestoCorrente ?? contestoFili(livello.graph, livello.parentNode, appState.library, appState.cliente);
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    contesto.ostacoli.forEach((r) => {
+        x1 = Math.min(x1, r.x1 - 10); y1 = Math.min(y1, r.y1); x2 = Math.max(x2, r.x2 + 10); y2 = Math.max(y2, r.y2);
+    });
+    livello.graph.edges.forEach((e) => (e.waypoints ?? []).forEach((p) => {
+        x1 = Math.min(x1, p.x); y1 = Math.min(y1, p.y); x2 = Math.max(x2, p.x); y2 = Math.max(y2, p.y);
+    }));
+    if (x1 === Infinity) {
+        resetView();
+        return;
+    }
+    const rect = svg.getBoundingClientRect();
+    const margine = 40;
+    const scala = Math.min(1.5, Math.max(ZOOM_MIN, Math.min((rect.width - margine * 2) / (x2 - x1 || 1), (rect.height - margine * 2) / (y2 - y1 || 1))));
+    zoomState.scale = scala;
+    zoomState.x = (rect.width - (x2 - x1) * scala) / 2 - x1 * scala;
+    zoomState.y = (rect.height - (y2 - y1) * scala) / 2 - y1 * scala;
+    updateViewportTransform();
+}
+
 function updateViewportTransform(): void {
     viewport.setAttribute('transform', `translate(${zoomState.x}, ${zoomState.y}) scale(${zoomState.scale})`);
+    const etichetta = document.getElementById('etichettaZoom');
+    if (etichetta) etichetta.textContent = `${Math.round(zoomState.scale * 100)}%`;
+    // La griglia a puntini segue zoom e pan
+    const griglia = document.getElementById('grid');
+    const passo = appSettings ? appSettings.grid.size : 20;
+    if (griglia) {
+        const lato = passo * zoomState.scale;
+        griglia.setAttribute('width', String(lato));
+        griglia.setAttribute('height', String(lato));
+        griglia.setAttribute('x', String(zoomState.x % lato));
+        griglia.setAttribute('y', String(zoomState.y % lato));
+        const punto = griglia.querySelector('circle');
+        if (punto) {
+            punto.setAttribute('cx', String(lato / 2));
+            punto.setAttribute('cy', String(lato / 2));
+            punto.setAttribute('r', String(Math.max(0.6, Math.min(1.4, zoomState.scale))));
+        }
+    }
 }
 
 function creaSvg<K extends keyof SVGElementTagNameMap>(tag: K, attributi: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
     const el = document.createElementNS(SVG_NS, tag);
     Object.entries(attributi).forEach(([k, v]) => el.setAttribute(k, String(v)));
     return el;
+}
+
+function testoSvg(testo: string, attributi: Record<string, string | number>): SVGTextElement {
+    const t = creaSvg('text', attributi);
+    t.textContent = testo;
+    return t;
 }
 
 function aggiungiTooltip(el: SVGElement, testo: string): void {
@@ -168,18 +284,8 @@ function aggiungiTooltip(el: SVGElement, testo: string): void {
 // Eventi Zoom con Rotella e Pan con Click Centrale / Trascinamento Canvas
 svg.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = Math.min(Math.max(0.3, zoomState.scale * zoomFactor), 3);
-
     const rect = svg.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    zoomState.x = mouseX - (mouseX - zoomState.x) * (newScale / zoomState.scale);
-    zoomState.y = mouseY - (mouseY - zoomState.y) * (newScale / zoomState.scale);
-    zoomState.scale = newScale;
-
-    updateViewportTransform();
+    zoomaIntorno(e.deltaY < 0 ? 1.1 : 0.9, e.clientX - rect.left, e.clientY - rect.top);
 });
 
 // Clic sullo sfondo senza spostarsi: toglie la selezione del filo (il pan non la toglie)
@@ -202,7 +308,7 @@ svg.addEventListener('mousedown', (e) => {
         if (e.button === 0) premutoSfondo = { x: e.clientX, y: e.clientY };
         isPanning = true;
         startPan = { x: e.clientX - zoomState.x, y: e.clientY - zoomState.y };
-        svg.style.cursor = 'grabbing';
+        svg.classList.add('in-pan');
     }
 });
 
@@ -216,7 +322,7 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', () => {
     isPanning = false;
-    svg.style.cursor = 'default';
+    svg.classList.remove('in-pan');
 });
 
 /* --- RICERCA DEI REQUISITI NEL LIVELLO CORRENTE --- */
@@ -230,17 +336,20 @@ function tipoPadreCorrente(): string | null {
     return getCurrentLevel().parentNode?.type ?? null;
 }
 
-// Requisito di un estremo: ownerType 'parent' = requisito del blocco che contiene il livello corrente
-function trovaRequisito(ownerId: string, reqId: string, ownerType: TipoEstremo): Requisito | null {
+// Requisito di un estremo: ownerType 'parent' = requisito del blocco che contiene il livello corrente;
+// con un percorso, il requisito del blocco interno di una porta propagata (spec 0035)
+function trovaRequisito(ownerId: string, reqId: string, ownerType: TipoEstremo, percorso: readonly string[] = []): Requisito | null {
     if (ownerType === 'parent') return requisitoPadre(tipoPadreCorrente(), reqId);
-    const tipo = getCurrentLevel().graph.nodes.find((n) => n.id === ownerId)?.type;
-    return getBlockDef(tipo)?.requisiti.find((r) => r.id === reqId) || null;
+    const nodo = getCurrentLevel().graph.nodes.find((n) => n.id === ownerId);
+    if (!nodo) return null;
+    if (percorso.length) return risolviPorta(nodo, reqId, percorso, appState.library)?.req ?? null;
+    return getBlockDef(nodo.type)?.requisiti.find((r) => r.id === reqId) || null;
 }
 
 // Estremo di un filo del livello corrente per l'ispettore dei collegamenti (spec 0009): requisito, nodo e definizione,
 // o mancante. I campi ownerId, reqId, ownerType servono a verificaCompatibilita()
-export function descriviEstremo(ownerId: string, reqId: string, ownerType: TipoEstremo): EstremoDescritto {
-    const base = { ownerId, reqId, ownerType };
+export function descriviEstremo(ownerId: string, reqId: string, ownerType: TipoEstremo, percorso: string[] = []): EstremoDescritto {
+    const base = { ownerId, reqId, ownerType, ...(percorso.length ? { percorso } : {}) };
     if (ownerType === 'parent') {
         const parentNode = getCurrentLevel().parentNode || null;
         const req = requisitoPadre(tipoPadreCorrente(), reqId);
@@ -248,13 +357,29 @@ export function descriviEstremo(ownerId: string, reqId: string, ownerType: TipoE
     }
     const nodo = getCurrentLevel().graph.nodes.find((n) => n.id === ownerId) || null;
     const def = nodo ? getBlockDef(nodo.type) : null;
+    if (nodo && def && percorso.length) {
+        const risolta = risolviPorta(nodo, reqId, percorso, appState.library);
+        return risolta
+            ? { ...base, req: risolta.req, nodo, def, tondo: false, cliente: false, proprietario: risolta.proprietario, defProprietario: risolta.def, etichettePercorso: risolta.etichette }
+            : { ...base, mancante: true };
+    }
     const req = def?.requisiti.find((r) => r.id === reqId) || null;
     return req && nodo && def ? { ...base, req, nodo, def, tondo: false, cliente: false } : { ...base, mancante: true };
 }
 
+// Centro di un blocco del livello aperto (per centrare la vista su un problema o una ricerca)
+export function centroNodo(node: Nodo): Punto {
+    const def = getBlockDef(node.type);
+    const forma = def ? formaBlocco(node, def, appState.library, appSettings) : null;
+    const w = forma?.larghezza ?? (node.width || appSettings.node.width);
+    const h = forma?.altezza ?? (node.height || appSettings.node.height);
+    return { x: node.position.x + w / 2, y: node.position.y + h / 2 };
+}
+
 /* --- FILTRI (spec 0008): COSA È INCLUSO NEL LIVELLO --- */
 
-const chiaveEstremo = (ownerType: TipoEstremo, ownerId: string, reqId: string) => `${ownerType}:${ownerId}:${reqId}`;
+const chiaveEstremo = (ownerType: TipoEstremo, ownerId: string, reqId: string, percorso: readonly string[] = []) =>
+    `${ownerType}:${ownerId}:${chiavePorta(reqId, percorso)}`;
 
 interface Inclusi {
     estremi: Set<string>;
@@ -263,7 +388,7 @@ interface Inclusi {
 }
 
 // Inclusi del livello, una volta per disegno: estremi (pin e blocchi tondi), nodi e fili. Funzione pura
-function calcolaInclusi(graph: Grafo, parentNode: Nodo | null): Inclusi {
+function calcolaInclusi(graph: Grafo, parentNode: Nodo | null, contesto: ContestoFili): Inclusi {
     const tutti = filtriAttivi() === 0;
     const estremi = new Set<string>();
     const nodi = new Set<string>();
@@ -279,14 +404,15 @@ function calcolaInclusi(graph: Grafo, parentNode: Nodo | null): Inclusi {
         if (!def) return;
         if (tutti || bloccoIncluso(def)) nodi.add(node.id);
         const passa = tutti || bloccoPassa(def);
-        def.requisiti.forEach((req) => {
-            if (passa && (tutti || requisitoIncluso(req))) estremi.add(chiaveEstremo('node', node.id, req.id));
+        // Le righe del blocco: i suoi requisiti e le porte propagate dall'interno
+        (contesto.forma(node.id)?.righe ?? []).forEach((riga) => {
+            if (passa && (tutti || requisitoIncluso(riga.req))) estremi.add(chiaveEstremo('node', node.id, riga.reqId, riga.percorso));
         });
     });
     // Un filo è incluso se almeno un estremo lo è; un estremo che non si trova non conta (AC-5, AC-10)
     (graph.edges || []).forEach((edge) => {
-        if (estremi.has(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle))
-            || estremi.has(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle))) fili.add(edge.id);
+        if (estremi.has(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle, percorsoSorgente(edge)))
+            || estremi.has(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle, percorsoDestinazione(edge)))) fili.add(edge.id);
     });
     return { estremi, nodi, fili };
 }
@@ -294,9 +420,13 @@ function calcolaInclusi(graph: Grafo, parentNode: Nodo | null): Inclusi {
 // Inclusi del disegno in corso e fili disegnati (per Nascondi: gli estremi dei fili disegnati restano)
 let inclusi: Inclusi = { estremi: new Set(), nodi: new Set(), fili: new Set() };
 let estremiDisegnati = new Set<string>();
+// Porte con almeno un filo nel livello (quadratino pieno): "nodo|chiavePorta"
+let porteCollegate = new Set<string>();
+// Porte senza filo qui ma collegate a un livello sopra, salendo sul bordo dei contenitori (spec 0035)
+let porteSopra = new Set<string>();
 
-function estremoIncluso(ownerType: TipoEstremo, ownerId: string, reqId: string): boolean {
-    return inclusi.estremi.has(chiaveEstremo(ownerType, ownerId, reqId));
+function estremoIncluso(ownerType: TipoEstremo, ownerId: string, reqId: string, percorso: readonly string[] = []): boolean {
+    return inclusi.estremi.has(chiaveEstremo(ownerType, ownerId, reqId, percorso));
 }
 
 export function render(): void {
@@ -316,20 +446,33 @@ export function render(): void {
     nodesLayer.innerHTML = '';
     edgesLayer.innerHTML = '';
     parentLayer.innerHTML = '';
+    if (labelsLayer) labelsLayer.innerHTML = '';
 
     risolviFiloSelezionato(currentGraph);
 
+    // Forme dei blocchi, lati delle porte e percorsi dei fili: una volta per disegno (spec 0033, 0035)
+    const contesto = contestoFili(currentGraph, currentLevel.parentNode, appState.library, appState.cliente);
+    contestoCorrente = contesto;
+    porteCollegate = estremiUsati(currentGraph);
+    porteSopra = new Set();
+    if (pathStack.length > 1) {
+        currentGraph.nodes.forEach((n) => (contesto.forma(n.id)?.righe ?? []).forEach((r) => {
+            const k = `${n.id}|${r.chiave}`;
+            if (r.interfaccia && !porteCollegate.has(k) && collegataSopra(n.id, r.reqId, r.percorso)) porteSopra.add(k);
+        }));
+    }
+
     // FILTRI: inclusi del livello, poi cosa si disegna (spec 0008, AC-5, AC-6, AC-11)
-    inclusi = calcolaInclusi(currentGraph, currentLevel.parentNode);
+    inclusi = calcolaInclusi(currentGraph, currentLevel.parentNode, contesto);
     const nascondi = modoNascondi();
     const filiCatena = filiInCatena(currentGraph);
     // Un filo senza requisito di partenza non si è mai disegnato
-    const candidati = currentGraph.edges.filter((edge) => trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType));
+    const candidati = currentGraph.edges.filter((edge) => trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType, percorsoSorgente(edge)));
     const daDisegnare = candidati.filter((edge) => !nascondi || inclusi.fili.has(edge.id) || filiCatena.has(edge.id));
     estremiDisegnati = new Set();
     daDisegnare.forEach((edge) => {
-        estremiDisegnati.add(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle));
-        estremiDisegnati.add(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle));
+        estremiDisegnati.add(chiaveEstremo(edge.sourceType, edge.source, edge.sourceHandle, percorsoSorgente(edge)));
+        estremiDisegnati.add(chiaveEstremo(edge.targetType, edge.target, edge.targetHandle, percorsoDestinazione(edge)));
     });
     const nodiDiFili = new Set<string>();
     daDisegnare.forEach((edge) => {
@@ -344,20 +487,23 @@ export function render(): void {
     }
 
     // RENDER FILI (EDGES): percorsi automatici intorno ai blocchi o snodi messi a mano (spec 0033)
-    const contesto = contestoFili(currentGraph, currentLevel.parentNode, appState.library, appState.cliente);
     daDisegnare.forEach((edge) => renderEdge(edge, currentGraph, contesto));
 
     // RENDER NODI: con Nascondi un blocco escluso resta se è nella catena o estremo di un filo disegnato
     let blocchiEsclusi = 0;
     currentGraph.nodes.forEach((node) => {
         const blockDef = getBlockDef(node.type);
-        if (!blockDef) return;
+        const forma = contesto.forma(node.id);
+        if (!blockDef || !forma) return;
         const incluso = inclusi.nodi.has(node.id);
         if (!incluso) blocchiEsclusi++;
         if (nascondi && !incluso && !nodiDiFili.has(node.id) && !nodoNellaCatena(node, blockDef)) return;
-        renderNode(node, blockDef);
+        renderNode(node, blockDef, forma, contesto);
     });
     aggiornaRiepilogoFiltri(blocchiEsclusi, candidati.filter((e) => !inclusi.fili.has(e.id)).length);
+    aggiornaLegenda(currentGraph, contesto, daDisegnare);
+    aggiornaVuoto(currentGraph);
+    aggiornaPulsantiVista();
 
     renderUI();
     // La scheda Cliente si aggiorna al massimo una volta per fotogramma, mai qui dentro
@@ -367,6 +513,8 @@ export function render(): void {
     // Matrice e Documenti come pannelli: ricalcolo differito dopo una raffica di modifiche (spec 0022)
     segnaMatriceDaAggiornare();
     segnaDocumentiDaAggiornare();
+    // Tabelle e Dashboard (spec 0035): come la Matrice, solo se visibili
+    segnaTabelleDaAggiornare();
 }
 
 // Percorso di un nodo del livello corrente: gli id dei livelli aperti più il suo
@@ -390,10 +538,11 @@ function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): vo
     const points = percorsoFilo(edge, contesto);
     if (!points) return;
 
-    const srcReq = trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType);
-    const tgtReq = trovaRequisito(edge.target, edge.targetHandle, edge.targetType);
+    const srcReq = trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType, percorsoSorgente(edge));
+    const tgtReq = trovaRequisito(edge.target, edge.targetHandle, edge.targetType, percorsoDestinazione(edge));
     const edgeColor = getColoreRequisito(srcReq);
     const derivazione = isDerivazione(edge);
+    const stile = stileFilo(edge, srcReq);
     const automatico = edge.waypoints.length === 0;
     const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
@@ -402,29 +551,36 @@ function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): vo
     if (catenaAttiva()) classeCatena = filoInCatena(currentGraph, edge.id) ? ' catena-gerarchia' : ' fuori-catena';
     // Senza catena attenua il filtro: un filo escluso si disegna solo con Attenua (spec 0008, AC-6)
     else if (!inclusi.fili.has(edge.id)) classeCatena = ' fuori-filtro';
-    const selezionato = filoSelezionatoId() === edge.id ? ' filo-selezionato' : '';
+    const selezionato = filoSelezionatoId() === edge.id;
+
+    // Gruppo del filo: alone della selezione, area di presa larga e tratto visibile; i gestori stanno sul gruppo
+    const g = creaSvg('g', { class: `link-g${selezionato ? ' selezionato' : ''}` });
+    g.style.setProperty('--lc', edgeColor);
+    if (selezionato) g.appendChild(creaSvg('path', { class: 'link-halo', d: pathData, stroke: edgeColor }));
+    g.appendChild(creaSvg('path', { class: 'link-hit', d: pathData }));
     const path = creaSvg('path', {
-        class: (derivazione ? 'edge-path edge-derivazione' : 'edge-path') + (automatico ? ' filo-automatico' : ' filo-a-mano') + classeCatena + selezionato,
+        class: (derivazione ? 'edge-path edge-derivazione' : `edge-path edge-${stile}`) + (automatico ? ' filo-automatico' : ' filo-a-mano') + classeCatena + (selezionato ? ' filo-selezionato' : ''),
         d: pathData,
         stroke: edgeColor
     });
+    g.appendChild(path);
 
     const relazione = derivazione ? 'Derivazione padre → figlio' : 'Collegamento tra blocchi';
-    aggiungiTooltip(path,
+    aggiungiTooltip(g,
         `${relazione} [${getClasseRequisito(srcReq)}]\n` +
         `${srcReq?.id ?? edge.sourceHandle} ${titoloRequisito(srcReq)} → ${tgtReq?.id ?? edge.targetHandle} ${titoloRequisito(tgtReq)}\n` +
         (automatico ? 'Percorso automatico · ' : 'Percorso a mano (Reinstrada per tornare automatico) · ') +
         'Clic: dettaglio · Doppio clic: aggiungi snodo · Clic destro: elimina');
 
     // Clic: seleziona il filo e ne mostra il dettaglio nell'ispettore (spec 0009)
-    path.addEventListener('click', (e) => {
+    g.addEventListener('click', (e) => {
         e.stopPropagation();
         selezionaFilo(edge.id);
     });
 
     // Aggiungi Snodo con Doppio Clic, nel tratto più vicino. Un filo automatico diventa a mano con gli angoli
     // del percorso di adesso, così il disegno non salta (spec 0033, AC-4)
-    path.addEventListener('dblclick', (e) => {
+    g.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         const coords = getCanvasCoords(e);
         const tratto = trattoPiuVicino(points, coords);
@@ -437,21 +593,19 @@ function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): vo
     });
 
     // ELIMINAZIONE CAVO: Click Destro
-    path.addEventListener('contextmenu', (e) => {
+    g.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (confirm('Vuoi eliminare questo collegamento?')) eliminaFilo(currentGraph, edge.id);
     });
 
-    edgesLayer.appendChild(path);
+    edgesLayer.appendChild(g);
 
     edge.waypoints.forEach((wp, idx) => {
-        const handle = creaSvg('circle', {
-            cx: wp.x, cy: wp.y, r: 5, fill: edgeColor, stroke: '#ffffff', 'stroke-width': '1.5'
-        });
+        const handle = creaSvg('circle', { cx: wp.x, cy: wp.y, r: 4.5, class: 'snodo-filo' });
+        handle.style.setProperty('--lc', edgeColor);
         // Gli snodi seguono il filo (AC-11)
-        if (classeCatena === ' fuori-catena' || classeCatena === ' fuori-filtro') handle.setAttribute('class', classeCatena.trim());
-        handle.style.cursor = 'move';
+        if (classeCatena === ' fuori-catena' || classeCatena === ' fuori-filtro') handle.classList.add(classeCatena.trim());
         handle.addEventListener('mousedown', (e) => startWaypointDrag(e, wp));
         handle.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -460,54 +614,131 @@ function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): vo
         });
         edgesLayer.appendChild(handle);
     });
+
+    // Etichetta IDV a metà del tratto più lungo: id del requisito di partenza e classe (spec 0035)
+    if (!vista.etichette || derivazione || !labelsLayer) return;
+    const posto = puntoEtichetta(points);
+    if (!posto) return;
+    const { id, classe } = testoEtichetta(srcReq, edge);
+    const largo = larghezzaTesto(id, 10, true, true) + larghezzaTesto(` ${classe}`, 10.5, true) + 12;
+    const lbl = creaSvg('g', { class: `lbl ${stile}${selezionato ? ' selezionato' : ''}${classeCatena}`, transform: `translate(${posto.x - largo / 2}, ${posto.y - 8})` });
+    lbl.style.setProperty('--lc', edgeColor);
+    lbl.appendChild(creaSvg('rect', { width: largo, height: 16, rx: 2 }));
+    const testo = creaSvg('text', { x: 6, y: 11.5 });
+    const tid = creaSvg('tspan', { class: 'lbl-id' });
+    tid.textContent = id;
+    const tcl = creaSvg('tspan');
+    tcl.textContent = ` ${classe}`;
+    testo.append(tid, tcl);
+    lbl.appendChild(testo);
+    aggiungiTooltip(lbl, `${srcReq?.id ?? edge.sourceHandle} → ${tgtReq?.id ?? edge.targetHandle}\nClic: dettaglio del collegamento`);
+    lbl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selezionaFilo(edge.id);
+    });
+    labelsLayer.appendChild(lbl);
 }
 
-function renderNode(node: Nodo, blockDef: Blocco): void {
-    const nodeW = node.width || appSettings.node.width;
-    const nodeH = node.height || appSettings.node.height;
+/* --- BLOCCHI COME COMPONENTI IDV (spec 0035) --- */
 
-    const g = creaSvg('g', { transform: `translate(${node.position.x}, ${node.position.y})` });
+// Seconda riga dell'intestazione: il tipo se l'etichetta è diversa, altrimenti l'interno o la descrizione
+function sottotitoloBlocco(node: Nodo, def: Blocco): string {
+    const interni = node.internal_graph?.nodes?.length ?? 0;
+    const interno = interni ? `▸ ${interni} ${interni === 1 ? 'blocco' : 'blocchi'} dentro` : '';
+    if ((node.label || '') !== def.titolo) return [`Tipo ${def.titolo}`, interno].filter(Boolean).join(' · ');
+    return interno || def.descrizione || '';
+}
 
-    const rect = creaSvg('rect', { width: nodeW, height: nodeH, class: 'node-rect' });
-    if (activeNodeId === node.id) {
-        rect.style.stroke = appSettings.node.selectedBorderColor;
-        rect.style.strokeWidth = '3px';
-    }
-    if (blockDef.descrizione) aggiungiTooltip(rect, blockDef.descrizione);
+function renderNode(node: Nodo, blockDef: Blocco, forma: FormaBlocco, contesto: ContestoFili): void {
+    const { larghezza: w, altezza: h } = forma;
+    const selezionato = activeNodeId === node.id;
+    const g = creaSvg('g', { transform: `translate(${node.position.x}, ${node.position.y})`, class: `blocco-idv${selezionato ? ' selezionato' : ''}` });
 
-    const labelText = creaSvg('text', {
-        x: nodeW / 2, y: nodeH / 2 + 5, 'text-anchor': 'middle', class: 'node-text'
-    });
-    labelText.textContent = node.label || blockDef.titolo || node.id;
-
-    // Gerarchia: si attenuano rettangolo e scritta, mai il gruppo, così i pin della catena restano pieni
+    // Gerarchia: si attenua il corpo, mai il gruppo, così i pin della catena restano pieni
     const occorrenzeDentro = contatoreGerarchia(percorsoNodo(node));
-    if (catenaAttiva() && occorrenzeDentro === 0 && !haPinInCatena(node, blockDef)) {
-        rect.classList.add('fuori-catena');
-        labelText.classList.add('fuori-catena');
-    } else if (!catenaAttiva() && !inclusi.nodi.has(node.id)) {
-        // Filtri: blocco escluso attenuato, i pin seguono solo la propria inclusione (spec 0008, AC-6, AC-11)
-        rect.classList.add('fuori-filtro');
-        labelText.classList.add('fuori-filtro');
+    let attenua = '';
+    if (catenaAttiva() && occorrenzeDentro === 0 && !haPinInCatena(node, blockDef)) attenua = 'fuori-catena';
+    // Filtri: blocco escluso attenuato, i pin seguono solo la propria inclusione (spec 0008, AC-6, AC-11)
+    else if (!catenaAttiva() && !inclusi.nodi.has(node.id)) attenua = 'fuori-filtro';
+    const conAttenua = (el: SVGElement): SVGElement => {
+        if (attenua) el.classList.add(attenua);
+        return el;
+    };
+
+    g.appendChild(conAttenua(creaSvg('rect', { width: w, height: h, class: 'comp-body' })));
+    const testa = conAttenua(creaSvg('rect', { width: w, height: ALTEZZA_TESTA, class: 'comp-head' }));
+    // La descrizione sull'intestazione, mai dentro il testo del nome (il nome resta solo il nome)
+    if (blockDef.descrizione) aggiungiTooltip(testa, blockDef.descrizione);
+    g.appendChild(testa);
+
+    const corpo = conAttenua(creaSvg('g', { class: 'corpo-blocco' }));
+    // Badge con l'id del tipo di libreria, in alto a destra
+    const badge = tagliaTesto(blockDef.id.toUpperCase(), 10.5, 70, true, true);
+    const largoBadge = larghezzaTesto(badge, 10.5, true, true) + 10;
+    const idb = creaSvg('g', { class: 'comp-idb', transform: `translate(${w - largoBadge - 8}, 6)` });
+    idb.appendChild(creaSvg('rect', { width: largoBadge, height: 16, rx: 2 }));
+    idb.appendChild(testoSvg(badge, { x: largoBadge / 2, y: 11.5, 'text-anchor': 'middle' }));
+    corpo.appendChild(idb);
+    // Categoria con il suo colore, e la seconda riga
+    corpo.appendChild(creaSvg('rect', { x: 10, y: 26, width: 8, height: 8, rx: 1.5, fill: coloreDaTesto(blockDef.categoria || '-') }));
+    const categoria = [blockDef.categoria, blockDef.sottocategoria].filter(Boolean).join(' · ') || 'Senza categoria';
+    corpo.appendChild(testoSvg(tagliaTesto(categoria, 10.5, w - 34), { x: 22, y: 33.5, class: 'comp-meta' }));
+    const sotto = sottotitoloBlocco(node, blockDef);
+    if (sotto) corpo.appendChild(testoSvg(tagliaTesto(sotto, 10, w - 20), { x: 10, y: 45, class: 'comp-meta comp-meta-k' }));
+    corpo.appendChild(creaSvg('line', { x1: 0, y1: ALTEZZA_TESTA, x2: w, y2: ALTEZZA_TESTA, class: 'comp-sep' }));
+
+    if (!blockDef.requisiti.length) corpo.appendChild(testoSvg('Nessun requisito', { x: 12, y: ALTEZZA_TESTA + 14, class: 'port-none' }));
+    if (forma.inizioPropagate !== null) {
+        corpo.appendChild(creaSvg('line', { x1: 0, y1: forma.inizioPropagate, x2: w, y2: forma.inizioPropagate, class: 'comp-sep sep-propagate' }));
+        corpo.appendChild(testoSvg('PORTE DAI BLOCCHI INTERNI', { x: 10, y: forma.inizioPropagate + 12.5, class: 'titolo-propagate' }));
     }
+    forma.righe.forEach((riga, i) => corpo.appendChild(rigaBlocco(node, riga, i, w)));
+    g.appendChild(corpo);
 
+    // Nome del blocco (sopra le righe, per i test e la lettura)
+    const largoNome = w - largoBadge - 26;
+    g.appendChild(conAttenua(testoSvg(tagliaTesto(node.label || blockDef.titolo || node.id, 12.5, largoNome, true), { x: 10, y: 18, class: 'node-text' })));
+
+    // Contorno: sopra le righe, sotto le porte
+    const rect = conAttenua(creaSvg('rect', { width: w, height: h, class: 'node-rect' }));
+    if (selezionato) {
+        rect.style.stroke = appSettings.node.selectedBorderColor;
+        rect.style.strokeWidth = '2.4px';
+    }
     g.appendChild(rect);
-    g.appendChild(labelText);
 
-    const resizeHandle = creaSvg('rect', {
-        x: nodeW - 10, y: nodeH - 10, width: 10, height: 10, class: 'node-resize-handle'
+    // Porte: una per riga, al lato salvato o verso l'altro capo del filo
+    forma.righe.forEach((riga) => {
+        const lato = contesto.lato(node.id, riga.chiave);
+        const pos = puntoRigaRelativo(forma, riga, lato);
+        const owner: Proprietario = { ownerId: node.id, ownerType: 'node', ...(riga.percorso.length ? { percorso: riga.percorso } : {}) };
+        const chiave = `${node.id}|${riga.chiave}`;
+        const pin = createReqPin(pos.x, pos.y, riga.req, owner, riga.interfaccia ? 'porta' : 'capacita', {
+            collegato: porteCollegate.has(chiave) || porteSopra.has(chiave),
+            sopra: porteSopra.has(chiave),
+            propagata: riga.propagata,
+            assoluto: { x: node.position.x + pos.x, y: node.position.y + pos.y },
+            etichette: riga.etichette
+        });
+        pin.addEventListener('mousedown', (e) => {
+            if (!e.shiftKey) return;
+            e.stopPropagation();
+            startPortaLatoDrag(node, forma, riga.chiave);
+        });
+        g.appendChild(pin);
     });
+
+    // Maniglia per allargare il blocco (l'altezza la decidono le righe)
+    const resizeHandle = creaSvg('rect', { x: w - 8, y: h - 8, width: 8, height: 8, class: 'node-resize-handle' });
     resizeHandle.addEventListener('mousedown', (e) => startResizeDrag(e, node));
     g.appendChild(resizeHandle);
 
     // Problemi di coerenza nel contenuto del blocco: contatore in alto a destra, trasparente al mouse
     const problemi = contatoreBlocco(node);
     if (problemi > 0) {
-        const contatore = creaSvg('g', { class: 'contatore-coerenza', transform: `translate(${nodeW}, 0)` });
+        const contatore = creaSvg('g', { class: 'contatore-coerenza', transform: `translate(${w}, 0)` });
         contatore.appendChild(creaSvg('circle', { r: 9 }));
-        const numero = creaSvg('text', { 'text-anchor': 'middle', y: 3.5 });
-        numero.textContent = problemi > 99 ? '99+' : String(problemi);
-        contatore.appendChild(numero);
+        contatore.appendChild(testoSvg(problemi > 99 ? '99+' : String(problemi), { 'text-anchor': 'middle', y: 3.5 }));
         g.appendChild(contatore);
     }
 
@@ -515,50 +746,31 @@ function renderNode(node: Nodo, blockDef: Blocco): void {
     if (occorrenzeDentro > 0) {
         const contatore = creaSvg('g', { class: 'contatore-gerarchia' });
         contatore.appendChild(creaSvg('circle', { r: 9, fill: coloreCatena() }));
-        const numero = creaSvg('text', { 'text-anchor': 'middle', y: 3.5 });
-        numero.textContent = occorrenzeDentro > 99 ? '99+' : String(occorrenzeDentro);
-        contatore.appendChild(numero);
+        contatore.appendChild(testoSvg(occorrenzeDentro > 99 ? '99+' : String(occorrenzeDentro), { 'text-anchor': 'middle', y: 3.5 }));
         g.appendChild(contatore);
     }
-
-    // Interfaccia: porte sul bordo, spostabili con Shift+trascina
-    const interfacce = blockDef.requisiti.filter(isInterfaccia);
-    interfacce.forEach((req, idx) => {
-        const pos = getReqPerimeterPos(node, req.id, idx, interfacce.length);
-        const pin = createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'cerchio');
-        // Con Shift premuto il cursore diventa quello di spostamento (spec 0011, AC-3)
-        pin.classList.add('porta-interfaccia');
-        pin.addEventListener('mousedown', (e) => {
-            if (e.shiftKey) {
-                e.stopPropagation();
-                startPinPerimeterDrag(node, req.id);
-            }
-        });
-        g.appendChild(pin);
-    });
-
-    // Capacità: pin quadrati all'interno del blocco, in fila sul bordo inferiore o dove li hai spostati con Shift (spec 0032)
-    const capacita = blockDef.requisiti.filter((r) => !isInterfaccia(r));
-    const posizioni = posizioniCapacita(node, capacita.map((r) => r.id));
-    capacita.forEach((req) => {
-        const pos = posizioni[req.id];
-        if (!pos) return;
-        const pin = createReqPin(pos.x, pos.y, req, { ownerId: node.id, ownerType: 'node' }, 'quadrato');
-        pin.classList.add('pin-capacita');
-        pin.addEventListener('mousedown', (e) => {
-            if (e.shiftKey) {
-                e.stopPropagation();
-                startPinCapacitaDrag(node, blockDef, req.id);
-            }
-        });
-        g.appendChild(pin);
-    });
 
     g.addEventListener('mousedown', (e) => startDrag(e, node));
     g.addEventListener('dblclick', () => enterNode(node));
     g.addEventListener('click', (e) => { e.stopPropagation(); selectNode(node); });
 
     nodesLayer.appendChild(g);
+}
+
+// Una riga: id e titolo del requisito a sinistra, la sigla della classe a destra (righe alterne ombreggiate)
+function rigaBlocco(node: Nodo, riga: RigaBlocco, indice: number, w: number): SVGGElement {
+    const g = creaSvg('g', { class: `port-riga${riga.propagata ? ' propagata' : ''}` });
+    g.appendChild(creaSvg('rect', { x: 0, y: riga.y - ALTEZZA_RIGA / 2, width: w, height: ALTEZZA_RIGA, class: `port-row${indice % 2 === 1 ? ' alt' : ''}` }));
+    const sigla = siglaClasse(riga.req);
+    const largoSigla = larghezzaTesto(sigla, 9, true, true);
+    const largoId = larghezzaTesto(riga.reqId, 10.5, true, true);
+    const titolo = riga.propagata ? `↳ ${riga.etichette.join(' › ')} · ${riga.req.titolo}` : riga.req.titolo;
+    g.appendChild(testoSvg(riga.reqId, { x: 14, y: riga.y + 3.8, class: 'port-text port-id' }));
+    g.appendChild(testoSvg(tagliaTesto(titolo, 11, w - largoId - largoSigla - 44), { x: 20 + largoId, y: riga.y + 3.8, class: 'port-text' }));
+    g.appendChild(testoSvg(sigla, { x: w - 14, y: riga.y + 3.2, 'text-anchor': 'end', class: 'port-type' }));
+    const dove = riga.propagata ? `\nSale da: ${riga.etichette.join(' › ')} (dentro ${node.label || node.id})` : '';
+    aggiungiTooltip(g, descriviRequisito(riga.req) + dove);
+    return g;
 }
 
 /* --- BLOCCHI TONDI: I REQUISITI DEL BLOCCO PADRE VISTI DALL'INTERNO --- */
@@ -655,20 +867,13 @@ function disegnaBloccoTondo(graph: Grafo, req: Requisito, idx: number, ownerId: 
         g.appendChild(segno);
     }
 
-    const idText = creaSvg('text', {
-        x: centro.x, y: centro.y + raggio + 14, 'text-anchor': 'middle', class: 'parent-block-id'
-    });
-    idText.textContent = opzioni.etichetta;
-    g.appendChild(idText);
-
-    const titoloText = creaSvg('text', {
-        x: centro.x, y: centro.y + raggio + 27, 'text-anchor': 'middle', class: 'parent-block-title'
-    });
-    titoloText.textContent = opzioni.sottotitolo || '';
-    g.appendChild(titoloText);
+    g.appendChild(testoSvg(opzioni.etichetta, { x: centro.x, y: centro.y + raggio + 14, 'text-anchor': 'middle', class: 'parent-block-id' }));
+    g.appendChild(testoSvg(opzioni.sottotitolo || '', { x: centro.x, y: centro.y + raggio + 27, 'text-anchor': 'middle', class: 'parent-block-title' }));
 
     const pinPos = getParentReqPinPos(graph, req.id, idx);
-    g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId, ownerType: 'parent' }, isInterfaccia(req) ? 'cerchio' : 'quadrato'));
+    g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId, ownerType: 'parent' }, isInterfaccia(req) ? 'tondo' : 'tondo-capacita', {
+        collegato: true, sopra: false, propagata: false, assoluto: pinPos, etichette: []
+    }));
 
     parentLayer.appendChild(g);
 }
@@ -723,21 +928,8 @@ export function getCanvasCoords(e: { clientX: number; clientY: number }): Punto 
     };
 }
 
-// Geometria condivisa con i diagrammi esportati (diagramma.ts, spec 0029)
-function getReqPerimeterPos(node: Nodo, reqId: string, idx: number, totalReqs: number): Punto {
-    if (!node.pinPositions) node.pinPositions = {};
-    return posizionePorta(node, reqId, idx, totalReqs);
-}
-
-// Coordinate assolute del pin di un requisito di un nodo (bordo per l'interfaccia, interno per la capacità)
-export function getReqCoordinates(node: Nodo, reqId: string): Punto | null {
-    const blockDef = getBlockDef(node.type);
-    if (!blockDef) return null;
-    if (!node.pinPositions) node.pinPositions = {};
-    return puntoPin(node, blockDef, reqId);
-}
-
-function getEstremoCoords(ownerId: string, reqId: string, ownerType: TipoEstremo, graph: Grafo): Punto | null {
+// Coordinate assolute del pin di un estremo del livello aperto, dalla stessa geometria dei fili
+function getEstremoCoords(ownerId: string, reqId: string, ownerType: TipoEstremo, graph: Grafo, percorso: readonly string[] = []): Punto | null {
     if (ownerType === 'parent') {
         const tipoPadre = tipoPadreCorrente();
         // Un requisito cliente si disegna solo se ha una posizione salvata
@@ -745,103 +937,160 @@ function getEstremoCoords(ownerId: string, reqId: string, ownerType: TipoEstremo
         const idx = requisitiPadre(tipoPadre).findIndex((r) => r.id === reqId);
         return idx >= 0 ? getParentReqPinPos(graph, reqId, idx) : null;
     }
-    const node = graph.nodes.find((n) => n.id === ownerId);
-    return node ? getReqCoordinates(node, reqId) : null;
+    return contestoCorrente?.centro('node', ownerId, reqId, percorso) ?? null;
 }
 
 /* --- PIN E DISEGNO DEI COLLEGAMENTI --- */
 
-function createReqPin(cx: number, cy: number, req: Requisito, owner: Proprietario, forma: 'quadrato' | 'cerchio'): SVGElement {
+type FormaPin = 'porta' | 'capacita' | 'tondo' | 'tondo-capacita';
+
+interface OpzioniPin {
+    // La porta ha almeno un filo in questo livello (o sopra): quadratino pieno
+    collegato: boolean;
+    // Collegata solo a un livello sopra, attraverso il bordo del contenitore
+    sopra: boolean;
+    propagata: boolean;
+    // Centro assoluto del pin (per la linea che segue il mouse)
+    assoluto: Punto;
+    etichette: string[];
+}
+
+// Vero se una porta del livello aperto è già collegata ai livelli sopra come porta propagata (spec 0035)
+function collegataSopra(nodeId: string, reqId: string, percorso: readonly string[]): boolean {
+    let proprietario = nodeId;
+    let dentro = [...percorso];
+    for (let i = pathStack.length - 1; i > 0; i--) {
+        const contenitore = pathStack[i]!.parentNode;
+        if (!contenitore) return false;
+        dentro = [proprietario, ...dentro];
+        proprietario = contenitore.id;
+        const sopra = pathStack[i - 1]!.graph;
+        if (estremiUsati(sopra).has(`${proprietario}|${chiavePorta(reqId, dentro)}`)) return true;
+    }
+    return false;
+}
+
+function createReqPin(cx: number, cy: number, req: Requisito, owner: Proprietario, forma: FormaPin, opzioni: OpzioniPin): SVGElement {
     const raggio = appSettings.requirements.radius;
     const colore = getColoreRequisito(req);
-    const pin: SVGElement = forma === 'quadrato'
-        ? creaSvg('rect', { x: cx - raggio, y: cy - raggio, width: raggio * 2, height: raggio * 2 })
-        : creaSvg('circle', { cx, cy, r: raggio });
+    const percorso = owner.percorso ?? [];
+    const g = creaSvg('g', { class: `pin${opzioni.propagata ? ' propagata' : ''}`, 'data-nodo': owner.ownerId, 'data-porta': chiavePorta(req.id, percorso) });
+    g.style.setProperty('--lc', colore);
+    let pin: SVGElement;
+    if (forma === 'porta' || forma === 'capacita') {
+        // Area di presa più larga del quadratino
+        g.appendChild(creaSvg('rect', { x: cx - 8, y: cy - 8, width: 16, height: 16, class: 'pin-hit' }));
+        const lato = 4.5;
+        pin = creaSvg('rect', { x: cx - lato, y: cy - lato, width: lato * 2, height: lato * 2 });
+    } else if (forma === 'tondo') {
+        pin = creaSvg('circle', { cx, cy, r: raggio });
+    } else {
+        pin = creaSvg('rect', { x: cx - raggio, y: cy - raggio, width: raggio * 2, height: raggio * 2 });
+    }
     // L'alone sta sul pin solo per i requisiti dei blocchi; per i blocchi tondi sta sul cerchio
-    const problema = owner.ownerType === 'node' ? problemaPin(getCurrentLevel().graph, 'node', owner.ownerId, req.id) : null;
-    pin.setAttribute('class', problema ? 'node-req-pin problema-coerenza' : 'node-req-pin');
-    pin.setAttribute('fill', colore);
+    const problema = owner.ownerType === 'node' && !percorso.length ? problemaPin(getCurrentLevel().graph, 'node', owner.ownerId, req.id) : null;
+    let classe = 'node-req-pin';
+    if (forma === 'porta') classe += ` porta-interfaccia port-sq ${opzioni.collegato ? 'on-if' : 'libera'}`;
+    if (forma === 'capacita') classe += ` pin-capacita port-sq ${opzioni.collegato ? 'on-cat' : 'libera'}`;
+    if (opzioni.propagata) classe += ' porta-propagata';
+    if (opzioni.sopra) classe += ' collegata-sopra';
+    if (problema) classe += ' problema-coerenza';
+    pin.setAttribute('class', classe);
+    if (forma === 'tondo' || forma === 'tondo-capacita') pin.setAttribute('fill', colore);
     // Gerarchia con una scelta: alone sui pin della catena, gli altri attenuati. Il pin di un blocco tondo
     // segue il suo gruppo (l'alone sta sul cerchio)
     if (catenaAttiva()) {
         if (owner.ownerType === 'node') {
-            pin.classList.add(occorrenzaInCatena(chiaveSulCanvas('node', owner.ownerId, req.id)) ? 'pin-catena' : 'fuori-catena');
+            pin.classList.add(!percorso.length && occorrenzaInCatena(chiaveSulCanvas('node', owner.ownerId, req.id)) ? 'pin-catena' : 'fuori-catena');
         }
-    } else if (!estremoIncluso(owner.ownerType, owner.ownerId, req.id)) {
+    } else if (!estremoIncluso(owner.ownerType, owner.ownerId, req.id, percorso)) {
         pin.classList.add('fuori-filtro');
     }
+    g.appendChild(pin);
 
-    const suggerimento = owner.ownerType !== 'node' ? ''
-        : isInterfaccia(req) ? '\n[Shift+trascina per spostare la porta]' : '\n[Shift+trascina per spostare il pin]';
-    aggiungiTooltip(pin, descriviRequisito(req) + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
+    const suggerimento = owner.ownerType !== 'node' ? '' : '\n[Shift+trascina per portare la porta sull\'altro lato]';
+    const dove = (opzioni.propagata ? `\nPorta propagata da: ${opzioni.etichette.join(' › ')}` : '')
+        + (opzioni.sopra ? '\nCollegata a un livello superiore: sale sul bordo del blocco che la contiene' : '');
+    aggiungiTooltip(g, descriviRequisito(req) + dove + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
 
-    pin.addEventListener('mousedown', (e) => {
+    g.addEventListener('mousedown', (e) => {
         if ((e as MouseEvent).shiftKey) return;
         e.stopPropagation();
         isDrawingEdge = true;
-        edgeStartData = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, x: cx, y: cy };
+        edgeStartData = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, ...(percorso.length ? { percorso: [...percorso] } : {}), x: opzioni.assoluto.x, y: opzioni.assoluto.y };
+        svg.classList.add('collegamento');
 
-        const temp = creaSvg('path', { class: 'edge-path', stroke: colore });
-        temp.style.strokeDasharray = '4,4';
+        const temp = creaSvg('path', { class: 'temp-link', stroke: colore });
         // La linea segue il mouse: non deve intercettare il rilascio sul pin di destinazione
         temp.style.pointerEvents = 'none';
         edgesLayer.appendChild(temp);
         tempEdgePath = temp;
     });
 
-    pin.addEventListener('mouseup', (e) => {
+    g.addEventListener('mouseup', (e) => {
         e.stopPropagation();
         const inizio = edgeStartData;
         const stessoPin = !!inizio && inizio.ownerId === owner.ownerId &&
-            inizio.ownerType === owner.ownerType && inizio.reqId === req.id;
+            inizio.ownerType === owner.ownerType && inizio.reqId === req.id &&
+            chiavePorta(req.id, inizio.percorso ?? []) === chiavePorta(req.id, percorso);
         // Gerarchia: premi e rilascia sullo stesso pin sceglie il suo requisito, senza tirare un filo (AC-2)
         if (isDrawingEdge && stessoPin && gerarchiaAttiva()) {
             cleanupEdgeDrawing();
-            scegliDaCanvas(owner, req);
+            if (!percorso.length) scegliDaCanvas(owner, req);
             return;
         }
-        if (isDrawingEdge && inizio && !stessoPin) {
-            const graph = getCurrentLevel().graph;
-            const a: Estremo = { ownerId: inizio.ownerId, reqId: inizio.reqId, ownerType: inizio.ownerType, req: trovaRequisito(inizio.ownerId, inizio.reqId, inizio.ownerType) };
-            const b: Estremo = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, req };
-
-            const errore = verificaCollegamento(a, b, graph.edges);
-            if (errore) {
-                alert(`Impossibile collegare: ${errore}`);
-            } else {
-                // Una derivazione parte sempre dal requisito del padre
-                const [sorgente, destinazione] = b.ownerType === 'parent' ? [b, a] : [a, b];
-                graph.edges.push({
-                    id: generaId('edge'),
-                    source: sorgente.ownerId,
-                    sourceHandle: sorgente.reqId,
-                    sourceType: sorgente.ownerType,
-                    target: destinazione.ownerId,
-                    targetHandle: destinazione.reqId,
-                    targetType: destinazione.ownerType,
-                    waypoints: []
-                });
-            }
-        }
+        if (isDrawingEdge && inizio && !stessoPin) collega(inizio, { ...owner, percorso: [...percorso] }, req);
         cleanupEdgeDrawing();
         render();
     });
 
-    return pin;
+    return g;
+}
+
+// Crea il filo fra due pin del livello aperto, se la regola lo ammette
+function collega(inizio: Proprietario & { reqId: string }, fine: Proprietario, req: Requisito): void {
+    const graph = getCurrentLevel().graph;
+    const pa = inizio.percorso ?? [];
+    const pb = fine.percorso ?? [];
+    const a: Estremo = { ownerId: inizio.ownerId, reqId: inizio.reqId, ownerType: inizio.ownerType, percorso: pa, req: trovaRequisito(inizio.ownerId, inizio.reqId, inizio.ownerType, pa) };
+    const b: Estremo = { ownerId: fine.ownerId, reqId: req.id, ownerType: fine.ownerType, percorso: pb, req };
+
+    const errore = verificaCollegamento(a, b, graph.edges);
+    if (errore) {
+        alert(`Impossibile collegare: ${errore}`);
+        return;
+    }
+    // Una porta già usata ai livelli sopra come porta propagata: collegarla qui toglie quel filo dal bordo
+    const sopra = [a, b].find((e) => e.ownerType === 'node' && collegataSopra(e.ownerId, e.reqId, e.percorso ?? []));
+    if (sopra && !confirm(`La porta ${sopra.reqId} è già collegata a un livello superiore (sale sul bordo del blocco che la contiene). Collegandola qui non sale più e quel filo diventa da riparare. Collegare lo stesso?`)) return;
+    // Una derivazione parte sempre dal requisito del padre
+    const [sorgente, destinazione] = b.ownerType === 'parent' ? [b, a] : [a, b];
+    const filo: Filo = {
+        id: generaId('edge'),
+        source: sorgente.ownerId,
+        sourceHandle: sorgente.reqId,
+        sourceType: sorgente.ownerType,
+        target: destinazione.ownerId,
+        targetHandle: destinazione.reqId,
+        targetType: destinazione.ownerType,
+        waypoints: []
+    };
+    if (sorgente.percorso?.length) filo.sourcePercorso = [...sorgente.percorso];
+    if (destinazione.percorso?.length) filo.targetPercorso = [...destinazione.percorso];
+    graph.edges.push(filo);
 }
 
 // Linea tratteggiata che segue il mouse mentre disegni un collegamento
 window.addEventListener('mousemove', (e) => {
     if (!isDrawingEdge || !tempEdgePath || !edgeStartData) return;
-    const rect = svg.getBoundingClientRect();
-    const x = (e.clientX - rect.left - zoomState.x) / zoomState.scale;
-    const y = (e.clientY - rect.top - zoomState.y) / zoomState.scale;
-    const start = getEstremoCoords(edgeStartData.ownerId, edgeStartData.reqId, edgeStartData.ownerType, getCurrentLevel().graph) || edgeStartData;
-    tempEdgePath.setAttribute('d', `M ${start.x} ${start.y} L ${x} ${y}`);
+    const p = puntoCanvas(e);
+    const start = getEstremoCoords(edgeStartData.ownerId, edgeStartData.reqId, edgeStartData.ownerType, getCurrentLevel().graph, edgeStartData.percorso) || edgeStartData;
+    tempEdgePath.setAttribute('d', `M ${start.x} ${start.y} L ${p.x} ${p.y}`);
 });
 
 export function cleanupEdgeDrawing(): void {
     isDrawingEdge = false; edgeStartData = null;
+    svg.classList.remove('collegamento');
     if (tempEdgePath) { tempEdgePath.remove(); tempEdgePath = null; }
 }
 
@@ -858,69 +1107,42 @@ function trascina(drag: (ev: MouseEvent) => void): void {
     window.addEventListener('mouseup', endDrag, true);
 }
 
+// Solo la larghezza: l'altezza del blocco viene dalle sue righe (spec 0035)
 function startResizeDrag(e: MouseEvent, node: Nodo): void {
     e.stopPropagation();
     const startX = e.clientX;
-    const startY = e.clientY;
-    const initialW = node.width || appSettings.node.width;
-    const initialH = node.height || appSettings.node.height;
+    const def = getBlockDef(node.type);
+    const initialW = def ? formaBlocco(node, def, appState.library, appSettings).larghezza : (node.width || appSettings.node.width);
 
     trascina((ev) => {
         const gridSize = appSettings.grid.size;
         node.width = Math.max(80, Math.round((initialW + (ev.clientX - startX) / zoomState.scale) / gridSize) * gridSize);
-        node.height = Math.max(40, Math.round((initialH + (ev.clientY - startY) / zoomState.scale) / gridSize) * gridSize);
         render();
     });
 }
 
-function startPinPerimeterDrag(node: Nodo, reqId: string): void {
-    const nodeW = node.width || appSettings.node.width;
-    const nodeH = node.height || appSettings.node.height;
-
+// Shift+trascina una porta (o il pin di una capacità): passa sul lato sinistro o destro del blocco (spec 0035)
+function startPortaLatoDrag(node: Nodo, forma: FormaBlocco, chiave: string): void {
     trascina((ev) => {
-        const coords = getCanvasCoords(ev);
-        const relX = coords.x - node.position.x;
-        const relY = coords.y - node.position.y;
-
-        const dTop = Math.abs(relY);
-        const dBottom = Math.abs(relY - nodeH);
-        const dLeft = Math.abs(relX);
-        const dRight = Math.abs(relX - nodeW);
-
-        const min = Math.min(dTop, dBottom, dLeft, dRight);
+        const lato = latoDalPunto(node, forma, puntoCanvas(ev));
+        if (node.pinPositions?.[chiave]?.side === lato) return;
         if (!node.pinPositions) node.pinPositions = {};
-
-        if (min === dTop) node.pinPositions[reqId] = { side: 'top', ratio: Math.max(0, Math.min(1, relX / nodeW)) };
-        else if (min === dBottom) node.pinPositions[reqId] = { side: 'bottom', ratio: Math.max(0, Math.min(1, relX / nodeW)) };
-        else if (min === dLeft) node.pinPositions[reqId] = { side: 'left', ratio: Math.max(0, Math.min(1, relY / nodeH)) };
-        else node.pinPositions[reqId] = { side: 'right', ratio: Math.max(0, Math.min(1, relY / nodeH)) };
-
+        node.pinPositions[chiave] = { side: lato, ratio: 0.5 };
         render();
     });
 }
 
-// Un pin di capacità segue il mouse sulla griglia, dentro il blocco; una casella che coprirebbe un altro pin
-// è rifiutata e il pin resta all'ultima posizione buona (spec 0032, AC-3)
-function startPinCapacitaDrag(node: Nodo, blockDef: Blocco, reqId: string): void {
-    const ids = blockDef.requisiti.filter((r) => !isInterfaccia(r)).map((r) => r.id);
-    trascina((ev) => {
-        const coords = getCanvasCoords(ev);
-        const nuova = limitaDentro({ x: coords.x - node.position.x, y: coords.y - node.position.y }, node);
-        const attuali = posizioniCapacita(node, ids);
-        const vecchia = attuali[reqId];
-        if (vecchia && vecchia.x === nuova.x && vecchia.y === nuova.y) return;
-        if (ids.some((id) => id !== reqId && attuali[id] && pinSovrapposti(attuali[id], nuova))) return;
-        if (!node.capabilityPositions) node.capabilityPositions = {};
-        node.capabilityPositions[reqId] = nuova;
-        render();
-    });
-}
-
-// Riposiziona i pin (spec 0032, AC-6): l'istanza torna alla disposizione automatica dei pin di capacità
-export function riposizionaPinCapacita(node: Nodo): void {
-    if (!node.capabilityPositions) return;
+// Riposiziona le porte: l'istanza torna ai lati automatici (e dimentica i pin di capacità spostati prima della 2.3)
+export function riposizionaPorte(node: Nodo): void {
+    const lati = Object.keys(node.pinPositions ?? {}).length > 0;
+    if (!lati && !node.capabilityPositions) return;
+    node.pinPositions = {};
     delete node.capabilityPositions;
     render();
+}
+
+export function haPorteSpostate(node: Nodo | undefined): boolean {
+    return !!node && (Object.keys(node.pinPositions ?? {}).length > 0 || Object.keys(node.capabilityPositions ?? {}).length > 0);
 }
 
 function startWaypointDrag(e: MouseEvent, waypoint: Punto): void {
@@ -957,4 +1179,85 @@ function startDrag(e: MouseEvent, node: Nodo): void {
         node.position.y = coords.y - offset.y;
         render();
     });
+}
+
+/* --- LEGENDA, LAVAGNA VUOTA, PULSANTI DI VISTA E RICERCA DI UN BLOCCO (spec 0035) --- */
+
+function aggiornaLegenda(graph: Grafo, contesto: ContestoFili, disegnati: Filo[]): void {
+    const legenda = document.getElementById('legendaLavagna');
+    if (!legenda) return;
+    legenda.hidden = !vista.legenda || (!graph.nodes.length && !graph.edges.length);
+    if (legenda.hidden) return;
+    const perClasse = new Map<string, { colore: string; n: number; stile: string }>();
+    let derivazioni = 0;
+    disegnati.forEach((edge) => {
+        const req = trovaRequisito(edge.source, edge.sourceHandle, edge.sourceType, percorsoSorgente(edge));
+        if (isDerivazione(edge)) {
+            derivazioni++;
+            return;
+        }
+        const classe = getClasseRequisito(req);
+        const voce = perClasse.get(classe) ?? { colore: getColoreRequisito(req), n: 0, stile: stileFilo(edge, req) };
+        voce.n++;
+        perClasse.set(classe, voce);
+    });
+    let porteLibere = 0;
+    let propagate = 0;
+    graph.nodes.forEach((n) => (contesto.forma(n.id)?.righe ?? []).forEach((r) => {
+        if (r.propagata) propagate++;
+        const k = `${n.id}|${r.chiave}`;
+        if (r.interfaccia && !porteCollegate.has(k) && !porteSopra.has(k)) porteLibere++;
+    }));
+    const campione = (colore: string, stile: string) => {
+        const tratto = stile === 'interfaccia' ? 'stroke-dasharray="5 3" stroke-width="2.3"' : stile === 'derivazione' ? 'stroke-dasharray="2 3" stroke-width="2"' : 'stroke-width="1.6"';
+        return `<svg width="26" height="8" aria-hidden="true"><line x1="1" y1="4" x2="25" y2="4" stroke="${colore}" ${tratto}/></svg>`;
+    };
+    const righe = [...perClasse.entries()].sort((a, b) => a[0].localeCompare(b[0], 'it'))
+        .map(([classe, v]) => `<div class="lg-row">${campione(v.colore, v.stile)}${escapeHtml(classe)} (${v.n})</div>`);
+    if (derivazioni) righe.push(`<div class="lg-row">${campione('#6a7585', 'derivazione')}Derivazioni (${derivazioni})</div>`);
+    const fili = disegnati.length;
+    const livello = getCurrentLevel();
+    legenda.innerHTML = `<div class="lg-title">${escapeHtml(livello.parentNode ? livello.label : 'Radice')} · ${fili} ${fili === 1 ? 'filo' : 'fili'}</div>`
+        + (righe.length ? righe.join('') : '<div class="lg-row muted">Nessun filo in questo livello</div>')
+        + `<div class="lg-stats">${graph.nodes.length} ${graph.nodes.length === 1 ? 'blocco' : 'blocchi'} · ${porteLibere} ${porteLibere === 1 ? 'porta libera' : 'porte libere'}`
+        + (propagate ? ` · ${propagate} ${propagate === 1 ? 'porta propagata' : 'porte propagate'}` : '') + '</div>';
+}
+
+function aggiornaVuoto(graph: Grafo): void {
+    const vuoto = document.getElementById('lavagnaVuota');
+    if (vuoto) vuoto.hidden = graph.nodes.length > 0 || graph.edges.length > 0 || pathStack.length > 1;
+}
+
+function aggiornaPulsantiVista(): void {
+    const imposta = (id: string, acceso: boolean) => {
+        const p = document.getElementById(id);
+        if (!p) return;
+        p.classList.toggle('on', acceso);
+        p.setAttribute('aria-pressed', String(acceso));
+    };
+    imposta('btnMostraEtichette', vista.etichette);
+    imposta('btnMostraLegenda', vista.legenda);
+    // Blocchi del livello per la ricerca
+    const elenco = document.getElementById('elencoBlocchiLivello');
+    if (!elenco) return;
+    const voci = getCurrentLevel().graph.nodes.map((n) => {
+        const def = getBlockDef(n.type);
+        return `<option value="${escapeHtml(n.label || n.id)}">${escapeHtml(def ? `${def.id} · ${def.titolo}` : n.type)}</option>`;
+    }).join('');
+    if (elenco.innerHTML !== voci) elenco.innerHTML = voci;
+}
+
+// Trova un blocco del livello per etichetta, id o tipo, lo centra e lo seleziona; falso se non c'è
+export function trovaBlocco(testo: string): boolean {
+    const t = testo.trim().toLowerCase();
+    if (!t) return false;
+    const nodi = getCurrentLevel().graph.nodes;
+    const nodo = nodi.find((n) => (n.label || '').toLowerCase() === t)
+        ?? nodi.find((n) => n.id.toLowerCase() === t || n.type.toLowerCase() === t)
+        ?? nodi.find((n) => `${n.label} ${n.type} ${getBlockDef(n.type)?.titolo ?? ''}`.toLowerCase().includes(t));
+    if (!nodo) return false;
+    const c = centroNodo(nodo);
+    centraVista(c.x, c.y);
+    selectNode(nodo);
+    return true;
 }
