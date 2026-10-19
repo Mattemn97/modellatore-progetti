@@ -4,7 +4,8 @@
 // Modalità e risultato vivono solo in questo modulo: non finiscono mai nel file del progetto.
 
 import { appState, appSettings, pathStack, getCurrentLevel, setActiveNodeId } from './state.js';
-import { render, centraVista, centroNodo, evidenziaCliente, posizioneInColonna } from './renderer.js';
+import { render, centraVista, centroNodo, evidenziaCliente, posizioneInColonna, selezionaFilo, impostaStrato } from './renderer.js';
+import { cavoDelFilo, progettoConCavi } from './cavi.js';
 import { renderUI } from './app.js';
 import { selectNode, mostraDettaglioCliente } from './inspector.js';
 import { impostaSelezioneCliente } from './cliente.js';
@@ -16,7 +17,7 @@ import { escapeHtml } from './utils.js';
 import { classePassa, descriviClassi } from './filtri.js';
 import type { Cliente, Grafo, Libreria, Nodo, Requisito, TipoEstremo } from './tipi.js';
 
-export type TipoProblema = 'clienteSenzaFigli' | 'senzaPadre' | 'senzaFigli' | 'filoDaRitirato' | 'bloccoSenzaDefinizione' | 'filoNonValido';
+export type TipoProblema = 'clienteSenzaFigli' | 'senzaPadre' | 'senzaFigli' | 'filoDaRitirato' | 'bloccoSenzaDefinizione' | 'filoNonValido' | 'senzaCavo';
 
 export interface Problema {
     tipo: TipoProblema;
@@ -62,7 +63,8 @@ const GRUPPI: Array<{ id: string; titolo: string; tipi: TipoProblema[] }> = [
     { id: 'senzaPadre', titolo: 'Requisiti senza padre', tipi: ['senzaPadre'] },
     { id: 'senzaFigli', titolo: 'Requisiti senza figli', tipi: ['senzaFigli'] },
     { id: 'filoDaRitirato', titolo: 'Fili da requisiti ritirati', tipi: ['filoDaRitirato'] },
-    { id: 'daRiparare', titolo: 'Da riparare', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'] }
+    { id: 'daRiparare', titolo: 'Da riparare', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'] },
+    { id: 'senzaCavo', titolo: 'Interfacce senza cavo', tipi: ['senzaCavo'] }
 ];
 const TIPI_CLIENTE = new Set<TipoProblema>(['clienteSenzaFigli', 'filoDaRitirato']);
 const ATTESA_RICERCA = 200;
@@ -105,8 +107,10 @@ export function calcolaCoerenza(radice: Grafo, libreria: Libreria, cliente: Clie
     const requisitiCliente = cliente?.requisiti || [];
     const perTipo: Record<TipoProblema, Problema[]> = {
         clienteSenzaFigli: [], senzaPadre: [], senzaFigli: [], filoDaRitirato: [],
-        bloccoSenzaDefinizione: [], filoNonValido: []
+        bloccoSenzaDefinizione: [], filoNonValido: [], senzaCavo: []
     };
+    // Interfacce da cablare (spec 0037): solo se il progetto usa i cavi, per le tipologie di settings.json
+    const daCablare = progettoConCavi(radice) ? new Set(appSettings.cavi.tipologieCablate) : new Set<string>();
     // Fili validi della radice per ogni requisito cliente (anche dei ritirati)
     const filiCliente = new Map<string, number>();
 
@@ -134,6 +138,15 @@ export function calcolaCoerenza(radice: Grafo, libreria: Libreria, cliente: Clie
                     estremi: [esito.a.descrizione ?? '', esito.b.descrizione ?? '']
                 });
                 return;
+            }
+            const tipologia = esito.a.req?.tipologia;
+            if (!esito.derivazione && tipologia && daCablare.has(tipologia) && !cavoDelFilo(ctx.graph, edge.id)) {
+                aggiungi({
+                    ...base(ctx), tipo: 'senzaCavo', ownerType: null, ownerId: null, reqId: null, req: null,
+                    nodeId: null, edgeId: edge.id, numeroFili: null, motivo: `Interfaccia ${tipologia} non portata da alcun cavo`, classe: tipologia,
+                    idVoce: 'Filo', titoloVoce: `${edge.sourceHandle} → ${edge.targetHandle}`,
+                    estremi: [esito.a.descrizione ?? '', esito.b.descrizione ?? '']
+                });
             }
             if (!esito.derivazione || !esito.padre || !esito.figlio) return; // collegamento tra blocchi: non dà padre né figli
 
@@ -477,6 +490,10 @@ export function vaiAlProblema(chiave: string): void {
         const centro = graph.parentReqPositions?.[p.reqId] || posizioneInColonna(indice);
         centraVista(centro.x, centro.y);
         scriviIspettore('<div class="empty-props">Seleziona un blocco o creane uno nuovo...</div>');
+    } else if (p.tipo === 'senzaCavo') {
+        if (!p.edgeId || !graph.edges.some((e) => e.id === p.edgeId)) return elementoSparito();
+        impostaStrato(false);
+        selezionaFilo(p.edgeId);
     } else if (p.tipo === 'filoNonValido') {
         if (!graph.edges.some((e) => e.id === p.edgeId)) return elementoSparito();
         const [da = '', a = ''] = p.estremi ?? [];

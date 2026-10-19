@@ -712,10 +712,12 @@ function renderCavi(graph: Grafo, contesto: ContestoFili): void {
     const geometria = geometriaCavi(graph, contesto);
     const colore = appSettings.cavi.colore;
     caviDi(graph).forEach((cavo) => {
-        const estremi = geometria.get(cavo.id);
-        if (!estremi) return;
-        const punti = percorsoCavo(estremi, contesto);
-        const d = punti.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        const tratti = geometria.get(cavo.id);
+        if (!tratti?.length) return;
+        // Un tratto per coppia di blocchi toccati (spec 0037): un solo path con più sottopercorsi
+        const percorsi = tratti.map((t) => percorsoCavo(t, contesto));
+        const d = percorsi.map((punti) => punti.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')).join(' ');
+        const punti = percorsi[Math.floor((percorsi.length - 1) / 2)]!;
         const selezionato = cavoSelezionatoId() === cavo.id;
         const n = cavo.fili.length;
         const fili = `${n} ${n === 1 ? 'filo' : 'fili'}`;
@@ -724,8 +726,9 @@ function renderCavi(graph: Grafo, contesto: ContestoFili): void {
         if (selezionato) g.appendChild(creaSvg('path', { class: 'link-halo', d, stroke: colore }));
         g.appendChild(creaSvg('path', { class: 'link-hit', d }));
         g.appendChild(creaSvg('path', { class: 'cavo-path', d, stroke: colore }));
-        [estremi.da, estremi.a].forEach((e) => g.appendChild(creaSvg('rect', { class: 'cavo-connettore', x: e.punto.x - 5, y: e.punto.y - 5, width: 10, height: 10, fill: colore })));
-        aggiungiTooltip(g, `Cavo ${cavo.sigla}${cavo.tipo ? ` · ${cavo.tipo}` : ''} · ${fili}\nClic: dettaglio · Clic destro: elimina`);
+        tratti.flatMap((t) => [t.da, t.a]).forEach((e) => g.appendChild(creaSvg('rect', { class: 'cavo-connettore', x: e.punto.x - 5, y: e.punto.y - 5, width: 10, height: 10, fill: colore })));
+        const passaggi = tratti.length > 1 ? ` · ${tratti.length} tratti` : '';
+        aggiungiTooltip(g, `Cavo ${cavo.sigla}${cavo.tipo ? ` · ${cavo.tipo}` : ''} · ${fili}${passaggi}\nClic: dettaglio · Clic destro: elimina`);
         g.addEventListener('click', (e) => {
             e.stopPropagation();
             selezionaCavo(cavo.id);

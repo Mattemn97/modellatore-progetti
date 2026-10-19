@@ -91,6 +91,14 @@ export function riallineaCavi(radice: Grafo): boolean {
         const tenuti = graph.cavi.filter((c) => c.da !== c.a && nodi.has(c.da) && nodi.has(c.a));
         if (tenuti.length !== graph.cavi.length) cambiato = true;
         tenuti.forEach((c) => {
+            // Passaggi: solo blocchi del livello, mai gli estremi, mai due volte
+            if (c.via) {
+                const visti = new Set([c.da, c.a]);
+                const via = c.via.filter((v) => nodi.has(v.nodo) && !visti.has(v.nodo) && !!visti.add(v.nodo));
+                if (via.length !== c.via.length) cambiato = true;
+                if (via.length) c.via = via;
+                else delete c.via;
+            }
             const prima = c.fili.length;
             c.fili = c.fili.filter((id) => {
                 const e = fili.get(id);
@@ -112,7 +120,11 @@ export function rimappaCavi(cavi: Cavo[] | undefined, nodo: (id: string) => stri
         const da = nodo(c.da);
         const a = nodo(c.a);
         if (!da || !a) return [];
-        return [{ ...c, id: generaId('cavo'), da, a, fili: c.fili.map(filo).filter((id): id is string => !!id) }];
+        const copia: Cavo = { ...c, id: generaId('cavo'), da, a, fili: c.fili.map(filo).filter((id): id is string => !!id) };
+        const via = (c.via ?? []).flatMap((v) => { const nodoNuovo = nodo(v.nodo); return nodoNuovo ? [{ ...v, nodo: nodoNuovo }] : []; });
+        if (via.length) copia.via = via;
+        else delete copia.via;
+        return [copia];
     });
 }
 
@@ -123,7 +135,13 @@ export interface EstremiCavo {
     a: EstremoFilo;
 }
 
-export function geometriaCavi(graph: Grafo, contesto: ContestoFili): Map<string, EstremiCavo> {
+// Blocchi toccati dal cavo, in ordine: da, i passaggi, a (spec 0037)
+export function tappeCavo(cavo: Cavo): string[] {
+    return [cavo.da, ...(cavo.via ?? []).map((v) => v.nodo), cavo.a];
+}
+
+// Un tratto per coppia di tappe consecutive; ogni tratto ha i suoi due capi
+export function geometriaCavi(graph: Grafo, contesto: ContestoFili): Map<string, EstremiCavo[]> {
     const riquadri = new Map<string, Rettangolo>();
     graph.nodes.forEach((n) => {
         const f = contesto.forma(n.id);
@@ -136,14 +154,21 @@ export function geometriaCavi(graph: Grafo, contesto: ContestoFili): Map<string,
         const k = `${nodeId}|${lato}`;
         gruppi.set(k, [...(gruppi.get(k) ?? []), voce]);
     };
+    // Chiave di un tratto: id del cavo e indice del tratto
+    const tratti = new Map<string, number>();
     caviDi(graph).forEach((c) => {
-        const ra = riquadri.get(c.da);
-        const rb = riquadri.get(c.a);
-        if (!ra || !rb || c.da === c.a) return;
-        const ca = centro(ra);
-        const cb = centro(rb);
-        metti(c.da, cb.x < ca.x ? 'sinistra' : 'destra', { id: c.id, capo: 'da', ordine: cb.y });
-        metti(c.a, ca.x <= cb.x ? 'sinistra' : 'destra', { id: c.id, capo: 'a', ordine: ca.y });
+        const tappe = tappeCavo(c);
+        if (c.da === c.a || tappe.some((id) => !riquadri.has(id))) return;
+        tratti.set(c.id, tappe.length - 1);
+        for (let i = 0; i < tappe.length - 1; i++) {
+            const ra = riquadri.get(tappe[i]!)!;
+            const rb = riquadri.get(tappe[i + 1]!)!;
+            const ca = centro(ra);
+            const cb = centro(rb);
+            const id = `${c.id}#${i}`;
+            metti(tappe[i]!, cb.x < ca.x ? 'sinistra' : 'destra', { id, capo: 'da', ordine: cb.y });
+            metti(tappe[i + 1]!, ca.x <= cb.x ? 'sinistra' : 'destra', { id, capo: 'a', ordine: ca.y });
+        }
     });
     const capi = new Map<string, Partial<EstremiCavo>>();
     gruppi.forEach((lista, k) => {
@@ -160,8 +185,15 @@ export function geometriaCavi(graph: Grafo, contesto: ContestoFili): Map<string,
             capi.set(v.id, voce);
         });
     });
-    const esito = new Map<string, EstremiCavo>();
-    capi.forEach((v, id) => { if (v.da && v.a) esito.set(id, { da: v.da, a: v.a }); });
+    const esito = new Map<string, EstremiCavo[]>();
+    tratti.forEach((n, id) => {
+        const lista: EstremiCavo[] = [];
+        for (let i = 0; i < n; i++) {
+            const v = capi.get(`${id}#${i}`);
+            if (v?.da && v.a) lista.push({ da: v.da, a: v.a });
+        }
+        if (lista.length === n) esito.set(id, lista);
+    });
     return esito;
 }
 
@@ -178,6 +210,8 @@ export interface RigaCavo {
     cavo: Cavo;
     da: string;
     a: string;
+    // Nomi dei blocchi toccati, da A a B (più di due = cavo a più tratti)
+    tappe: string[];
     // Un filo per voce: "requisito di partenza ↔ requisito di arrivo"
     fili: string[];
 }
@@ -194,11 +228,19 @@ export function elencoCavi(radice: Grafo, nomeRadice = 'Radice'): RigaCavo[] {
             cavo,
             da: nome(cavo.da),
             a: nome(cavo.a),
+            tappe: tappeCavo(cavo).map(nome),
             fili: cavo.fili.map((id) => fili.get(id)).filter((e): e is Filo => !!e)
                 .map((e) => (e.source === cavo.da ? `${e.sourceHandle} ↔ ${e.targetHandle}` : `${e.targetHandle} ↔ ${e.sourceHandle}`))
         }));
     });
     return righe;
+}
+
+// Vero se il progetto ha almeno un cavo: solo allora la Coerenza chiede i cavi (spec 0037)
+export function progettoConCavi(radice: Grafo): boolean {
+    let si = false;
+    visita(radice, (g) => { if (caviDi(g).length) si = true; });
+    return si;
 }
 
 // Fili di interfaccia fra blocchi in tutto il progetto e quanti stanno in un cavo

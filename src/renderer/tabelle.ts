@@ -225,7 +225,8 @@ export const GRUPPI_PROBLEMI: Array<{ id: string; titolo: string; tipi: TipoProb
     { id: 'senzaPadre', titolo: 'Requisiti senza padre', tipi: ['senzaPadre'], gravita: 'warning' },
     { id: 'senzaFigli', titolo: 'Requisiti senza figli', tipi: ['senzaFigli'], gravita: 'warning' },
     { id: 'filoDaRitirato', titolo: 'Fili da requisiti ritirati', tipi: ['filoDaRitirato'], gravita: 'warning' },
-    { id: 'daRiparare', titolo: 'Da riparare (fili e blocchi)', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'], gravita: 'error' }
+    { id: 'daRiparare', titolo: 'Da riparare (fili e blocchi)', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'], gravita: 'error' },
+    { id: 'senzaCavo', titolo: 'Interfacce senza cavo', tipi: ['senzaCavo'], gravita: 'warning' }
 ];
 
 export function riepilogoDashboard(radice: Grafo, libreria: Libreria, cliente: Cliente | null): RiepilogoDashboard {
@@ -494,6 +495,7 @@ const COLONNE_CAVI: Colonna<RigaCavo>[] = [
     { chiave: 'sigla', titolo: 'ID cavo', valore: (r) => r.cavo.sigla, html: (r) => `<span class="mono"><b>${escapeHtml(r.cavo.sigla)}</b></span>`, classe: 'nowrap' },
     { chiave: 'da', titolo: 'Comp. A', valore: (r) => r.da },
     { chiave: 'a', titolo: 'Comp. B', valore: (r) => r.a },
+    { chiave: 'tratti', titolo: 'Tratti', valore: (r) => r.tappe.join(' › '), html: (r) => (r.tappe.length > 2 ? `${r.tappe.length - 1} · ${escapeHtml(r.tappe.join(' › '))}` : '1'), classe: 'text' },
     { chiave: 'livello', titolo: 'Livello', valore: (r) => r.livello },
     { chiave: 'tipo', titolo: 'Tipo di cavo', valore: (r) => r.cavo.tipo ?? '' },
     { chiave: 'connA', titolo: 'Connettore A', valore: (r) => r.cavo.connettoreDa ?? '' },

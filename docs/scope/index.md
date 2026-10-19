@@ -66,7 +66,8 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 64 | Porte propagate dei blocchi matrioska | interfaccia-idv | Blocco H (2.3.0) | done |
 | 65 | Rilascio 2.3.0 | interfaccia-idv | Blocco H (2.3.0) | done |
 | 66 | Cavi fisici: strato separato e lista cavi | cavi-fisici | Blocco I (2.4.0) | done |
-| 67 | Rilascio 2.4.0 | cavi-fisici | Blocco I (2.4.0) | planned |
+| 67 | Cavi a più tratti, interfacce senza cavo, immagini per strato | cavi-fisici | Blocco I (2.4.0) | done |
+| 68 | Rilascio 2.4.0 | cavi-fisici | Blocco I (2.4.0) | done |
 | 35 | Ricerca globale | futuro | Blocco B (2.3.0) | planned |
 | 36 | Minimappa e panoramica dei livelli | futuro | Blocco B (2.3.0) | planned |
 | 37 | Selezione multipla e allineamento | futuro | Blocco B (2.3.0) | planned |
@@ -123,8 +124,9 @@ Viene subito dopo il blocco A: sono richieste di chi usa già l'app. Le voci, co
 ### Blocco I · Cavi fisici → 2.4.0
 Richiesta dell'utente del 2026-10-19, dopo il blocco H: i link logici realizzati da cavi fisici, come nell'IDV Interface Manager.
 - **66. Cavi fisici**: strato Cavi separato dai fili, cavo fra due blocchi con più fili, Ispettore del cavo, pannello Cavi con CSV, colonna Cavo in Interfacce, Dashboard. `done` · spec [0036](../specs/0036-cavi-fisici.md) · code in `src/renderer/cavi.ts`
-- **67. Rilascio 2.4.0**
-- Sviluppi possibili, non pianificati: cavi nelle immagini e nei documenti (IDD), pinout per conduttore, cavi a più tratti con connettori intermedi, controllo "interfaccia elettrica senza cavo" nella Coerenza con le tipologie scelte in `settings.json`.
+- **67. Cavi a più tratti, interfacce senza cavo, immagini per strato**: `done` · spec [0037](../specs/0037-cavi-tratti-avviso-immagini.md)
+- **68. Rilascio 2.4.0**: `done` · `version` 2.4.0, note in `packaging/note/2.4.0.md`, merge di `develop` in `main`
+- Sviluppi possibili, non pianificati: cavi nei documenti (IDD), pinout per conduttore.
 
 ### Blocco B · Navigazione e modifica del canvas → 2.3.0
 - **35. Ricerca globale**: Ctrl+F su blocchi, requisiti e testi di export di tutto il progetto, a ogni livello, con salto diretto al blocco o al filo trovato.

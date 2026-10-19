@@ -914,6 +914,14 @@ export function mostraDettaglioCavo(cavo: Cavo): void {
             ${campo('pn', 'Specifica / P/N', cavo.pn ?? '')}
             ${campo('note', 'Note', cavo.note ?? '')}
             ${elenco('elencoTipiCavo', appSettings.cavi.tipi)}${elenco('elencoConnettoriCavo', appSettings.cavi.connettori)}
+            <div class="prop-item"><strong>Tratti: passa per${iconaAiuto('cavo.via')}</strong>
+                ${(cavo.via ?? []).map((v, n) => `<div class="tappa-cavo" style="display:flex; gap:4px; align-items:center; margin:2px 0;">
+                    <span style="flex:1;">${n + 1}. ${escapeHtml(nome(v.nodo))}</span>
+                    <input type="text" data-via-connettore="${n}" value="${escapeHtml(v.connettore ?? '')}" list="elencoConnettoriCavo" placeholder="Connettore" style="width:45%; padding:3px;">
+                    <button type="button" data-via-togli="${n}" aria-label="Togli il passaggio">✕</button></div>`).join('')}
+                <select id="aggiungiViaCavo" style="width:100%; padding:4px; box-sizing:border-box;"><option value="">+ Aggiungi un blocco attraversato…</option>
+                    ${graph.nodes.filter((n) => n.id !== cavo.da && n.id !== cavo.a && !(cavo.via ?? []).some((v) => v.nodo === n.id))
+                        .map((n) => `<option value="${escapeHtml(n.id)}">${escapeHtml(n.label || n.id)}</option>`).join('')}</select></div>
             <div class="prop-item"><strong>Fili nel cavo${iconaAiuto('cavo.fili')}</strong>
                 ${candidati.length ? candidati.map(voceFilo).join('') : '<div>Nessun filo di interfaccia fra questi due blocchi.</div>'}</div>
             <button id="btnEliminaCavo" class="pulsante-progetto" data-aiuto="cavo.elimina">🗑 Elimina cavo</button>
@@ -948,6 +956,29 @@ export function mostraDettaglioCavo(cavo: Cavo): void {
         assegnaFilo(getCurrentLevel().graph, box.dataset.filoCavo ?? '', box.checked ? c.id : null);
         selezionaCavo(c.id);
     }));
+    // Passaggi del cavo a più tratti (spec 0037)
+    propsContent.querySelectorAll<HTMLInputElement>('[data-via-connettore]').forEach((input) => input.addEventListener('change', () => {
+        const v = attuale()?.via?.[Number(input.dataset.viaConnettore)];
+        if (!v) return;
+        const testo = input.value.trim();
+        if (testo) v.connettore = testo;
+        else delete v.connettore;
+        render();
+    }));
+    propsContent.querySelectorAll<HTMLButtonElement>('[data-via-togli]').forEach((b) => b.addEventListener('click', () => {
+        const c = attuale();
+        if (!c?.via) return;
+        c.via.splice(Number(b.dataset.viaTogli), 1);
+        if (!c.via.length) delete c.via;
+        selezionaCavo(c.id);
+    }));
+    document.getElementById('aggiungiViaCavo')?.addEventListener('change', (e) => {
+        const c = attuale();
+        const nodo = (e.target as HTMLSelectElement).value;
+        if (!c || !nodo) return;
+        (c.via ??= []).push({ nodo });
+        selezionaCavo(c.id);
+    });
     document.getElementById('btnEliminaCavo')?.addEventListener('click', () => {
         const c = attuale();
         if (!c || !confirm(`Vuoi eliminare il cavo ${c.sigla}? I fili restano.`)) return;

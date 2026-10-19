@@ -160,6 +160,7 @@ export const SUGGERIMENTI: Record<string, Suggerimento> = {
     'cavo.lunghezza': { titolo: 'Lunghezza', testo: "Lunghezza del cavo in metri; vuoto se non è ancora nota." },
     'cavo.pn': { titolo: 'Specifica / P/N', testo: "Codice del cavo o della specifica che lo descrive." },
     'cavo.note': { titolo: 'Note', testo: "Qualsiasi annotazione sul cavo: finisce anche nella colonna Note della lista cavi." },
+    'cavo.via': { titolo: 'Tratti', testo: "Per un cavo che passa attraverso altri blocchi (un pannello connettori, una scatola di derivazione): aggiungili in ordine da A verso B, ognuno con il suo connettore di passaggio. Il cavo si disegna a tratti, un tratto fra ogni coppia di blocchi; i fili che porta restano quelli fra A e B." },
     'cavo.fili': { titolo: 'Fili nel cavo', testo: "I fili di interfaccia fra questi due blocchi. Spunta quelli che il cavo porta: un filo sta in un cavo solo, e spuntarlo qui lo toglie dal cavo dove stava." },
     'cavo.elimina': { titolo: 'Elimina cavo', testo: "Toglie il cavo. I fili logici restano come sono. Puoi rimediare con Annulla." },
     'coll.elimina': { titolo: 'Elimina collegamento', testo: "Toglie questo filo dal modello. Puoi rimediare con Annulla." },
