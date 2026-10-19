@@ -130,14 +130,14 @@ describe('geometria (AC-4)', () => {
         const c1 = g.cavi![0]!;
         const c2 = g.cavi![1]!;
         const larghezza = contesto.forma('a')!.larghezza;
-        expect(geo.get(c1.id)!.da.punto.x).toBe(larghezza);
-        expect(geo.get(c1.id)!.da.direzione).toBe('destra');
-        expect(geo.get(c1.id)!.a.punto.x).toBe(400);
-        expect(geo.get(c1.id)!.a.direzione).toBe('sinistra');
-        expect(geo.get(c1.id)!.da.punto.y).not.toBe(geo.get(c2.id)!.da.punto.y);
-        const punti = m.cavi.percorsoCavo(geo.get(c1.id)!, contesto);
-        expect(punti[0]).toEqual(geo.get(c1.id)!.da.punto);
-        expect(punti[punti.length - 1]).toEqual(geo.get(c1.id)!.a.punto);
+        expect(geo.get(c1.id)![0]!.da.punto.x).toBe(larghezza);
+        expect(geo.get(c1.id)![0]!.da.direzione).toBe('destra');
+        expect(geo.get(c1.id)![0]!.a.punto.x).toBe(400);
+        expect(geo.get(c1.id)![0]!.a.direzione).toBe('sinistra');
+        expect(geo.get(c1.id)![0]!.da.punto.y).not.toBe(geo.get(c2.id)![0]!.da.punto.y);
+        const punti = m.cavi.percorsoCavo(geo.get(c1.id)![0]!, contesto);
+        expect(punti[0]).toEqual(geo.get(c1.id)![0]!.da.punto);
+        expect(punti[punti.length - 1]).toEqual(geo.get(c1.id)![0]!.a.punto);
     });
 });
 
@@ -166,5 +166,42 @@ describe('matrioska (AC-8)', () => {
         expect(cavo.fili).toHaveLength(2);
         cavo.fili.forEach((id) => expect(grafo.edges.some((e) => e.id === id)).toBe(true));
         expect(cavo.id).not.toBe(interno.cavi![0]!.id);
+    });
+});
+
+describe('cavi a più tratti, avviso e immagine (spec 0037)', () => {
+    it('un passaggio dà due tratti; la pulizia toglie i passaggi spariti; la copia matrioska li rimappa', () => {
+        const g = progetto();
+        const w = m.cavi.creaCavo(g, g, LIB, 'a', 'b')!;
+        w.via = [{ nodo: 'c', connettore: 'J1' }, { nodo: 'a' }, { nodo: 'zz' }];
+        m.cavi.riallineaCavi(g);
+        expect(w.via).toEqual([{ nodo: 'c', connettore: 'J1' }]);
+        expect(m.cavi.tappeCavo(w)).toEqual(['a', 'c', 'b']);
+        const contesto = m.diagramma.contestoFili(g, null, LIB, null);
+        expect(m.cavi.geometriaCavi(g, contesto).get(w.id)).toHaveLength(2);
+        expect(m.cavi.elencoCavi(g)[0]!.tappe).toEqual(['A', 'C', 'B']);
+        const copia = m.cavi.rimappaCavi(g.cavi, (id) => (id === 'c' ? undefined : `${id}2`), (id) => id);
+        expect(copia[0]!.via).toBeUndefined();
+    });
+
+    it('interfaccia Elettrica senza cavo: avviso solo se il progetto usa i cavi', async () => {
+        const { calcolaCoerenza } = await import('../../src/renderer/coerenza');
+        const g = progetto();
+        const senzaCavo = () => calcolaCoerenza(g, LIB, null).problemi.filter((p) => p.tipo === 'senzaCavo').map((p) => p.edgeId);
+        expect(senzaCavo()).toEqual([]);
+        m.cavi.creaCavo(g, g, LIB, 'a', 'b');
+        // e1 è nel cavo, e2 è Segnale (non richiesto), e4 Elettrica senza cavo
+        expect(senzaCavo()).toEqual(['e4']);
+    });
+
+    it('immagine: lo strato Cavi disegna i cavi e nessun filo', () => {
+        const g = progetto();
+        m.cavi.creaCavo(g, g, LIB, 'a', 'b');
+        const fili = m.diagramma.svgDiagramma(g, null, LIB, null)!.svg;
+        const cavi = m.diagramma.svgDiagramma(g, null, LIB, null, undefined, { strato: 'cavi' })!.svg;
+        expect(fili).toContain('stroke-dasharray="8');
+        expect(fili).not.toContain('W001');
+        expect(cavi).toContain('W001');
+        expect(cavi).not.toContain('stroke-dasharray="8');
     });
 });

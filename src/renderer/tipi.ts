@@ -127,6 +127,8 @@ export interface Cavo {
     da: string;
     a: string;
     fili: string[];
+    // Cavo a più tratti (spec 0037): blocchi attraversati in ordine fra da e a, con il connettore di passaggio
+    via?: Array<{ nodo: string; connettore?: string }>;
     tipo?: string;
     connettoreDa?: string;
     connettoreA?: string;
@@ -177,7 +179,8 @@ export interface Impostazioni {
     // Documenti ammessi per classe del requisito (spec 0027)
     documentiPerClasse: DocumentiPerClasse;
     // Cavi fisici (spec 0036): suggerimenti per tipo e connettori, colore sulla lavagna
-    cavi: { tipi: string[]; connettori: string[]; colore: string };
+    // tipologieCablate: interfacce che la Coerenza vuole dentro un cavo (spec 0037)
+    cavi: { tipi: string[]; connettori: string[]; colore: string; tipologieCablate: string[] };
 }
 
 export type ClasseDocumenti = 'interfaccia' | 'capacita';
