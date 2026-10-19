@@ -62,5 +62,10 @@
   "documentiPerClasse": {
     "interfaccia": ["IRS", "IDD"],
     "capacita": ["SSS", "SSDD", "SRS", "SDD"]
+  },
+  "cavi": {
+    "tipi": ["Twisted pair 120 Ω", "Shielded twisted pair (STP)", "Cat6A S/FTP", "Coax RG-58", "Power 2 x AWG16", "Multicore schermato", "Fibra ottica"],
+    "connettori": ["D-Sub 9", "D-Sub 15", "D-Sub 25", "MIL-DTL-38999 Series III", "M12 A-coded", "M12 X-coded", "RJ45", "TNC", "SMA", "BNC"],
+    "colore": "#37474f"
   }
 }

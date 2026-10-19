@@ -25,6 +25,7 @@
             <button type="button" data-sezione="libreria" data-aiuto="sezioni.libreria">Libreria <span class="nav-count" data-conta="libreria">0</span></button>
             <button type="button" data-sezione="componenti" data-aiuto="sezioni.componenti">Componenti <span class="nav-count" data-conta="componenti">0</span></button>
             <button type="button" data-sezione="interfacce" data-aiuto="sezioni.interfacce">Interfacce <span class="nav-count" data-conta="interfacce">0</span></button>
+            <button type="button" data-sezione="cavi" data-aiuto="sezioni.cavi">Cavi <span class="nav-count" data-conta="cavi">0</span></button>
             <button type="button" data-sezione="requisiti" data-aiuto="sezioni.requisiti">Requisiti <span class="nav-count" data-conta="requisiti">0</span></button>
             <button type="button" data-sezione="cliente" data-aiuto="sezioni.cliente">Cliente <span class="nav-count" data-conta="cliente">0</span></button>
             <button type="button" data-sezione="matrice" data-aiuto="sezioni.matrice">Matrice</button>
@@ -59,6 +60,7 @@
                     <button data-pannello="ispettore" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Ispettore</button>
                     <button data-pannello="componenti" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Componenti</button>
                     <button data-pannello="interfacce" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Interfacce</button>
+                    <button data-pannello="cavi" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Cavi</button>
                     <button data-pannello="requisiti" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Requisiti</button>
                     <button data-pannello="cliente" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Cliente</button>
                     <button data-pannello="coerenza" role="menuitemcheckbox" aria-checked="false"><span class="spunta-aiuto">✓</span>Coerenza</button>
@@ -176,6 +178,9 @@
                 <!-- Filtri del canvas (filtri.ts, spec 0008): il pannello si apre sotto la barra -->
                 <button id="btnFiltri" class="btn sm pulsante-filtri" aria-pressed="false" data-aiuto="barra.filtri">🔎 Filtri</button>
                 <div id="pannelloFiltri" class="pannello-filtri" hidden></div>
+                <span class="flt-label">Strato</span>
+                <button id="btnStratoInterfacce" class="btn sm toggle" aria-pressed="true" data-aiuto="barra.stratoInterfacce">Interfacce</button>
+                <button id="btnStratoCavi" class="btn sm toggle" aria-pressed="false" data-aiuto="barra.stratoCavi">Cavi</button>
                 <span class="flt-label">Mostra</span>
                 <button id="btnMostraEtichette" class="btn sm toggle" aria-pressed="true" data-aiuto="barra.etichette">Etichette</button>
                 <button id="btnMostraLegenda" class="btn sm toggle" aria-pressed="true" data-aiuto="barra.legenda">Legenda</button>
@@ -203,6 +208,8 @@
                         <!-- Blocchi tondi del padre sopra i fili, così i loro pin restano cliccabili -->
                         <g id="parentLayer"></g>
                         <g id="nodesLayer"></g>
+                        <!-- Cavi fisici (spec 0036): solo nello strato Cavi, sopra i blocchi perché i connettori stanno sul bordo -->
+                        <g id="caviLayer"></g>
                         <!-- Etichette dei fili sopra i blocchi, come nell'IDV -->
                         <g id="labelsLayer"></g>
                     </g>
@@ -280,6 +287,19 @@
             </div>
             <p class="section-desc">Ogni filo del progetto con i suoi due estremi. Le porte che salgono da un blocco interno sono segnate con ↳. Clic su una riga per selezionare il filo sulla lavagna.</p>
             <div class="table-wrap" id="tabellaInterfacce"></div>
+        </div>
+
+        <!-- Lista dei cavi fisici (spec 0036) -->
+        <div id="pannelloCavi" class="contenuto-finestra pannello-tabella">
+            <div class="section-head">
+                <h1>Cavi</h1><span class="count" id="contaCavi">0</span>
+                <input type="search" id="cercaCavi" class="search" placeholder="Cerca in cavi…" data-aiuto="tabelle.ricerca">
+                <span class="flt-label" id="riepilogoCavi"></span>
+                <span class="spacer"></span>
+                <button id="btnCsvCavi" class="btn sm" data-aiuto="tabelle.csv">Esporta CSV</button>
+            </div>
+            <p class="section-desc">Ogni cavo fisico del progetto con i due componenti, il tipo, i connettori e i fili di interfaccia che porta. Clic su una riga per vederlo sulla lavagna, nello strato Cavi.</p>
+            <div class="table-wrap" id="tabellaCavi"></div>
         </div>
 
         <div id="pannelloRequisiti" class="contenuto-finestra pannello-tabella">

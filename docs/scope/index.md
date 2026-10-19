@@ -65,6 +65,8 @@ _Sono consigli per costruire con ordine, non obblighi. Salta quello che non ti s
 | 63 | Interfaccia grafica in stile IDV | interfaccia-idv | Blocco H (2.3.0) | done |
 | 64 | Porte propagate dei blocchi matrioska | interfaccia-idv | Blocco H (2.3.0) | done |
 | 65 | Rilascio 2.3.0 | interfaccia-idv | Blocco H (2.3.0) | done |
+| 66 | Cavi fisici: strato separato e lista cavi | cavi-fisici | Blocco I (2.4.0) | done |
+| 67 | Rilascio 2.4.0 | cavi-fisici | Blocco I (2.4.0) | planned |
 | 35 | Ricerca globale | futuro | Blocco B (2.3.0) | planned |
 | 36 | Minimappa e panoramica dei livelli | futuro | Blocco B (2.3.0) | planned |
 | 37 | Selezione multipla e allineamento | futuro | Blocco B (2.3.0) | planned |
@@ -117,6 +119,12 @@ Le voci 31–62 della tabella, raggruppate per area. Ogni area è un **blocco**:
 ### Blocco G · Feedback degli utenti → 2.2.0
 Viene subito dopo il blocco A: sono richieste di chi usa già l'app. Le voci, con i loro "Done when", sono in [feedback-utenti.md](feedback-utenti.md).
 - **57. Filtro delle righe nell'import cliente**, **58. Filtri per colonna nella Matrice**, **59. Pin di capacità spostabili**, **60. Instradamento automatico dei fili**, **61. Blocchi di libreria con l'interno (matrioska)**, **62. Rilascio 2.2.0**
+
+### Blocco I · Cavi fisici → 2.4.0
+Richiesta dell'utente del 2026-10-19, dopo il blocco H: i link logici realizzati da cavi fisici, come nell'IDV Interface Manager.
+- **66. Cavi fisici**: strato Cavi separato dai fili, cavo fra due blocchi con più fili, Ispettore del cavo, pannello Cavi con CSV, colonna Cavo in Interfacce, Dashboard. `done` · spec [0036](../specs/0036-cavi-fisici.md) · code in `src/renderer/cavi.ts`
+- **67. Rilascio 2.4.0**
+- Sviluppi possibili, non pianificati: cavi nelle immagini e nei documenti (IDD), pinout per conduttore, cavi a più tratti con connettori intermedi, controllo "interfaccia elettrica senza cavo" nella Coerenza con le tipologie scelte in `settings.json`.
 
 ### Blocco B · Navigazione e modifica del canvas → 2.3.0
 - **35. Ricerca globale**: Ctrl+F su blocchi, requisiti e testi di export di tutto il progetto, a ogni livello, con salto diretto al blocco o al filo trovato.
