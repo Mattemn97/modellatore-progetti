@@ -40,9 +40,9 @@
     "size": 20
   },
   "node": {
-    "width": 160,
+    "width": 220,
     "height": 60,
-    "selectedBorderColor": "#0078d4"
+    "selectedBorderColor": "#1d5fbf"
   },
   "parentBlock": {
     "radius": 28

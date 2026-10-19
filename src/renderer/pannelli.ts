@@ -8,24 +8,31 @@ import {
 } from 'dockview-core';
 import { installaRicercaNelleStaccate, aggiungiStaccata, togliStaccata } from './staccate.js';
 
-export const PANNELLI = ['libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore', 'matrice', 'documenti', 'changelog'] as const;
+export const PANNELLI = [
+    'libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore', 'matrice', 'documenti', 'changelog',
+    'componenti', 'interfacce', 'requisiti', 'dashboard'
+] as const;
 export type IdPannello = typeof PANNELLI[number];
 
+// La lavagna era "Canvas" fino alla 2.2: il titolo si riallinea anche nei layout salvati (spec 0035)
 const TITOLI: Record<IdPannello, string> = {
     libreria: 'Libreria', cliente: 'Cliente', coerenza: 'Coerenza',
-    gerarchia: 'Gerarchia', canvas: 'Canvas', ispettore: 'Ispettore',
-    matrice: 'Matrice', documenti: 'Documenti', changelog: 'Changelog'
+    gerarchia: 'Gerarchia', canvas: 'Lavagna', ispettore: 'Ispettore',
+    matrice: 'Matrice', documenti: 'Documenti', changelog: 'Changelog',
+    componenti: 'Componenti', interfacce: 'Interfacce', requisiti: 'Requisiti', dashboard: 'Dashboard'
 };
 
 // Contenitore di ogni pannello in index.html
 const NODI: Record<IdPannello, string> = {
     libreria: 'schedaLibreria', cliente: 'schedaCliente', coerenza: 'schedaCoerenza',
     gerarchia: 'schedaGerarchia', canvas: 'canvasContainer', ispettore: 'propertiesPanel',
-    matrice: 'pannelloMatrice', documenti: 'pannelloDocumenti', changelog: 'pannelloChangelog'
+    matrice: 'pannelloMatrice', documenti: 'pannelloDocumenti', changelog: 'pannelloChangelog',
+    componenti: 'pannelloComponenti', interfacce: 'pannelloInterfacce', requisiti: 'pannelloRequisiti', dashboard: 'pannelloDashboard'
 };
 
-// Le finestre di oggi diventate pannelli (spec 0022): stanno insieme in un gruppo sotto il Canvas
-const SOTTO_IL_CANVAS: IdPannello[] = ['matrice', 'documenti', 'changelog'];
+// Le finestre di oggi diventate pannelli (spec 0022) e le sezioni a tabella dell'IDV (spec 0035):
+// stanno insieme in un gruppo sotto la lavagna
+const SOTTO_IL_CANVAS: IdPannello[] = ['matrice', 'documenti', 'changelog', 'componenti', 'interfacce', 'requisiti', 'dashboard'];
 const QUOTA_SOTTO = 0.4;
 
 // Pannelli che seguono una modalità spenta all'avvio: non si riaprono dal layout salvato (AC-5)
@@ -274,6 +281,7 @@ function caricaLayout(): void {
         try {
             senzaChiusure(() => api?.fromJSON((salvato as { layout: Parameters<DockviewApi['fromJSON']>[0] }).layout));
             senzaChiusure(() => LEGATI_A_MODALITA.forEach(chiudiPannello));
+            api.panels.forEach((p) => { if (eIdPannello(p.id) && p.title !== TITOLI[p.id]) p.api.setTitle(TITOLI[p.id]); });
             if (api.getPanel('canvas')) return;
         } catch (e) {
             console.warn('Layout salvato non leggibile, uso quello predefinito', e);
@@ -323,6 +331,38 @@ function initMenuFinestra(): void {
 // Chi apre un pannello dal menu quando serve anche altro (Coerenza e Gerarchia accendono la modalità)
 export function aperturaDalMenu(id: IdPannello, funzione: () => void): void {
     apertureDalMenu.set(id, funzione);
+}
+
+/* --- SEZIONI DELLA TESTATA (spec 0035): come le schede dell'IDV, ma ognuna è un pannello agganciabile --- */
+
+// La sezione accesa è il pannello attivo; quelle aperte (anche in un'altra finestra) sono più chiare
+function aggiornaSezioni(): void {
+    const attivo = api?.activePanel?.id ?? null;
+    document.querySelectorAll<HTMLElement>('#navSezioni [data-sezione]').forEach((voce) => {
+        const id = voce.dataset.sezione ?? '';
+        voce.classList.toggle('active', id === attivo);
+        voce.classList.toggle('aperta', eIdPannello(id) && pannelloAperto(id));
+        voce.setAttribute('aria-current', id === attivo ? 'page' : 'false');
+    });
+}
+
+function initSezioni(): void {
+    const nav = document.getElementById('navSezioni');
+    if (!nav || !api) return;
+    nav.addEventListener('click', (e) => {
+        const voce = (e.target as HTMLElement).closest<HTMLElement>('[data-sezione]');
+        const id = voce?.dataset.sezione ?? '';
+        if (!eIdPannello(id)) return;
+        // Coerenza e Gerarchia accendono anche la loro modalità; gli altri si aprono o vengono davanti
+        const apri = apertureDalMenu.get(id);
+        if (!pannelloAperto(id) && apri) apri();
+        else mostraPannello(id);
+        aggiornaSezioni();
+    });
+    api.onDidActivePanelChange(aggiornaSezioni);
+    api.onDidAddPanel(aggiornaSezioni);
+    api.onDidRemovePanel(aggiornaSezioni);
+    aggiornaSezioni();
 }
 
 /* --- FINESTRE STACCATE (spec 0023) --- */
@@ -444,4 +484,5 @@ export function avviaPannelli(): void {
     });
     api.onDidLayoutChange(programmaSalvataggio);
     initMenuFinestra();
+    initSezioni();
 }

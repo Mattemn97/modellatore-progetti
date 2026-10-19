@@ -42,22 +42,27 @@ Per disinstallare: **Impostazioni di Windows › App › App installate › Mode
 
 Prenditi un minuto per guardare la disposizione di partenza:
 
+* **In alto**, nella testata blu: il nome del progetto sotto il marchio, le **sezioni** (Lavagna, Libreria, Componenti, Interfacce, Requisiti, Cliente, Matrice, Documenti, Dashboard, con i loro contatori) e a destra Annulla, Ripeti, lo stato del salvataggio e i menu.
 * **A sinistra**: i pannelli **Libreria** (il catalogo dei blocchi) e **Cliente** (i requisiti del cliente), impilati a schede.
-* **Al centro**: il pannello **Canvas**, con la barra degli strumenti, dove disegni il modello.
+* **Al centro**: la **Lavagna**, con la barra degli strumenti, dove disegni il modello.
 * **A destra**: l'**Ispettore**, dove vedi e modifichi quello che hai selezionato.
+
+Un clic su una sezione della testata apre il suo pannello o lo porta davanti. **Componenti**, **Interfacce** e **Requisiti** sono tabelle di tutto il progetto (ogni livello): un clic su una riga ti porta al blocco o al filo, e **`Esporta CSV`** le scarica per Excel. La **Dashboard** riassume numeri, controlli di coerenza e la matrice N² del livello aperto.
 
 **I pannelli si spostano come in un IDE:**
 
 * **Trascina la scheda** di un pannello sopra un altro gruppo per impilarlo lì, oppure verso un bordo per metterlo di fianco, sopra o sotto. Tira i bordi tra i gruppi per ridimensionarli.
-* La **✕** sulla scheda chiude un pannello (il Canvas no). Lo riapri dal menu **`🪟 Finestra`** in alto, che segna con ✓ i pannelli aperti.
+* La **✕** sulla scheda chiude un pannello (la Lavagna no). Lo riapri dalla sua sezione o dal menu **`Finestra`** in alto, che segna con ✓ i pannelli aperti.
 * Il pulsante **`⧉`** a destra delle schede apre quel gruppo in una **finestra separata**, comoda su un secondo monitor; nella finestra staccata **`⤓`** lo rimette a posto (anche chiuderla lo riaggancia). Quello che fai in una finestra si vede subito nelle altre.
-* La disposizione si salva da sola e la ritrovi al prossimo avvio. **`🪟 Finestra` → Ripristina layout** torna a quella di partenza.
+* La disposizione si salva da sola e la ritrovi al prossimo avvio. **`Finestra` → Ripristina layout** torna a quella di partenza.
 
-Per muoverti sul canvas:
+Per muoverti sulla lavagna:
 
-* **rotella del mouse**: zoom;
+* **rotella del mouse**, oppure **`−`** e **`+`**: zoom (un clic sulla percentuale torna al 100%);
 * **trascina lo sfondo vuoto**: sposta la vista;
-* **`🔍 Reset Vista`**: torna alla vista iniziale.
+* **`Adatta`**: tutto il livello nella finestra; **`Reset vista`**: torna alla vista iniziale;
+* **`Trova blocco…`**: scrivi un nome e premi Invio per centrarlo;
+* **Mostra `Etichette`** e **`Legenda`**: le scritte a metà dei fili e il riquadro in basso a sinistra con i fili per classe.
 
 **Aiuto dentro l'app:**
 
@@ -79,8 +84,10 @@ Per muoverti sul canvas:
 
 Un **blocco** è un componente del sistema. Ogni blocco ha dei **requisiti**, di due tipi:
 
-* **di interfaccia** (con una tipologia: Elettrica, Segnale, Meccanica, Fluidica): appaiono come **porte colorate** sul bordo del blocco;
-* **di capacità** (senza tipologia): una cosa che il blocco sa fare; appaiono come **pin quadrati viola** dentro il blocco.
+* **di interfaccia** (con una tipologia: Elettrica, Segnale, Meccanica, Fluidica): una **porta**, il quadratino sul bordo del blocco alla riga del requisito;
+* **di capacità** (senza tipologia): una cosa che il blocco sa fare; il quadratino è **viola**, appena dentro il bordo.
+
+Sulla lavagna ogni blocco è disegnato come un componente: in alto nome, categoria e il riquadro con l'ID del tipo, sotto una riga per requisito (ID, titolo e a destra la classe, `CAP` per la capacità). Il quadratino è pieno quando la porta ha un filo, vuoto quando è libera.
 
 Due requisiti si possono collegare solo se sono della stessa classe: Elettrica con Elettrica, capacità con capacità.
 
@@ -143,10 +150,10 @@ Nel pannello Cliente ora ci sono `SSS-001` (capacità, perché non ha tipologia)
 
 Sei alla **radice**, il livello più alto del modello.
 
-1. **Posa la Centralina**: trascina `Centralina` dal pannello Libreria al centro del canvas.
-2. **Posa i requisiti cliente**: torna alla scheda **Cliente** e trascina le righe `SSS-001` e `SSS-002` sul canvas, a sinistra della Centralina. Diventano due **cerchi** (blocchi tondi).
-3. **Tira il primo filo**: premi sul pin del cerchio `SSS-001` e, tenendo premuto, trascina fino al pin quadrato viola **"Gestire la pompa"** della Centralina. Rilascia: compare il filo.
-4. **Tira il secondo filo**: dal cerchio `SSS-002` alla porta rossa **"Alimentazione 24 V"** sul bordo della Centralina.
+1. **Posa la Centralina**: trascina `Centralina` dal pannello Libreria al centro della lavagna.
+2. **Posa i requisiti cliente**: torna alla scheda **Cliente** e trascina le righe `SSS-001` e `SSS-002` sulla lavagna, a sinistra della Centralina. Diventano due **cerchi** (blocchi tondi).
+3. **Tira il primo filo**: premi sul pin del cerchio `SSS-001` e, tenendo premuto, trascina fino al quadratino viola della riga **"Gestire la pompa"** della Centralina. Rilascia: compare il filo.
+4. **Tira il secondo filo**: dal cerchio `SSS-002` al quadratino della riga **"Alimentazione 24 V"** sul bordo della Centralina.
 
 Hai appena detto che i requisiti della Centralina **derivano** da quelli del cliente.
 
@@ -157,22 +164,24 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 * clic sul filo: lo selezioni e a destra vedi padre e figlio;
 * doppio clic su un punto del filo: aggiungi uno snodo da trascinare per dargli forma;
 * clic destro sul filo: lo elimini;
-* `Shift` + trascina una porta: la sposti lungo il bordo del blocco.
-* I fili girano da soli intorno ai blocchi. Doppio clic su un filo: aggiungi uno snodo e lo modelli a mano; `↻ Reinstrada` (nell'Ispettore o nella barra del canvas) lo riporta automatico.
-* `Shift` + trascina un pin quadrato: lo sposti dentro il blocco, verso il blocco a cui va il suo filo. `↺ Riposiziona i pin` nell'Ispettore li rimette in fila.
+* le porte stanno da sole sul lato verso l'altro capo del filo; `Shift` + trascina una porta (o un quadratino viola) per portarla sull'altro lato. `↺ Riposiziona le porte` nell'Ispettore torna ai lati automatici.
+* I fili girano da soli intorno ai blocchi. Doppio clic su un filo: aggiungi uno snodo e lo modelli a mano; `↻ Reinstrada` (nell'Ispettore o nel riquadro Instradamento della lavagna) lo riporta automatico.
+* A metà di ogni filo fra blocchi c'è un'etichetta con l'ID del requisito di partenza e la classe: cliccala per il dettaglio.
 
 ---
 
 ## Parte 8. Scendi dentro la Centralina
 
 1. Fai **doppio clic** sulla Centralina. In alto il percorso diventa `Impianto di prova / Centralina`.
-2. Sul canvas vedi due cerchi: sono i **requisiti della Centralina**, che ora fanno da padri per quello che metti dentro.
+2. Sulla lavagna vedi due cerchi: sono i **requisiti della Centralina**, che ora fanno da padri per quello che metti dentro.
 3. Trascina `Pompa` dalla libreria dentro questo livello.
-4. Tira un filo dal cerchio **"Gestire la pompa"** al pin viola **"Pompare 10 l/min"** della Pompa.
-5. Tira un filo dal cerchio **"Alimentazione 24 V"** alla porta rossa **"Alimentazione pompa"** della Pompa.
-6. Torna su con **`← Indietro`** in alto a sinistra, oppure con un clic su `Impianto di prova` nel percorso.
+4. Tira un filo dal cerchio **"Gestire la pompa"** al quadratino viola della riga **"Pompare 10 l/min"** della Pompa.
+5. Tira un filo dal cerchio **"Alimentazione 24 V"** alla porta della riga **"Alimentazione pompa"** della Pompa.
+6. Torna su con **`← Indietro`** nella barra della lavagna, oppure con un clic su `Impianto di prova` nel percorso.
 
 Ora la catena è completa: cliente → Centralina → Pompa.
+
+**Porte che salgono dai blocchi interni.** Se dentro la Centralina lasci una porta di interfaccia senza filo (per esempio una seconda Pompa non collegata), tornando alla radice la vedi anche sul bordo della Centralina, nella fascia **PORTE DAI BLOCCHI INTERNI**, con il percorso (`↳ Pompa · Alimentazione pompa`). Puoi collegarla da lì come una porta qualsiasi, a un altro blocco: dentro la Centralina quella porta risulta collegata (quadratino pieno con il bordo tratteggiato). Vale a ogni piano della matrioska. Se poi la colleghi anche dentro, l'app ti avvisa e il filo di sopra va riparato (lo trovi in Coerenza, gruppo "Da riparare").
 
 **Riusa l'interno (facoltativo).** Seleziona la Centralina e, nell'Ispettore, sezione *Questa istanza*, premi `📦 Salva l'interno in libreria`: d'ora in poi ogni nuova Centralina trascinata dalla libreria nasce già con la Pompa e i due fili dentro. Nell'albero la Centralina ha il segno 📦.
 
@@ -180,7 +189,7 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 
 ## Parte 9. Controlla cosa manca
 
-1. Nella barra del canvas premi **`⚠️ Verifica Coerenza`**.
+1. Nella barra della lavagna premi **`⚠️ Verifica Coerenza`**.
 2. Si apre il pannello **Coerenza**, accanto a Libreria. Se hai seguito tutti i passi, non ci sono problemi.
 3. Per vedere come funziona, elimina il filo tra `SSS-001` e la Centralina (clic destro sul filo). Il pannello Coerenza mostra subito "Cliente senza figli" e "Requisiti senza padre".
 4. Premi **`↶ Annulla`** in alto (oppure `Ctrl+Z`): il filo torna e i problemi spariscono.
@@ -194,14 +203,14 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 
 **Gerarchia**
 
-1. Premi **`🌳 Gerarchia`** nella barra del canvas.
+1. Premi **`🌳 Gerarchia`** nella barra della lavagna.
 2. Fai un clic (senza trascinare) sul cerchio `SSS-001`. Nel pannello **Gerarchia** vedi tutti i suoi discendenti, fino al requisito della Pompa dentro la Centralina.
 3. Prova anche con un clic sul pin viola della Centralina: vedi i suoi antenati (il cliente) e i suoi discendenti (la Pompa).
 4. Premi di nuovo **`🌳 Gerarchia`** per uscire.
 
 **Matrice di tracciabilità**
 
-1. Premi **`📊 Matrice Requisiti`**: sotto il canvas si apre il pannello con la tabella di tutte le coppie padre e figlio. Puoi tenerlo aperto mentre modelli: si aggiorna da solo a ogni modifica.
+1. Premi **`📊 Matrice`** (o la sezione **Matrice** in testata): sotto la lavagna si apre il pannello con la tabella di tutte le coppie padre e figlio. Puoi tenerlo aperto mentre modelli: si aggiorna da solo a ogni modifica.
 2. Con **`⬇ Esporta .md`** la scarichi come file Markdown, da allegare a un documento o aprire in un editor.
 
 ---
@@ -213,7 +222,7 @@ Ora la catena è completa: cliente → Centralina → Pompa.
 3. Guarda l'anteprima: se nella Parte 5 hai scritto il testo da esportare, lo trovi nel capitolo delle capacità. I capitoli che il modello non può riempire restano con la scritta `_Da completare._`, da scrivere a mano.
 4. Premi **`⬇ .md`** per scaricare il documento in Markdown, oppure **`⬇ Word`** o **`⬇ PDF`** per averlo pronto da consegnare, con frontespizio, registro delle revisioni e numeri di pagina.
 5. Facoltativo: apri **Revisioni di SSS**, premi **`+ Revisione`** e scrivi `Prima emissione`. La revisione `A` compare nel frontespizio e in testa a ogni pagina del Word e del PDF. Il nome dell'azienda e il logo si mettono in `settings.json` (`documentiExport.modello`).
-6. Facoltativo: genera l'**IRS** in Word o PDF. Nell'identificazione delle interfacce trovi il diagramma del tuo impianto, disegnato dall'app. Per avere solo il disegno, sopra il canvas premi **`🖼 Immagine`** e scegli **SVG** o **PNG**.
+6. Facoltativo: genera l'**IRS** in Word o PDF. Nell'identificazione delle interfacce trovi il diagramma del tuo impianto, disegnato dall'app. Per avere solo il disegno, nel riquadro Instradamento della lavagna premi **`🖼 Immagine`** e scegli **SVG** o **PNG**.
 
 I documenti seguono lo schema MIL-STD-498 (SSS, SSDD, IRS, IDD, SRS, SDD). Ogni testo da esportare finisce nel documento che hai scelto per lui, e l'ispettore propone solo quelli giusti per il tipo del requisito: le interfacce vanno in IRS e IDD, le capacità in SSS, SSDD, SRS e SDD.
 
@@ -264,7 +273,7 @@ Senza rete il programma parte come sempre, senza avvisi. Per spegnere il control
 | Il badge è rosso, "Errore di salvataggio" | La cartella di lavoro non è scrivibile o non c'è più: leggi il banner e controlla **`⚙ Impostazioni`** |
 | Il badge dice "Conflitto" | Il progetto è stato cambiato da fuori mentre era aperto: scegli **Ricarica dal disco** o **Sovrascrivi** |
 | Non riesco a collegare due requisiti | Devono essere della stessa classe (stessa tipologia, oppure entrambi di capacità) |
-| Ho perso un pannello o la disposizione è confusa | **`🪟 Finestra`** › il pannello che manca, oppure **Ripristina layout** |
+| Ho perso un pannello o la disposizione è confusa | la sua sezione in testata, oppure **`Finestra`** › il pannello che manca, oppure **Ripristina layout** |
 
 ## Requisiti di sistema
 

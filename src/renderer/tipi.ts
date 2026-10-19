@@ -91,6 +91,10 @@ export interface Filo {
     targetHandle: string;
     targetType: TipoEstremo;
     waypoints: Punto[];
+    // Porta propagata di un blocco matrioska (spec 0035): id dei nodi dentro source/target fino a quello che ha
+    // il requisito. Assente (o vuoto) = requisito del nodo stesso, come prima
+    sourcePercorso?: string[];
+    targetPercorso?: string[];
 }
 
 export interface Nodo {
@@ -243,12 +247,14 @@ interface BaseEstremo {
     ownerId: string;
     reqId: string;
     ownerType: TipoEstremo;
+    // Porta propagata (spec 0035): nodi interni fino al proprietario del requisito
+    percorso?: string[];
 }
 
 export type EstremoDescritto = BaseEstremo & (
     | { mancante: true }
     // Blocco tondo: requisito del padre del livello (cliente alla radice)
     | { mancante?: false; req: Requisito; tondo: true; cliente: boolean; parentNode: Nodo | null }
-    // Pin di un nodo del livello
-    | { mancante?: false; req: RequisitoLibreria; tondo: false; cliente: false; nodo: Nodo; def: Blocco }
+    // Pin di un nodo del livello; per una porta propagata proprietario e defProprietario sono il blocco interno
+    | { mancante?: false; req: RequisitoLibreria; tondo: false; cliente: false; nodo: Nodo; def: Blocco; proprietario?: Nodo; defProprietario?: Blocco; etichettePercorso?: string[] }
 );

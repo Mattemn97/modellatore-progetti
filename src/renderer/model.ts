@@ -6,6 +6,7 @@
 import { appSettings, appState } from './state.js';
 import type { Blocco, ClasseDocumenti, Cliente, Filo, Grafo, Libreria, Nodo, Requisito, Impostazioni, RequisitoCliente, RequisitoLibreria, TestoExport, TipoEstremo } from './tipi.js';
 import { generaId } from './utils.js';
+import { motivoPortaNonValida, percorsoDestinazione, percorsoSorgente, risolviPorta, stessoPercorso } from './porte.js';
 
 export const CAPACITA = 'Capacità';
 
@@ -290,19 +291,27 @@ export interface Estremo {
     reqId: string;
     ownerType: TipoEstremo;
     req: Requisito | null;
+    // Porta propagata di un blocco matrioska (spec 0035): nodi interni fino al proprietario del requisito
+    percorso?: string[];
     descrizione?: string;
     mancante?: boolean;
     senzaDefinizione?: boolean;
+    // Porta propagata che non è più sul bordo del blocco (o non c'è più): il motivo
+    portaNonValida?: string;
 }
 
 // Restituisce il motivo per cui il collegamento non è ammesso, oppure null
 export function verificaCompatibilita(a: Estremo, b: Estremo): string | null {
     if (!a.req || !b.req) return 'Uno dei due requisiti non esiste più.';
-    if (a.ownerType === b.ownerType && a.ownerId === b.ownerId && a.reqId === b.reqId) {
+    if (a.ownerType === b.ownerType && a.ownerId === b.ownerId && a.reqId === b.reqId && stessoPercorso(a.percorso, b.percorso)) {
         return 'Non puoi collegare un requisito a se stesso.';
     }
     if (a.ownerType === 'parent' && b.ownerType === 'parent') {
         return 'Due requisiti del blocco padre non si collegano tra loro.';
+    }
+    // Una porta propagata collega due blocchi: la derivazione dal padre si tira dentro, sul blocco che la possiede
+    if ((a.percorso?.length || b.percorso?.length) && (a.ownerType === 'parent' || b.ownerType === 'parent')) {
+        return 'Una porta che sale da un blocco interno si collega solo alla porta di un altro blocco, non a un blocco tondo.';
     }
     if (isInterfaccia(a.req) !== isInterfaccia(b.req)) {
         return 'Un requisito di interfaccia si collega solo a un altro requisito di interfaccia, uno di capacità solo a un altro di capacità.';
@@ -320,12 +329,14 @@ export function verificaCollegamento(a: Estremo, b: Estremo, edges: Filo[]): str
     if ([a, b].some((e) => e.ownerType === 'parent' && isRequisitoCliente(e.req) && e.req.stato === 'ritirato')) {
         return 'Requisito cliente ritirato: non si collega.';
     }
-    const stessoEstremo = (edgeId: string, edgeHandle: string, edgeType: TipoEstremo, e: Estremo) =>
-        edgeId === e.ownerId && edgeHandle === e.reqId && edgeType === e.ownerType;
-    const esiste = edges.some((edge) =>
-        (stessoEstremo(edge.source, edge.sourceHandle, edge.sourceType, a) && stessoEstremo(edge.target, edge.targetHandle, edge.targetType, b)) ||
-        (stessoEstremo(edge.source, edge.sourceHandle, edge.sourceType, b) && stessoEstremo(edge.target, edge.targetHandle, edge.targetType, a))
-    );
+    const stessoEstremo = (edgeId: string, edgeHandle: string, edgeType: TipoEstremo, percorso: string[], e: Estremo) =>
+        edgeId === e.ownerId && edgeHandle === e.reqId && edgeType === e.ownerType && stessoPercorso(percorso, e.percorso);
+    const esiste = edges.some((edge) => {
+        const ps = percorsoSorgente(edge);
+        const pd = percorsoDestinazione(edge);
+        return (stessoEstremo(edge.source, edge.sourceHandle, edge.sourceType, ps, a) && stessoEstremo(edge.target, edge.targetHandle, edge.targetType, pd, b)) ||
+            (stessoEstremo(edge.source, edge.sourceHandle, edge.sourceType, ps, b) && stessoEstremo(edge.target, edge.targetHandle, edge.targetType, pd, a));
+    });
     return esiste ? 'Questi due requisiti sono già collegati.' : null;
 }
 
@@ -388,8 +399,9 @@ export function visitaDerivazioni<S extends object = Record<string, unknown>>(
             ? mappaRequisitiCliente.get(reqId) || null
             : libreria[tipoPadre]?.requisiti.find((r) => r.id === reqId) || null;
 
-        // Estremo di un filo: con req, oppure mancante / senza definizione
-        function estremo(ownerId: string, reqId: string, ownerType: TipoEstremo): Estremo {
+        // Estremo di un filo: con req, oppure mancante / senza definizione. Con un percorso è una porta propagata
+        // (spec 0035): il requisito è del blocco interno, e la porta deve essere ancora sul bordo
+        function estremo(ownerId: string, reqId: string, ownerType: TipoEstremo, percorso: string[] = []): Estremo {
             if (ownerType === 'parent') {
                 return { ownerId, reqId, ownerType, req: requisitoDelPadre(reqId), descrizione: `blocco tondo · requisito ${reqId}` };
             }
@@ -397,6 +409,15 @@ export function visitaDerivazioni<S extends object = Record<string, unknown>>(
             if (!nodo) return { ownerId, reqId, ownerType, req: null, mancante: true, descrizione: `blocco ${ownerId} (non c'è più) · requisito ${reqId}` };
             const def = libreria[nodo.type];
             if (!def) return { ownerId, reqId, ownerType, req: null, senzaDefinizione: true, descrizione: `blocco ${nodo.label || nodo.id} · requisito ${reqId}` };
+            if (percorso.length) {
+                const risolta = risolviPorta(nodo, reqId, percorso, libreria);
+                const portaNonValida = motivoPortaNonValida(nodo, reqId, percorso, libreria) ?? undefined;
+                const dentro = risolta ? ` › ${risolta.etichette.join(' › ')}` : '';
+                return {
+                    ownerId, reqId, ownerType, percorso, req: risolta?.req ?? null, portaNonValida,
+                    descrizione: `blocco ${nodo.label || nodo.id}${dentro} · requisito ${reqId}`
+                };
+            }
             return {
                 ownerId, reqId, ownerType, req: def.requisiti.find((r) => r.id === reqId) || null,
                 descrizione: `blocco ${nodo.label || nodo.id} · requisito ${reqId}`
@@ -406,8 +427,8 @@ export function visitaDerivazioni<S extends object = Record<string, unknown>>(
         osservatore.inizioLivello?.(ctx);
 
         (graph.edges || []).forEach((edge) => {
-            const a = estremo(edge.source, edge.sourceHandle, edge.sourceType);
-            const b = estremo(edge.target, edge.targetHandle, edge.targetType);
+            const a = estremo(edge.source, edge.sourceHandle, edge.sourceType, percorsoSorgente(edge));
+            const b = estremo(edge.target, edge.targetHandle, edge.targetType, percorsoDestinazione(edge));
             let stato: EsitoFilo['stato'] = 'valido';
             let motivo: string | null = null;
             if (a.mancante || b.mancante) {
@@ -415,6 +436,9 @@ export function visitaDerivazioni<S extends object = Record<string, unknown>>(
                 motivo = 'Il blocco collegato non esiste più.';
             } else if (a.senzaDefinizione || b.senzaDefinizione) {
                 stato = 'ignorato';
+            } else if (a.portaNonValida || b.portaNonValida) {
+                stato = 'nonValido';
+                motivo = a.portaNonValida || b.portaNonValida || null;
             } else {
                 motivo = verificaCompatibilita(a, b);
                 if (motivo) stato = 'nonValido';
@@ -464,12 +488,37 @@ export function aggiornaRiferimentiRequisiti(
         return nuova;
     }
 
+    // Il nodo che possiede il requisito di un estremo: il nodo stesso, o quello in fondo al percorso (spec 0035)
+    const proprietario = (graph: Grafo, ownerId: string, percorso: string[]): Nodo | undefined => {
+        let nodo = graph.nodes.find((n) => n.id === ownerId);
+        for (const id of percorso) nodo = nodo?.internal_graph?.nodes?.find((n) => n.id === id);
+        return nodo;
+    };
+
+    // Lati delle porte propagate salvati sul contenitore ("percorso:reqId"): seguono la rinomina del proprietario
+    function riallineaPropagate(node: Nodo): void {
+        const mappa = node.pinPositions;
+        if (!mappa) return;
+        Object.keys(mappa).forEach((chiave) => {
+            const due = chiave.lastIndexOf(':');
+            if (due < 0) return;
+            const percorso = chiave.slice(0, due).split('/');
+            const reqId = chiave.slice(due + 1);
+            const dentro = proprietario({ nodes: [node], edges: [] }, node.id, percorso);
+            if (dentro?.type !== blockId) return;
+            const nuovoId = rinomina(reqId);
+            const valore = mappa[chiave]!;
+            delete mappa[chiave];
+            if (trovaNelBlocco(nuovoId)) mappa[`${percorso.join('/')}:${nuovoId}`] = valore;
+        });
+    }
+
     function visita(graph: Grafo, tipoPadre: string | null): void {
-        const tipoEstremo = (ownerId: string, ownerType: TipoEstremo): string | null | undefined =>
-            ownerType === 'parent' ? tipoPadre : graph.nodes.find((n) => n.id === ownerId)?.type;
-        const reqEstremo = (ownerId: string, reqId: string, ownerType: TipoEstremo): Requisito | null => {
+        const tipoEstremo = (ownerId: string, ownerType: TipoEstremo, percorso: string[] = []): string | null | undefined =>
+            ownerType === 'parent' ? tipoPadre : proprietario(graph, ownerId, percorso)?.type;
+        const reqEstremo = (ownerId: string, reqId: string, ownerType: TipoEstremo, percorso: string[] = []): Requisito | null => {
             if (ownerType === 'parent' && tipoPadre === null) return trovaPadre(null, reqId);
-            const tipo = tipoEstremo(ownerId, ownerType);
+            const tipo = tipoEstremo(ownerId, ownerType, percorso);
             return (tipo ? libreria[tipo]?.requisiti.find((r) => r.id === reqId) : null) || null;
         };
 
@@ -479,25 +528,34 @@ export function aggiornaRiferimentiRequisiti(
         }
 
         graph.edges = graph.edges.filter((edge) => {
-            const tocca = tipoEstremo(edge.source, edge.sourceType) === blockId ||
-                          tipoEstremo(edge.target, edge.targetType) === blockId;
+            const ps = percorsoSorgente(edge);
+            const pd = percorsoDestinazione(edge);
+            const tocca = tipoEstremo(edge.source, edge.sourceType, ps) === blockId ||
+                          tipoEstremo(edge.target, edge.targetType, pd) === blockId;
             if (!tocca) return true;
 
-            if (tipoEstremo(edge.source, edge.sourceType) === blockId) edge.sourceHandle = rinomina(edge.sourceHandle);
-            if (tipoEstremo(edge.target, edge.targetType) === blockId) edge.targetHandle = rinomina(edge.targetHandle);
+            if (tipoEstremo(edge.source, edge.sourceType, ps) === blockId) edge.sourceHandle = rinomina(edge.sourceHandle);
+            if (tipoEstremo(edge.target, edge.targetType, pd) === blockId) edge.targetHandle = rinomina(edge.targetHandle);
 
-            const a: Estremo = { ownerId: edge.source, reqId: edge.sourceHandle, ownerType: edge.sourceType, req: reqEstremo(edge.source, edge.sourceHandle, edge.sourceType) };
-            const b: Estremo = { ownerId: edge.target, reqId: edge.targetHandle, ownerType: edge.targetType, req: reqEstremo(edge.target, edge.targetHandle, edge.targetType) };
-            const valido = verificaCompatibilita(a, b) === null;
+            const a: Estremo = { ownerId: edge.source, reqId: edge.sourceHandle, ownerType: edge.sourceType, percorso: ps, req: reqEstremo(edge.source, edge.sourceHandle, edge.sourceType, ps) };
+            const b: Estremo = { ownerId: edge.target, reqId: edge.targetHandle, ownerType: edge.targetType, percorso: pd, req: reqEstremo(edge.target, edge.targetHandle, edge.targetType, pd) };
+            // Una porta propagata deve restare di interfaccia
+            const valido = verificaCompatibilita(a, b) === null &&
+                (!ps.length || isInterfaccia(a.req)) && (!pd.length || isInterfaccia(b.req));
             if (!valido) filiRimossi++;
             return valido;
         });
 
         graph.nodes.forEach((node) => {
+            riallineaPropagate(node);
             if (node.type === blockId) {
-                // Le porte sul bordo esistono solo per i requisiti di interfaccia
-                const mappa = riallineaMappa(node.pinPositions, (req) => isInterfaccia(req));
-                if (mappa) node.pinPositions = mappa;
+                // Il lato salvato vale per ogni riga (interfaccia o capacità); le porte propagate le gestisce riallineaPropagate
+                const propagate = Object.fromEntries(Object.entries(node.pinPositions ?? {}).filter(([k]) => k.includes(':')));
+                const mappa = riallineaMappa(
+                    Object.fromEntries(Object.entries(node.pinPositions ?? {}).filter(([k]) => !k.includes(':'))),
+                    (req) => Boolean(req)
+                );
+                if (node.pinPositions && mappa) node.pinPositions = { ...mappa, ...propagate };
                 // I pin di capacità spostati (spec 0032) esistono solo per i requisiti di capacità
                 const capacita = riallineaMappa(node.capabilityPositions, (req) => Boolean(req) && !isInterfaccia(req));
                 if (capacita && Object.keys(capacita).length) node.capabilityPositions = capacita;
