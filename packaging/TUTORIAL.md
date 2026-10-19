@@ -151,7 +151,7 @@ Nel pannello Cliente ora ci sono `SSS-001` (capacità, perché non ha tipologia)
 Sei alla **radice**, il livello più alto del modello.
 
 1. **Posa la Centralina**: trascina `Centralina` dal pannello Libreria al centro della lavagna.
-2. **Posa i requisiti cliente**: torna alla scheda **Cliente** e trascina le righe `SSS-001` e `SSS-002` sulla lavagna, a sinistra della Centralina. Diventano due **cerchi** (blocchi tondi).
+2. **Posa i requisiti cliente**: torna alla scheda **Cliente** e trascina le righe `SSS-001` e `SSS-002` sulla lavagna, a sinistra della Centralina. Diventano due **righe requisito**, come quelle dentro i blocchi, con la porta sul bordo destro.
 3. **Tira il primo filo**: premi sul pin del cerchio `SSS-001` e, tenendo premuto, trascina fino al quadratino viola della riga **"Gestire la pompa"** della Centralina. Rilascia: compare il filo.
 4. **Tira il secondo filo**: dal cerchio `SSS-002` al quadratino della riga **"Alimentazione 24 V"** sul bordo della Centralina.
 

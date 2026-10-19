@@ -34,7 +34,7 @@ Il canvas mostra sempre un livello alla volta.
 * La **radice** è il livello più alto: lì posi i blocchi principali del sistema e i requisiti del cliente.
 * Con un **doppio clic** su un blocco entri nel suo contenuto. In alto, il percorso (breadcrumb) ti dice dove sei, per esempio `Impianto / Centralina / Pompa`, e ti permette di risalire con un clic su un livello.
 
-Quando entri in un blocco, i suoi requisiti diventano **blocchi tondi** (cerchi) sul canvas interno. Sono i "padri" del livello: da lì tiri i fili verso i requisiti dei blocchi che metti dentro. Così un requisito della Centralina scende ai requisiti della Pompa e del Sensore che la compongono.
+Quando entri in un blocco, i suoi requisiti diventano **blocchi tondi**, disegnati come righe requisito (come quelle dentro i blocchi, porta sul bordo destro) sul canvas interno. Sono i "padri" del livello: da lì tiri i fili verso i requisiti dei blocchi che metti dentro. Così un requisito della Centralina scende ai requisiti della Pompa e del Sensore che la compongono.
 
 Alla radice i blocchi tondi sono i **requisiti del cliente**, che importi da Excel o CSV e trascini sul canvas.
 

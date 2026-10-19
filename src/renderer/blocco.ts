@@ -7,7 +7,7 @@
 
 import { isInterfaccia } from './model.js';
 import { chiavePorta, portePropagate } from './porte.js';
-import type { Blocco, Impostazioni, Libreria, Nodo, Punto, RequisitoLibreria } from './tipi.js';
+import type { Blocco, Impostazioni, Libreria, Nodo, Punto, Requisito, RequisitoLibreria } from './tipi.js';
 
 type Geometria = Pick<Impostazioni, 'node' | 'grid'>;
 
@@ -154,7 +154,7 @@ export function tagliaTesto(testo: string, px: number, massimo: number, grassett
 }
 
 // Sigla della classe a destra della riga: le prime lettere della tipologia, CAP per la capacità
-export function siglaClasse(req: RequisitoLibreria): string {
+export function siglaClasse(req: Requisito): string {
     if (!isInterfaccia(req)) return 'CAP';
     const pulita = req.tipologia.normalize('NFD').replace(/[^\p{L}\p{N}]/gu, '');
     return (pulita.slice(0, 3) || req.tipologia.slice(0, 3)).toUpperCase();

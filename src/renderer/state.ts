@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS: Impostazioni = {
     documentiExport: { anteprimaCaratteri: 200000, modello: { azienda: '', logo: '', classificazione: '', piePagina: '', autore: '' } },
     grid: { size: 20 },
     node: { width: 220, height: 60, selectedBorderColor: '#1d5fbf' },
-    parentBlock: { radius: 28 },
+    parentBlock: { width: 240 },
     requirements: {
         radius: 7,
         capabilityColor: '#8e44ad',

@@ -277,7 +277,7 @@ svg#workspaceSvg.collegamento, svg#workspaceSvg.collegamento * { cursor: crossha
 .port-sq.collegata-sopra { stroke: #fff; stroke-dasharray: 2 1.5; stroke-width: 1.4; }
 .pin:hover .port-sq { stroke: var(--accent); stroke-width: 2.2; }
 .node-req-pin { cursor: crosshair; }
-circle.node-req-pin, .parent-block rect.node-req-pin { stroke: #fff; stroke-width: 1.5; }
+circle.node-req-pin { stroke: #fff; stroke-width: 1.5; }
 .shift-premuto .pin { cursor: ew-resize; }
 
 /* Fili: tratteggio per classe come nell'IDV, area di presa larga, alone della selezione */
@@ -311,17 +311,17 @@ circle.node-req-pin, .parent-block rect.node-req-pin { stroke: #fff; stroke-widt
 .lbl.selezionato rect { stroke-width: 1.8; stroke-opacity: 1; }
 
 /* Blocchi tondi: i requisiti del blocco padre visti dall'interno */
-.parent-block-circle { fill: #ffffff; stroke-width: 2.5; cursor: move; }
-.parent-block-id { font: 700 10px var(--mono); fill: #16202d; pointer-events: none; }
-.parent-block-title { font-size: 10px; fill: #445264; pointer-events: none; }
+.parent-block-riga { fill: #ffffff; stroke: #3f4b59; stroke-width: 1.1; cursor: move; }
+.parent-block:hover .parent-block-riga { fill: #e9f1fb; }
+.parent-block-barra { pointer-events: none; }
 /* Requisiti cliente alla radice: ritirato, modificato, evidenziato dal dettaglio */
-.parent-block-ritirato { stroke-dasharray: 6, 4; fill: #f2f2f2; }
-.parent-block-evidenziato { stroke-width: 5; filter: drop-shadow(0 0 6px rgba(29, 95, 191, 0.8)); }
+.parent-block-ritirato { stroke-dasharray: 6, 4; fill: #f2f2f2; stroke: #9e9e9e; }
+.parent-block-evidenziato { stroke: var(--primary); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(29, 95, 191, 0.8)); }
 .segno-modificato { fill: #e67e22; stroke: white; stroke-width: 1.5; }
 
 /* Coerenza e Gerarchia sul canvas */
 .node-req-pin.problema-coerenza { stroke: #d0021b; stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(208, 2, 27, 0.9)); }
-.parent-block-circle.problema-coerenza { stroke: #d0021b; stroke-width: 5; filter: drop-shadow(0 0 6px rgba(208, 2, 27, 0.8)); }
+.parent-block-riga.problema-coerenza { stroke: #d0021b; stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(208, 2, 27, 0.8)); }
 .contatore-coerenza { pointer-events: none; }
 .contatore-coerenza circle { fill: #d03b3b; stroke: white; stroke-width: 1.5; }
 .contatore-coerenza text { fill: white; font-size: 10px; font-weight: bold; }
@@ -329,7 +329,7 @@ circle.node-req-pin, .parent-block rect.node-req-pin { stroke: #fff; stroke-widt
 .contatore-gerarchia circle { stroke: white; stroke-width: 1.5; }
 .contatore-gerarchia text { fill: white; font-size: 10px; font-weight: bold; }
 .node-req-pin.pin-catena { stroke: var(--primary); stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(29, 95, 191, 0.9)); }
-.parent-block-circle.pin-catena { stroke-width: 6; filter: drop-shadow(0 0 6px rgba(29, 95, 191, 0.8)); }
+.parent-block-riga.pin-catena { stroke: var(--primary); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(29, 95, 191, 0.8)); }
 .fuori-catena { opacity: 0.25; }
 /* Filtri del canvas (spec 0008) */
 .fuori-filtro { opacity: 0.25; }
