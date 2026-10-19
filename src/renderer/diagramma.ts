@@ -25,16 +25,19 @@ const MONO = 'Consolas, monospace';
 
 /* --- Geometria condivisa con il canvas --- */
 
-// Posto idx della colonna a sinistra in cui stanno i blocchi tondi non ancora spostati
+// Posto idx della colonna a sinistra in cui stanno le righe dei requisiti del padre non ancora spostate:
+// il centro della riga, sulla griglia come le righe dei blocchi
 export function posizioneInColonna(idx: number, imp: Geometria = appSettings): Punto {
-    const passo = imp.parentBlock.radius * 2 + imp.grid.size * 2;
-    return { x: 60, y: 60 + idx * passo };
+    const g = imp.grid.size;
+    return { x: g + Math.ceil(imp.parentBlock.width / 2 / g) * g, y: 3 * g + idx * 2 * g };
+}
+
+// Pin della riga di un requisito del padre: sul bordo destro, come una porta di un blocco
+export function pinRigaPadre(centro: Punto, imp: Geometria = appSettings): Punto {
+    return { x: centro.x + imp.parentBlock.width / 2, y: centro.y };
 }
 
 /* --- Fili: estremi, ostacoli e percorso (spec 0033), uguali sul canvas e nei diagrammi --- */
-
-// Altezza delle due righe di testo sotto un blocco tondo (id e titolo)
-const TESTO_TONDO = 30;
 
 export type StileFilo = 'derivazione' | 'interfaccia' | 'capacita';
 
@@ -64,8 +67,8 @@ function centroTondo(graph: Grafo, padre: Nodo | null, reqId: string, idx: numbe
 }
 
 function riquadroTondo(centro: Punto, imp: Geometria): Rettangolo {
-    const r = imp.parentBlock.radius;
-    return { x1: centro.x - r, y1: centro.y - r, x2: centro.x + r, y2: centro.y + r + TESTO_TONDO };
+    const meta = imp.parentBlock.width / 2;
+    return { x1: centro.x - meta, y1: centro.y - ALTEZZA_RIGA / 2, x2: centro.x + meta, y2: centro.y + ALTEZZA_RIGA / 2 };
 }
 
 export function contestoFili(graph: Grafo, padre: Nodo | null, libreria: Libreria, cliente: Cliente | null, imp: Geometria = appSettings): ContestoFili {
@@ -99,7 +102,7 @@ export function contestoFili(graph: Grafo, padre: Nodo | null, libreria: Libreri
         if (ownerType === 'parent') {
             if (ownerId !== ownerPadre) return null;
             const c = tondo(reqId);
-            return c ? { x: c.x + imp.parentBlock.radius, y: c.y } : null;
+            return c ? pinRigaPadre(c, imp) : null;
         }
         return centroNodo(ownerId);
     };
@@ -127,7 +130,7 @@ export function contestoFili(graph: Grafo, padre: Nodo | null, libreria: Libreri
         if (ownerType === 'parent') {
             if (ownerId !== ownerPadre) return null;
             const c = tondo(reqId);
-            return c ? { x: c.x + imp.parentBlock.radius, y: c.y } : null;
+            return c ? pinRigaPadre(c, imp) : null;
         }
         const nodo = nodi.get(ownerId);
         const f = forme.get(ownerId);
@@ -238,7 +241,7 @@ export interface OpzioniDiagramma {
 export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreria, cliente: Cliente | null, imp: Geometria = appSettings, opzioni: OpzioniDiagramma = {}): Diagramma | null {
     const etichette = opzioni.etichette ?? true;
     const soloCavi = opzioni.strato === 'cavi';
-    const raggio = imp.parentBlock.radius;
+    const meta = imp.parentBlock.width / 2;
     const raggioPin = imp.requirements.radius;
     const colore = (req: Requisito | null | undefined): string => {
         if (!isInterfaccia(req)) return imp.requirements.capabilityColor;
@@ -278,13 +281,19 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
         const ritirato = isRequisitoCliente(req) && req.stato === 'ritirato';
         const etichetta = isRequisitoCliente(req) ? req.idCliente : req.id;
         const sottotitolo = isRequisitoCliente(req) ? titoloRequisito(req) : req.titolo;
-        riquadro.aggiungi(centro.x - raggio, centro.y - raggio, centro.x + raggio, centro.y + raggio + 30);
-        const meta = Math.max(larghezzaTesto(etichetta, 10, true, true), larghezzaTesto(sottotitolo || '', 10)) / 2;
-        riquadro.aggiungi(centro.x - meta, centro.y, centro.x + meta, centro.y);
-        tondi.push(`<g><circle cx="${num(centro.x)}" cy="${num(centro.y)}" r="${raggio}" fill="${ritirato ? '#f2f2f2' : '#ffffff'}" stroke="${ritirato ? '#9e9e9e' : colore(req)}" stroke-width="2.5"${ritirato ? ' stroke-dasharray="6,4"' : ''}/>`
-            + `<text x="${num(centro.x)}" y="${num(centro.y + raggio + 14)}" text-anchor="middle" font-family="${MONO}" font-size="10" font-weight="bold" fill="#16202d">${escapeHtml(etichetta)}</text>`
-            + `<text x="${num(centro.x)}" y="${num(centro.y + raggio + 27)}" text-anchor="middle" font-family="${FONT}" font-size="10" fill="#445264">${escapeHtml(sottotitolo || '')}</text>`
-            + `${pinTondo(centro.x + raggio, centro.y, req)}</g>`);
+        // Una riga come quelle dei blocchi: barra del colore della classe, id, titolo e sigla, porta sul bordo destro
+        const x = centro.x - meta;
+        const y = centro.y - ALTEZZA_RIGA / 2;
+        riquadro.aggiungi(x, y, centro.x + meta, y + ALTEZZA_RIGA);
+        const sigla = siglaClasse(req);
+        const largoId = larghezzaTesto(etichetta, 10.5, true, true);
+        const titolo = tagliaTesto(sottotitolo || '', 11, meta * 2 - largoId - larghezzaTesto(sigla, 9, true, true) - 44);
+        tondi.push(`<g><rect x="${num(x)}" y="${num(y)}" width="${num(meta * 2)}" height="${ALTEZZA_RIGA}" fill="${ritirato ? '#f2f2f2' : '#ffffff'}" stroke="${ritirato ? '#9e9e9e' : '#3f4b59'}" stroke-width="1.1"${ritirato ? ' stroke-dasharray="6,4"' : ''}/>`
+            + `<rect x="${num(x)}" y="${num(y)}" width="4" height="${ALTEZZA_RIGA}" fill="${ritirato ? '#9e9e9e' : colore(req)}"/>`
+            + `<text x="${num(x + 12)}" y="${num(centro.y + 3.8)}" font-family="${MONO}" font-size="10.5" font-weight="bold" fill="#1c2735">${escapeHtml(etichetta)}</text>`
+            + `<text x="${num(x + 18 + largoId)}" y="${num(centro.y + 3.8)}" font-family="${FONT}" font-size="11" fill="#1c2735">${escapeHtml(titolo)}</text>`
+            + `<text x="${num(centro.x + meta - 14)}" y="${num(centro.y + 3.2)}" text-anchor="end" font-family="${MONO}" font-size="9" font-weight="bold" fill="#6d7887">${escapeHtml(sigla)}</text>`
+            + `${pinTondo(centro.x + meta, centro.y, req)}</g>`);
     });
 
     // Fili con gli snodi o con il percorso automatico del canvas (spec 0033), nello stile IDV (spec 0035)
