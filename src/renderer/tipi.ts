@@ -116,6 +116,26 @@ export interface Grafo {
     edges: Filo[];
     // Centri dei blocchi tondi (requisiti del padre) dentro questo livello
     parentReqPositions?: Record<string, Punto>;
+    // Cavi fisici fra due blocchi del livello (spec 0036); assente = nessun cavo
+    cavi?: Cavo[];
+}
+
+// Cavo fisico (spec 0036): fra i nodi da e a del livello, contiene i fili di interfaccia fra loro
+export interface Cavo {
+    id: string;
+    sigla: string;
+    da: string;
+    a: string;
+    fili: string[];
+    // Cavo a più tratti (spec 0037): blocchi attraversati in ordine fra da e a, con il connettore di passaggio
+    via?: Array<{ nodo: string; connettore?: string }>;
+    tipo?: string;
+    connettoreDa?: string;
+    connettoreA?: string;
+    // Metri
+    lunghezza?: number | null;
+    pn?: string;
+    note?: string;
 }
 
 // Un livello aperto: la radice o l'interno di un nodo
@@ -158,6 +178,9 @@ export interface Impostazioni {
     documenti: string[];
     // Documenti ammessi per classe del requisito (spec 0027)
     documentiPerClasse: DocumentiPerClasse;
+    // Cavi fisici (spec 0036): suggerimenti per tipo e connettori, colore sulla lavagna
+    // tipologieCablate: interfacce che la Coerenza vuole dentro un cavo (spec 0037)
+    cavi: { tipi: string[]; connettori: string[]; colore: string; tipologieCablate: string[] };
 }
 
 export type ClasseDocumenti = 'interfaccia' | 'capacita';

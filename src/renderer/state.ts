@@ -26,7 +26,13 @@ const DEFAULT_SETTINGS: Impostazioni = {
     },
     metodiVerifica: ['Ispezione', 'Analisi', 'Dimostrazione', 'Test'],
     documenti: ['SSS', 'SSDD', 'IRS', 'IDD', 'SRS', 'SDD'],
-    documentiPerClasse: { interfaccia: ['IRS', 'IDD'], capacita: ['SSS', 'SSDD', 'SRS', 'SDD'] }
+    documentiPerClasse: { interfaccia: ['IRS', 'IDD'], capacita: ['SSS', 'SSDD', 'SRS', 'SDD'] },
+    cavi: {
+        tipi: ['Twisted pair 120 Ω', 'Shielded twisted pair (STP)', 'Cat6A S/FTP', 'Coax RG-58', 'Power 2 x AWG16', 'Multicore schermato', 'Fibra ottica'],
+        connettori: ['D-Sub 9', 'D-Sub 15', 'D-Sub 25', 'MIL-DTL-38999 Series III', 'M12 A-coded', 'M12 X-coded', 'RJ45', 'TNC', 'SMA', 'BNC'],
+        colore: '#37474f',
+        tipologieCablate: ['Elettrica']
+    }
 };
 
 export const appState: {
@@ -110,7 +116,8 @@ export async function loadSettings(): Promise<void> {
         node: { ...DEFAULT_SETTINGS.node, ...caricate.node },
         parentBlock: { ...DEFAULT_SETTINGS.parentBlock, ...caricate.parentBlock },
         requirements: { ...DEFAULT_SETTINGS.requirements, ...caricate.requirements },
-        documentiPerClasse: unisciDocumentiPerClasse(caricate.documentiPerClasse)
+        documentiPerClasse: unisciDocumentiPerClasse(caricate.documentiPerClasse),
+        cavi: { ...DEFAULT_SETTINGS.cavi, ...caricate.cavi }
     };
 }
 

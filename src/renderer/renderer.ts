@@ -3,7 +3,7 @@
 // riga per requisito, porte ai lati, fili tratteggiati per classe con l'etichetta, legenda e strumenti di vista.
 
 import { appState, pathStack, getCurrentLevel, activeNodeId, setActiveNodeId, appSettings } from './state.js';
-import { selectNode, mostraDettaglioCliente, mostraDettaglioCollegamento, aggiornaDettaglioCollegamento, chiudiDettaglioCollegamento } from './inspector.js';
+import { selectNode, mostraDettaglioCliente, mostraDettaglioCollegamento, aggiornaDettaglioCollegamento, chiudiDettaglioCollegamento, mostraDettaglioCavo, chiudiDettaglioCavo } from './inspector.js';
 import { renderUI } from './app.js';
 import { pianificaSalvataggio } from './progetto.js';
 import { segnaSchedaClienteDaAggiornare } from './cliente.js';
@@ -29,6 +29,7 @@ import {
 } from './blocco.js';
 import { chiavePorta, estremiUsati, percorsoDestinazione, percorsoSorgente, risolviPorta } from './porte.js';
 import { trattoPiuVicino } from './instradamento.js';
+import { caviDi, creaCavo, eliminaCavo, geometriaCavi, percorsoCavo, riallineaCavi } from './cavi.js';
 import { filtriAttivi, modoNascondi, requisitoIncluso, bloccoPassa, bloccoIncluso, aggiornaRiepilogoFiltri } from './filtri.js';
 import { segnaTabelleDaAggiornare } from './tabelle.js';
 import type { Blocco, EstremoDescritto, Filo, Grafo, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
@@ -40,6 +41,7 @@ const nodesLayer = document.getElementById('nodesLayer') as unknown as SVGGEleme
 const edgesLayer = document.getElementById('edgesLayer') as unknown as SVGGElement;
 const parentLayer = document.getElementById('parentLayer') as unknown as SVGGElement;
 const labelsLayer = document.getElementById('labelsLayer') as unknown as SVGGElement | null;
+const caviLayer = document.getElementById('caviLayer') as unknown as SVGGElement | null;
 
 interface Proprietario {
     ownerId: string;
@@ -66,13 +68,15 @@ let contestoCorrente: ContestoFili | null = null;
 /* --- VISTA DELLA LAVAGNA: SOLO PREFERENZE DI QUESTO PC, MAI NEL PROGETTO (spec 0035) --- */
 
 const CHIAVE_VISTA = 'modellatore.vistaLavagna';
-const vista = { etichette: true, legenda: true };
+// cavi: strato dei cavi fisici al posto dei fili (spec 0036); i due strati non si vedono mai insieme
+const vista = { etichette: true, legenda: true, cavi: false };
 
 function leggiVista(): void {
     try {
         const v = JSON.parse(localStorage.getItem(CHIAVE_VISTA) || '{}') as Partial<typeof vista>;
         if (typeof v.etichette === 'boolean') vista.etichette = v.etichette;
         if (typeof v.legenda === 'boolean') vista.legenda = v.legenda;
+        if (typeof v.cavi === 'boolean') vista.cavi = v.cavi;
     } catch {
         // Preferenze illeggibili: quelle predefinite
     }
@@ -98,11 +102,23 @@ export function vistaAttiva(chiave: keyof typeof vista): boolean {
 
 leggiVista();
 
+// Strato Interfacce o Cavi (spec 0036, AC-3): cambiando strato si chiude la selezione dell'altro
+export function impostaStrato(cavi: boolean): void {
+    if (vista.cavi === cavi) return;
+    if (filoSelezionato) chiudiDettaglioCollegamento(filoSelezionato.edgeId);
+    if (cavoSelezionato) chiudiDettaglioCavo(cavoSelezionato.cavoId);
+    filoSelezionato = null;
+    cavoSelezionato = null;
+    commutaVista('cavi');
+}
+
 /* --- FILO SELEZIONATO (spec 0009): per id, mai per oggetto --- */
 
 // { percorso: id dei livelli aperti uniti da '/', edgeId }
 let filoSelezionato: { percorso: string; edgeId: string } | null = null;
 let dettaglioFiloRichiesto = false;
+// Cavo selezionato (spec 0036), come il filo: percorso del livello e id
+let cavoSelezionato: { percorso: string; cavoId: string } | null = null;
 
 function percorsoLivello(): string {
     return pathStack.map((l) => l.id).join('/');
@@ -114,9 +130,34 @@ export function filoSelezionatoId(): string | null {
 
 // Restituisce vero se c'era un filo selezionato (chi chiama decide se ridisegnare)
 export function togliSelezioneFilo(): boolean {
-    const cera = filoSelezionato !== null;
+    const cera = filoSelezionato !== null || cavoSelezionato !== null;
     filoSelezionato = null;
+    cavoSelezionato = null;
     return cera;
+}
+
+export function cavoSelezionatoId(): string | null {
+    return cavoSelezionato && cavoSelezionato.percorso === percorsoLivello() ? cavoSelezionato.cavoId : null;
+}
+
+export function selezionaCavo(cavoId: string): void {
+    const cavo = caviDi(getCurrentLevel().graph).find((c) => c.id === cavoId);
+    if (!cavo) return;
+    cavoSelezionato = { percorso: percorsoLivello(), cavoId };
+    filoSelezionato = null;
+    setActiveNodeId(null);
+    evidenziaCliente(null);
+    mostraDettaglioCavo(cavo);
+    render();
+}
+
+// Un cavo sparito (Annulla, blocco eliminato, cambio livello) si deseleziona
+function risolviCavoSelezionato(graph: Grafo): void {
+    if (!cavoSelezionato) return;
+    const id = cavoSelezionatoId();
+    if (id && caviDi(graph).some((c) => c.id === id)) return;
+    chiudiDettaglioCavo(cavoSelezionato.cavoId);
+    cavoSelezionato = null;
 }
 
 export function selezionaFilo(edgeId: string): void {
@@ -294,11 +335,12 @@ let premutoSfondo: Punto | null = null;
 svg.addEventListener('mouseup', (e) => {
     const p = premutoSfondo;
     premutoSfondo = null;
-    if (!p || !filoSelezionato) return;
+    if (!p || (!filoSelezionato && !cavoSelezionato)) return;
     if (Math.abs(e.clientX - p.x) > 3 || Math.abs(e.clientY - p.y) > 3) return;
-    const vecchio = filoSelezionato.edgeId;
+    if (filoSelezionato) chiudiDettaglioCollegamento(filoSelezionato.edgeId);
+    if (cavoSelezionato) chiudiDettaglioCavo(cavoSelezionato.cavoId);
     filoSelezionato = null;
-    chiudiDettaglioCollegamento(vecchio);
+    cavoSelezionato = null;
     render();
 });
 
@@ -447,8 +489,12 @@ export function render(): void {
     edgesLayer.innerHTML = '';
     parentLayer.innerHTML = '';
     if (labelsLayer) labelsLayer.innerHTML = '';
+    if (caviLayer) caviLayer.innerHTML = '';
 
+    // Cavi (spec 0036): i riferimenti a fili e blocchi spariti si tolgono in tutto il progetto
+    riallineaCavi(appState.workspace);
     risolviFiloSelezionato(currentGraph);
+    risolviCavoSelezionato(currentGraph);
 
     // Forme dei blocchi, lati delle porte e percorsi dei fili: una volta per disegno (spec 0033, 0035)
     const contesto = contestoFili(currentGraph, currentLevel.parentNode, appState.library, appState.cliente);
@@ -460,6 +506,12 @@ export function render(): void {
             const k = `${n.id}|${r.chiave}`;
             if (r.interfaccia && !porteCollegate.has(k) && collegataSopra(n.id, r.reqId, r.percorso)) porteSopra.add(k);
         }));
+    }
+
+    // Strato Cavi: piene le porte con un filo dentro un cavo, nessuna porta "collegata sopra"
+    if (vista.cavi) {
+        porteCollegate = porteCablate(currentGraph);
+        porteSopra = new Set();
     }
 
     // FILTRI: inclusi del livello, poi cosa si disegna (spec 0008, AC-5, AC-6, AC-11)
@@ -480,14 +532,18 @@ export function render(): void {
         if (edge.targetType === 'node') nodiDiFili.add(edge.target);
     });
 
-    if (currentLevel.parentNode) {
-        renderParentBlocks(currentLevel.parentNode, currentGraph);
+    // Strato Cavi: niente blocchi tondi né fili, solo i cavi (spec 0036, AC-3)
+    if (vista.cavi) {
+        renderCavi(currentGraph, contesto);
     } else {
-        renderBlocchiCliente(currentGraph);
+        if (currentLevel.parentNode) {
+            renderParentBlocks(currentLevel.parentNode, currentGraph);
+        } else {
+            renderBlocchiCliente(currentGraph);
+        }
+        // RENDER FILI (EDGES): percorsi automatici intorno ai blocchi o snodi messi a mano (spec 0033)
+        daDisegnare.forEach((edge) => renderEdge(edge, currentGraph, contesto));
     }
-
-    // RENDER FILI (EDGES): percorsi automatici intorno ai blocchi o snodi messi a mano (spec 0033)
-    daDisegnare.forEach((edge) => renderEdge(edge, currentGraph, contesto));
 
     // RENDER NODI: con Nascondi un blocco escluso resta se è nella catena o estremo di un filo disegnato
     let blocchiEsclusi = 0;
@@ -639,6 +695,101 @@ function renderEdge(edge: Filo, currentGraph: Grafo, contesto: ContestoFili): vo
     labelsLayer.appendChild(lbl);
 }
 
+/* --- CAVI FISICI (spec 0036) --- */
+
+function porteCablate(graph: Grafo): Set<string> {
+    const dentro = new Set(caviDi(graph).flatMap((c) => c.fili));
+    const porte = new Set<string>();
+    graph.edges.filter((e) => dentro.has(e.id)).forEach((e) => {
+        porte.add(`${e.source}|${chiavePorta(e.sourceHandle, percorsoSorgente(e))}`);
+        porte.add(`${e.target}|${chiavePorta(e.targetHandle, percorsoDestinazione(e))}`);
+    });
+    return porte;
+}
+
+function renderCavi(graph: Grafo, contesto: ContestoFili): void {
+    if (!caviLayer) return;
+    const geometria = geometriaCavi(graph, contesto);
+    const colore = appSettings.cavi.colore;
+    caviDi(graph).forEach((cavo) => {
+        const tratti = geometria.get(cavo.id);
+        if (!tratti?.length) return;
+        // Un tratto per coppia di blocchi toccati (spec 0037): un solo path con più sottopercorsi
+        const percorsi = tratti.map((t) => percorsoCavo(t, contesto));
+        const d = percorsi.map((punti) => punti.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')).join(' ');
+        const punti = percorsi[Math.floor((percorsi.length - 1) / 2)]!;
+        const selezionato = cavoSelezionatoId() === cavo.id;
+        const n = cavo.fili.length;
+        const fili = `${n} ${n === 1 ? 'filo' : 'fili'}`;
+        const g = creaSvg('g', { class: `cavo-g${selezionato ? ' selezionato' : ''}`, 'data-cavo': cavo.id });
+        g.style.setProperty('--lc', colore);
+        if (selezionato) g.appendChild(creaSvg('path', { class: 'link-halo', d, stroke: colore }));
+        g.appendChild(creaSvg('path', { class: 'link-hit', d }));
+        g.appendChild(creaSvg('path', { class: 'cavo-path', d, stroke: colore }));
+        tratti.flatMap((t) => [t.da, t.a]).forEach((e) => g.appendChild(creaSvg('rect', { class: 'cavo-connettore', x: e.punto.x - 5, y: e.punto.y - 5, width: 10, height: 10, fill: colore })));
+        const passaggi = tratti.length > 1 ? ` · ${tratti.length} tratti` : '';
+        aggiungiTooltip(g, `Cavo ${cavo.sigla}${cavo.tipo ? ` · ${cavo.tipo}` : ''} · ${fili}${passaggi}\nClic: dettaglio · Clic destro: elimina`);
+        g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selezionaCavo(cavo.id);
+        });
+        g.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!confirm(`Vuoi eliminare il cavo ${cavo.sigla}? I fili restano.`)) return;
+            eliminaCavo(graph, cavo.id);
+            render();
+        });
+        caviLayer.appendChild(g);
+
+        if (!vista.etichette || !labelsLayer) return;
+        const posto = puntoEtichetta(punti);
+        if (!posto) return;
+        const largo = larghezzaTesto(cavo.sigla, 10, true, true) + larghezzaTesto(` · ${fili}`, 10.5, true) + 12;
+        const lbl = creaSvg('g', { class: `lbl lbl-cavo${selezionato ? ' selezionato' : ''}`, transform: `translate(${posto.x - largo / 2}, ${posto.y - 8})` });
+        lbl.style.setProperty('--lc', colore);
+        lbl.appendChild(creaSvg('rect', { width: largo, height: 16, rx: 2 }));
+        const testo = creaSvg('text', { x: 6, y: 11.5 });
+        const tid = creaSvg('tspan', { class: 'lbl-id' });
+        tid.textContent = cavo.sigla;
+        const tfili = creaSvg('tspan');
+        tfili.textContent = ` · ${fili}`;
+        testo.append(tid, tfili);
+        lbl.appendChild(testo);
+        lbl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selezionaCavo(cavo.id);
+        });
+        labelsLayer.appendChild(lbl);
+    });
+}
+
+// Maniglia del connettore: trascinata su un altro blocco crea il cavo fra i due (AC-5)
+function startCavoDrag(e: MouseEvent, node: Nodo): void {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!caviLayer) return;
+    const inizio = puntoCanvas(e);
+    const linea = creaSvg('path', { class: 'temp-link temp-cavo', stroke: appSettings.cavi.colore });
+    linea.style.pointerEvents = 'none';
+    caviLayer.appendChild(linea);
+    const muovi = (ev: MouseEvent) => {
+        const p = puntoCanvas(ev);
+        linea.setAttribute('d', `M ${inizio.x} ${inizio.y} L ${p.x} ${p.y}`);
+    };
+    const fine = (ev: MouseEvent) => {
+        window.removeEventListener('mousemove', muovi);
+        window.removeEventListener('mouseup', fine, true);
+        linea.remove();
+        const altro = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-nodo]')?.getAttribute('data-nodo');
+        if (!altro || altro === node.id) return;
+        const cavo = creaCavo(appState.workspace, getCurrentLevel().graph, appState.library, node.id, altro);
+        if (cavo) selezionaCavo(cavo.id);
+    };
+    window.addEventListener('mousemove', muovi);
+    window.addEventListener('mouseup', fine, true);
+}
+
 /* --- BLOCCHI COME COMPONENTI IDV (spec 0035) --- */
 
 // Seconda riga dell'intestazione: il tipo se l'etichetta è diversa, altrimenti l'interno o la descrizione
@@ -652,7 +803,7 @@ function sottotitoloBlocco(node: Nodo, def: Blocco): string {
 function renderNode(node: Nodo, blockDef: Blocco, forma: FormaBlocco, contesto: ContestoFili): void {
     const { larghezza: w, altezza: h } = forma;
     const selezionato = activeNodeId === node.id;
-    const g = creaSvg('g', { transform: `translate(${node.position.x}, ${node.position.y})`, class: `blocco-idv${selezionato ? ' selezionato' : ''}` });
+    const g = creaSvg('g', { transform: `translate(${node.position.x}, ${node.position.y})`, class: `blocco-idv${selezionato ? ' selezionato' : ''}`, 'data-nodo': node.id });
 
     // Gerarchia: si attenua il corpo, mai il gruppo, così i pin della catena restano pieni
     const occorrenzeDentro = contatoreGerarchia(percorsoNodo(node));
@@ -732,6 +883,14 @@ function renderNode(node: Nodo, blockDef: Blocco, forma: FormaBlocco, contesto: 
     const resizeHandle = creaSvg('rect', { x: w - 8, y: h - 8, width: 8, height: 8, class: 'node-resize-handle' });
     resizeHandle.addEventListener('mousedown', (e) => startResizeDrag(e, node));
     g.appendChild(resizeHandle);
+
+    // Strato Cavi: maniglia del connettore sul bordo destro dell'intestazione (spec 0036, AC-5)
+    if (vista.cavi) {
+        const maniglia = creaSvg('circle', { cx: w, cy: ALTEZZA_TESTA - 12, r: 6, class: 'maniglia-cavo' });
+        aggiungiTooltip(maniglia, 'Trascina su un altro blocco per creare un cavo');
+        maniglia.addEventListener('mousedown', (e) => startCavoDrag(e, node));
+        g.appendChild(maniglia);
+    }
 
     // Problemi di coerenza nel contenuto del blocco: contatore in alto a destra, trasparente al mouse
     const problemi = contatoreBlocco(node);
@@ -1014,7 +1173,8 @@ function createReqPin(cx: number, cy: number, req: Requisito, owner: Proprietari
     aggiungiTooltip(g, descriviRequisito(req) + dove + suggerimento + (problema ? `\n\n⚠️ ${problema}` : ''));
 
     g.addEventListener('mousedown', (e) => {
-        if ((e as MouseEvent).shiftKey) return;
+        // Nello strato Cavi dalle porte non si tirano fili (spec 0036, AC-3): il clic trascina il blocco
+        if ((e as MouseEvent).shiftKey || vista.cavi) return;
         e.stopPropagation();
         isDrawingEdge = true;
         edgeStartData = { ownerId: owner.ownerId, reqId: req.id, ownerType: owner.ownerType, ...(percorso.length ? { percorso: [...percorso] } : {}), x: opzioni.assoluto.x, y: opzioni.assoluto.y };
@@ -1186,7 +1346,7 @@ function startDrag(e: MouseEvent, node: Nodo): void {
 function aggiornaLegenda(graph: Grafo, contesto: ContestoFili, disegnati: Filo[]): void {
     const legenda = document.getElementById('legendaLavagna');
     if (!legenda) return;
-    legenda.hidden = !vista.legenda || (!graph.nodes.length && !graph.edges.length);
+    legenda.hidden = !vista.legenda || vista.cavi || (!graph.nodes.length && !graph.edges.length);
     if (legenda.hidden) return;
     const perClasse = new Map<string, { colore: string; n: number; stile: string }>();
     let derivazioni = 0;
@@ -1237,6 +1397,9 @@ function aggiornaPulsantiVista(): void {
     };
     imposta('btnMostraEtichette', vista.etichette);
     imposta('btnMostraLegenda', vista.legenda);
+    imposta('btnStratoInterfacce', !vista.cavi);
+    imposta('btnStratoCavi', vista.cavi);
+    svg.classList.toggle('strato-cavi', vista.cavi);
     // Blocchi del livello per la ricerca
     const elenco = document.getElementById('elencoBlocchiLivello');
     if (!elenco) return;

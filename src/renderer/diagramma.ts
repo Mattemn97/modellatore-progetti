@@ -14,9 +14,10 @@ import {
     puntoRiga, rigaDi, siglaClasse, tagliaTesto, type FormaBlocco, type Lato
 } from './blocco.js';
 import { chiavePorta, estremiUsati, percorsoDestinazione, percorsoSorgente } from './porte.js';
+import { caviDi, geometriaCavi, percorsoCavo, type EstremiCavo } from './cavi.js';
 import type { Cliente, Filo, Grafo, Impostazioni, Libreria, Nodo, Punto, Requisito, TipoEstremo } from './tipi.js';
 
-type Geometria = Pick<Impostazioni, 'node' | 'parentBlock' | 'grid' | 'requirements'>;
+type Geometria = Pick<Impostazioni, 'node' | 'parentBlock' | 'grid' | 'requirements'> & Partial<Pick<Impostazioni, 'cavi'>>;
 
 const MARGINE = 20;
 const FONT = "'Segoe UI', Arial, sans-serif";
@@ -228,12 +229,15 @@ const num = (n: number): string => String(Math.round(n * 100) / 100);
 export interface OpzioniDiagramma {
     // Etichette dei fili fra blocchi (id del requisito e classe), come sul canvas
     etichette?: boolean;
+    // Strato (spec 0037): fili logici (predefinito) oppure solo i cavi fisici, mai insieme
+    strato?: 'interfacce' | 'cavi';
 }
 
 // padre: il blocco di cui è l'interno (blocchi tondi dei suoi requisiti) oppure null alla radice (requisiti cliente
 // con una posizione). Null se il livello è vuoto
 export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreria, cliente: Cliente | null, imp: Geometria = appSettings, opzioni: OpzioniDiagramma = {}): Diagramma | null {
     const etichette = opzioni.etichette ?? true;
+    const soloCavi = opzioni.strato === 'cavi';
     const raggio = imp.parentBlock.radius;
     const raggioPin = imp.requirements.radius;
     const colore = (req: Requisito | null | undefined): string => {
@@ -250,7 +254,9 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
     const requisitiPadre = requisitiDelPadre(padre, libreria, cliente);
     const ownerPadre = padre ? padre.id : '__cliente__';
     const contesto = contestoFili(graph, padre, libreria, cliente, imp);
-    const usati = estremiUsati(graph);
+    // Strato Cavi: piene le porte con un filo cablato
+    const dentroCavi = new Set(caviDi(graph).flatMap((c) => c.fili));
+    const usati = soloCavi ? estremiUsati({ ...graph, edges: graph.edges.filter((e) => dentroCavi.has(e.id)) }) : estremiUsati(graph);
 
     function requisito(ownerType: TipoEstremo, ownerId: string, reqId: string, percorso: readonly string[]): Requisito | null {
         if (ownerType === 'parent') return ownerId === ownerPadre ? requisitiPadre.find((r) => r.id === reqId) ?? null : null;
@@ -268,7 +274,7 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
     // Blocchi tondi: requisiti del padre (o cliente con posizione, alla radice)
     requisitiPadre.forEach((req, idx) => {
         const centro = centroTondo(graph, padre, req.id, idx, imp);
-        if (!centro) return;
+        if (!centro || soloCavi) return;
         const ritirato = isRequisitoCliente(req) && req.stato === 'ritirato';
         const etichetta = isRequisitoCliente(req) ? req.idCliente : req.id;
         const sottotitolo = isRequisitoCliente(req) ? titoloRequisito(req) : req.titolo;
@@ -283,6 +289,7 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
 
     // Fili con gli snodi o con il percorso automatico del canvas (spec 0033), nello stile IDV (spec 0035)
     graph.edges.forEach((edge) => {
+        if (soloCavi) return;
         const sorgente = requisito(edge.sourceType, edge.source, edge.sourceHandle, percorsoSorgente(edge));
         const punti = sorgente ? percorsoFilo(edge, contesto) : null;
         if (!sorgente || !punti) return;
@@ -302,6 +309,31 @@ export function svgDiagramma(graph: Grafo, padre: Nodo | null, libreria: Libreri
         scritte.push(`<g><rect x="${num(x)}" y="${num(y)}" width="${num(largo)}" height="16" rx="2" fill="#ffffff" stroke="${colore(sorgente)}" stroke-opacity="0.7" stroke-width="0.9"/>`
             + `<text x="${num(x + 6)}" y="${num(y + 11.5)}" font-family="${MONO}" font-size="10" font-weight="bold" fill="${colore(sorgente)}">${escapeHtml(id)}`
             + `<tspan font-family="${FONT}" font-size="10.5" font-weight="600" fill="#16202d"> ${escapeHtml(classe)}</tspan></text></g>`);
+    });
+
+    // Cavi fisici (spec 0036, 0037): tratto pieno, connettori quadrati, etichetta con sigla e fili
+    const geometria = soloCavi ? geometriaCavi(graph, contesto) : new Map<string, EstremiCavo[]>();
+    const coloreCavi = imp.cavi?.colore ?? '#37474f';
+    caviDi(graph).forEach((cavo) => {
+        const tratti = geometria.get(cavo.id);
+        if (!tratti?.length) return;
+        const percorsi = tratti.map((t) => percorsoCavo(t, contesto));
+        percorsi.flat().forEach((p) => riquadro.aggiungi(p.x, p.y));
+        const dPath = percorsi.map((pp) => pp.map((p, i) => `${i === 0 ? 'M' : 'L'} ${num(p.x)} ${num(p.y)}`).join(' ')).join(' ');
+        fili.push(`<path d="${dPath}" fill="none" stroke="${coloreCavi}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>`);
+        tratti.flatMap((t) => [t.da, t.a]).forEach((e) => scritte.push(`<rect x="${num(e.punto.x - 5)}" y="${num(e.punto.y - 5)}" width="10" height="10" fill="${coloreCavi}" stroke="#ffffff" stroke-width="1.2"/>`));
+        if (!etichette) return;
+        const posto = puntoEtichetta(percorsi[Math.floor((percorsi.length - 1) / 2)]!);
+        if (!posto) return;
+        const n = cavo.fili.length;
+        const testo = ` · ${n} ${n === 1 ? 'filo' : 'fili'}`;
+        const largo = larghezzaTesto(cavo.sigla, 10, true, true) + larghezzaTesto(testo, 10.5) + 12;
+        const x = posto.x - largo / 2;
+        const y = posto.y - 8;
+        riquadro.aggiungi(x, y, x + largo, y + 16);
+        scritte.push(`<g><rect x="${num(x)}" y="${num(y)}" width="${num(largo)}" height="16" rx="2" fill="#ffffff" stroke="${coloreCavi}" stroke-opacity="0.7" stroke-width="0.9"/>`
+            + `<text x="${num(x + 6)}" y="${num(y + 11.5)}" font-family="${MONO}" font-size="10" font-weight="bold" fill="${coloreCavi}">${escapeHtml(cavo.sigla)}`
+            + `<tspan font-family="${FONT}" font-size="10.5" font-weight="600" fill="#16202d">${escapeHtml(testo)}</tspan></text></g>`);
     });
 
     // Blocchi come componenti IDV: intestazione, righe dei requisiti, porte ai lati
@@ -406,9 +438,9 @@ export function interniDeiBlocchi(radice: Grafo): Map<string, Nodo> {
 
 /* --- PULSANTE IMMAGINE: IL LIVELLO APERTO COME SVG O PNG (AC-2) --- */
 
-async function esportaLivello(formato: 'svg' | 'png'): Promise<void> {
+async function esportaLivello(formato: 'svg' | 'png', strato: 'interfacce' | 'cavi'): Promise<void> {
     const livello = getCurrentLevel();
-    const diagramma = svgDiagramma(livello.graph, livello.parentNode, appState.library, appState.cliente);
+    const diagramma = svgDiagramma(livello.graph, livello.parentNode, appState.library, appState.cliente, appSettings, { strato });
     if (!diagramma) {
         alert('Il livello è vuoto: niente da esportare.');
         return;
@@ -416,7 +448,7 @@ async function esportaLivello(formato: 'svg' | 'png'): Promise<void> {
     const info = infoProgetto();
     const progetto = info.slug || slugifyId(pathStack[0]!.label) || 'progetto';
     const nomeLivello = livello.parentNode ? slugifyId(livello.label) || 'livello' : 'radice';
-    const nome = `${progetto}-${nomeLivello}.${formato}`;
+    const nome = `${progetto}-${nomeLivello}${strato === 'cavi' ? '-cavi' : ''}.${formato}`;
     try {
         if (formato === 'svg') scaricaFileTesto(diagramma.svg, nome, 'image/svg+xml');
         else scaricaFileTesto(await svgInPng(diagramma) as Uint8Array<ArrayBuffer>, nome, 'image/png');
@@ -442,7 +474,7 @@ export function initDiagrammi(): void {
         const voce = (e.target as Element).closest<HTMLElement>('[data-formato]');
         if (!voce) return;
         chiudi();
-        void esportaLivello(voce.dataset.formato === 'png' ? 'png' : 'svg');
+        void esportaLivello(voce.dataset.formato === 'png' ? 'png' : 'svg', voce.dataset.strato === 'cavi' ? 'cavi' : 'interfacce');
     });
     // Il canvas non si stacca mai: basta il document principale
     document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target as Node)) chiudi(); });

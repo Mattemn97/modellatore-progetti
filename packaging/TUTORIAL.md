@@ -168,6 +168,8 @@ Hai appena detto che i requisiti della Centralina **derivano** da quelli del cli
 * I fili girano da soli intorno ai blocchi. Doppio clic su un filo: aggiungi uno snodo e lo modelli a mano; `↻ Reinstrada` (nell'Ispettore o nel riquadro Instradamento della lavagna) lo riporta automatico.
 * A metà di ogni filo fra blocchi c'è un'etichetta con l'ID del requisito di partenza e la classe: cliccala per il dettaglio.
 
+**Cavi fisici (facoltativo).** I fili sono i collegamenti logici; i cavi sono i cavi veri che li portano. Nella barra della lavagna, alla voce **Strato**, premi **Cavi**: i fili spariscono e restano solo i blocchi. Trascina la maniglia tonda sul bordo destro dell'intestazione di un blocco fino a un altro blocco: nasce il cavo `W001`, con dentro i fili di interfaccia fra i due blocchi che non hanno ancora un cavo. Nell'Ispettore scegli il tipo di cavo, i connettori, la lunghezza e il P/N, e spunta i fili che porta. La sezione **Cavi** in alto elenca tutti i cavi del progetto (con `Esporta CSV`); premi **Interfacce** per tornare ai fili. Puoi anche partire da un filo: nel suo dettaglio, alla voce **Cavo**, scegli **+ Nuovo cavo**. Se il cavo passa per un pannello connettori, aggiungilo in **Tratti: passa per**. Il menu **Immagine** esporta il livello con i fili logici o con i soli cavi.
+
 ---
 
 ## Parte 8. Scendi dentro la Centralina

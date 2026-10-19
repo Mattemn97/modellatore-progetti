@@ -4,7 +4,8 @@
 // si ridisegnano dopo una raffica di modifiche e solo se si vedono, come la Matrice (spec 0022).
 
 import { appState, appSettings, pathStack, getCurrentLevel } from './state.js';
-import { render, centraVista, centroNodo, selezionaFilo } from './renderer.js';
+import { render, centraVista, centroNodo, selezionaFilo, selezionaCavo, impostaStrato } from './renderer.js';
+import { cavoDelFilo, elencoCavi, statoCablaggio, type RigaCavo } from './cavi.js';
 import { apriPercorso } from './progetto.js';
 import { openLibraryBlock, selectNode } from './inspector.js';
 import { calcolaCoerenza, cambiaModalitaCoerenza, coerenzaAttiva, type TipoProblema } from './coerenza.js';
@@ -119,6 +120,8 @@ export interface RigaInterfaccia {
     valido: boolean;
     motivo: string;
     manuale: boolean;
+    // Sigla del cavo che contiene il filo (spec 0036), vuota se nessuno
+    cavo: string;
 }
 
 export function elencoInterfacce(radice: Grafo, libreria: Libreria, cliente: Cliente | null, nomeRadice = 'Radice'): RigaInterfaccia[] {
@@ -152,7 +155,8 @@ export function elencoInterfacce(radice: Grafo, libreria: Libreria, cliente: Cli
                 propagata: percorsoSorgente(edge).length > 0 || percorsoDestinazione(edge).length > 0,
                 valido: esito.stato !== 'nonValido',
                 motivo: esito.motivo ?? '',
-                manuale: (edge.waypoints?.length ?? 0) > 0
+                manuale: (edge.waypoints?.length ?? 0) > 0,
+                cavo: cavoDelFilo(ctx.graph, edge.id)?.sigla ?? ''
             });
         }
     });
@@ -221,7 +225,8 @@ export const GRUPPI_PROBLEMI: Array<{ id: string; titolo: string; tipi: TipoProb
     { id: 'senzaPadre', titolo: 'Requisiti senza padre', tipi: ['senzaPadre'], gravita: 'warning' },
     { id: 'senzaFigli', titolo: 'Requisiti senza figli', tipi: ['senzaFigli'], gravita: 'warning' },
     { id: 'filoDaRitirato', titolo: 'Fili da requisiti ritirati', tipi: ['filoDaRitirato'], gravita: 'warning' },
-    { id: 'daRiparare', titolo: 'Da riparare (fili e blocchi)', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'], gravita: 'error' }
+    { id: 'daRiparare', titolo: 'Da riparare (fili e blocchi)', tipi: ['bloccoSenzaDefinizione', 'filoNonValido'], gravita: 'error' },
+    { id: 'senzaCavo', titolo: 'Interfacce senza cavo', tipi: ['senzaCavo'], gravita: 'warning' }
 ];
 
 export function riepilogoDashboard(radice: Grafo, libreria: Libreria, cliente: Cliente | null): RiepilogoDashboard {
@@ -452,6 +457,7 @@ const COLONNE_INTERFACCE: Colonna<RigaInterfaccia>[] = [
     { chiave: 'a', titolo: 'A', valore: (r) => descriviLato(r.a), html: (r) => htmlLato(r.a), classe: 'text' },
     { chiave: 'livello', titolo: 'Livello', valore: (r) => r.livello },
     { chiave: 'percorso', titolo: 'Percorso', valore: (r) => (r.manuale ? 'A mano' : 'Automatico') },
+    { chiave: 'cavo', titolo: 'Cavo', valore: (r) => r.cavo, html: (r) => (r.cavo ? `<span class="mono"><b>${escapeHtml(r.cavo)}</b></span>` : '<span class="muted">—</span>') },
     { chiave: 'stato', titolo: 'Stato', valore: (r) => (r.valido ? 'OK' : `Da riparare: ${r.motivo}`), html: (r) => (r.valido ? '<span class="pill ok">OK</span>' : `<span class="pill err" title="${escapeHtml(r.motivo)}">Da riparare</span>`) }
 ];
 
@@ -478,6 +484,48 @@ function disegnaInterfacce(): void {
     disegnaTabella(contenitore, COLONNE_INTERFACCE, righe, statoInterfacce, 'Nessun filo. Trascina da una porta a un\'altra sulla lavagna per collegare due blocchi.', (r) => {
         if (vaiAlLivello(r.percorso)) selezionaFilo(r.edge.id);
     }, disegnaInterfacce);
+}
+
+/* Cavi (spec 0036, AC-7) */
+
+const statoCavi: StatoTabella = { ordine: null, ricerca: '' };
+let ultimiCavi: RigaCavo[] = [];
+
+const COLONNE_CAVI: Colonna<RigaCavo>[] = [
+    { chiave: 'sigla', titolo: 'ID cavo', valore: (r) => r.cavo.sigla, html: (r) => `<span class="mono"><b>${escapeHtml(r.cavo.sigla)}</b></span>`, classe: 'nowrap' },
+    { chiave: 'da', titolo: 'Comp. A', valore: (r) => r.da },
+    { chiave: 'a', titolo: 'Comp. B', valore: (r) => r.a },
+    { chiave: 'tratti', titolo: 'Tratti', valore: (r) => r.tappe.join(' › '), html: (r) => (r.tappe.length > 2 ? `${r.tappe.length - 1} · ${escapeHtml(r.tappe.join(' › '))}` : '1'), classe: 'text' },
+    { chiave: 'livello', titolo: 'Livello', valore: (r) => r.livello },
+    { chiave: 'tipo', titolo: 'Tipo di cavo', valore: (r) => r.cavo.tipo ?? '' },
+    { chiave: 'connA', titolo: 'Connettore A', valore: (r) => r.cavo.connettoreDa ?? '' },
+    { chiave: 'connB', titolo: 'Connettore B', valore: (r) => r.cavo.connettoreA ?? '' },
+    { chiave: 'lunghezza', titolo: 'Lunghezza (m)', valore: (r) => r.cavo.lunghezza ?? '', classe: 'num' },
+    { chiave: 'pn', titolo: 'Specifica / P/N', valore: (r) => r.cavo.pn ?? '' },
+    { chiave: 'nfili', titolo: 'N. fili', valore: (r) => r.fili.length, classe: 'num' },
+    { chiave: 'fili', titolo: 'Fili (interfacce)', valore: (r) => r.fili.join(', '), html: (r) => r.fili.map((f) => `<span class="mono">${escapeHtml(f)}</span>`).join('<br>') || '<span class="muted">vuoto</span>', classe: 'text' },
+    { chiave: 'note', titolo: 'Note', valore: (r) => r.cavo.note ?? '', classe: 'text' }
+];
+
+function righeCavi(): RigaCavo[] {
+    return ordina(cerca(ultimiCavi, COLONNE_CAVI, statoCavi.ricerca), COLONNE_CAVI, statoCavi);
+}
+
+function disegnaCavi(): void {
+    const contenitore = el('tabellaCavi');
+    if (!contenitore) return;
+    ultimiCavi = elencoCavi(appState.workspace, nomeRadice());
+    const righe = righeCavi();
+    const conta = el('contaCavi');
+    if (conta) conta.textContent = String(righe.length);
+    const s = statoCablaggio(appState.workspace, appState.library);
+    const riepilogo = el('riepilogoCavi');
+    if (riepilogo) riepilogo.textContent = `${s.cablati} fili di interfaccia su ${s.cablabili} stanno in un cavo`;
+    disegnaTabella(contenitore, COLONNE_CAVI, righe, statoCavi, 'Nessun cavo. Sulla lavagna passa allo strato Cavi e trascina la maniglia di un blocco su un altro blocco.', (r) => {
+        if (!vaiAlLivello(r.percorso)) return;
+        impostaStrato(true);
+        selezionaCavo(r.cavo.id);
+    }, disegnaCavi);
 }
 
 /* Requisiti */
@@ -528,12 +576,14 @@ function disegnaDashboard(): void {
     if (!contenitore) return;
     const d = riepilogoDashboard(appState.workspace, appState.library, appState.cliente);
     const percentuale = d.clienteTotale ? Math.round((d.clienteCoperti / d.clienteTotale) * 100) : 0;
+    const cablaggio = statoCablaggio(appState.workspace, appState.library);
     const tile = (sezione: IdPannello, etichetta: string, valore: string | number, sotto: string) =>
         `<button type="button" class="tile" data-vai="${sezione}"><div class="t-label">${escapeHtml(etichetta)}</div><div class="t-value">${escapeHtml(String(valore))}</div><div class="t-sub">${escapeHtml(sotto)}</div></button>`;
     const kpi = [
         tile('libreria', 'Blocchi in libreria', d.blocchiLibreria, `${d.requisitiLibreria} requisiti`),
         tile('componenti', 'Istanze nel progetto', d.istanze, `${d.livelli} ${d.livelli === 1 ? 'livello' : 'livelli'} con blocchi`),
         tile('interfacce', 'Fili', d.fili, `${d.derivazioni} derivazioni`),
+        tile('cavi', 'Cablaggio', `${cablaggio.cablati} / ${cablaggio.cablabili}`, `interfacce in un cavo · ${cablaggio.cavi} ${cablaggio.cavi === 1 ? 'cavo' : 'cavi'}`),
         tile('componenti', 'Porte libere', d.porteLibere, `su ${d.porteInterfaccia} porte di interfaccia`),
         tile('componenti', 'Porte propagate', d.propagate, 'dai blocchi interni (matrioska)'),
         tile('cliente', 'Requisiti cliente coperti', d.clienteTotale ? `${percentuale}%` : '—', d.clienteTotale ? `${d.clienteCoperti} su ${d.clienteTotale} attivi` : 'nessun requisito cliente'),
@@ -594,7 +644,7 @@ const RITARDO = 250;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const daRifare = new Set<IdPannello>();
 const PANNELLI_TABELLA: Array<[IdPannello, () => void]> = [
-    ['componenti', disegnaComponenti], ['interfacce', disegnaInterfacce], ['requisiti', disegnaRequisiti], ['dashboard', disegnaDashboard]
+    ['componenti', disegnaComponenti], ['interfacce', disegnaInterfacce], ['cavi', disegnaCavi], ['requisiti', disegnaRequisiti], ['dashboard', disegnaDashboard]
 ];
 
 function aggiornaContatori(): void {
@@ -606,13 +656,16 @@ function aggiornaContatori(): void {
     };
     let istanze = 0;
     let fili = 0;
+    let cavi = 0;
     visitaLivelli(appState.workspace, ({ graph }) => {
         istanze += graph.nodes?.length ?? 0;
         fili += graph.edges?.length ?? 0;
+        cavi += graph.cavi?.length ?? 0;
     });
     imposta('libreria', Object.keys(appState.library).length);
     imposta('componenti', istanze);
     imposta('interfacce', fili);
+    imposta('cavi', cavi);
     imposta('requisiti', Object.values(appState.library).reduce((n, b) => n + b.requisiti.length, 0));
     imposta('cliente', appState.cliente?.requisiti.length ?? 0);
     imposta('problemi', calcolaCoerenza(appState.workspace, appState.library, appState.cliente).problemi.length, true);
@@ -658,6 +711,7 @@ export function initTabelle(): void {
     };
     ricerca('cercaComponenti', statoComponenti, disegnaComponenti);
     ricerca('cercaInterfacce', statoInterfacce, disegnaInterfacce);
+    ricerca('cercaCavi', statoCavi, disegnaCavi);
     ricerca('cercaRequisiti', statoRequisiti, disegnaRequisiti);
     ['filtroCategoriaComponenti', 'filtroLivelloComponenti'].forEach((id) => el(id)?.addEventListener('change', disegnaComponenti));
     ['filtroClasseInterfacce', 'filtroTipoInterfacce'].forEach((id) => el(id)?.addEventListener('change', disegnaInterfacce));
@@ -669,5 +723,6 @@ export function initTabelle(): void {
     });
     scarica('btnCsvComponenti', 'componenti', () => inCsv(COLONNE_COMPONENTI, righeComponenti()));
     scarica('btnCsvInterfacce', 'interfacce', () => inCsv(COLONNE_INTERFACCE, righeInterfacce()));
+    scarica('btnCsvCavi', 'cavi', () => inCsv(COLONNE_CAVI, righeCavi()));
     scarica('btnCsvRequisiti', 'requisiti', () => inCsv(COLONNE_REQUISITI, righeRequisiti()));
 }
