@@ -20,7 +20,7 @@ import {
 } from './model.js';
 import { escapeHtml, generaId } from './utils.js';
 import {
-    contestoFili, percorsoFilo, posizioneInColonna as posizioneInColonnaDiagramma, puntoEtichetta, stileFilo, testoEtichetta,
+    contestoFili, percorsoFilo, pinRigaPadre, posizioneInColonna as posizioneInColonnaDiagramma,puntoEtichetta, stileFilo, testoEtichetta,
     type ContestoFili
 } from './diagramma.js';
 import {
@@ -955,8 +955,7 @@ export function posizioneInColonna(idx: number): Punto {
 }
 
 function getParentReqPinPos(graph: Grafo, reqId: string, idx: number): Punto {
-    const centro = getParentBlockCenter(graph, reqId, idx);
-    return { x: centro.x + appSettings.parentBlock.radius, y: centro.y };
+    return pinRigaPadre(getParentBlockCenter(graph, reqId, idx));
 }
 
 function renderParentBlocks(parentNode: Nodo, graph: Grafo): void {
@@ -990,7 +989,7 @@ function renderBlocchiCliente(graph: Grafo): void {
 }
 
 function disegnaBloccoTondo(graph: Grafo, req: Requisito, idx: number, ownerId: string, opzioni: OpzioniBloccoTondo): void {
-    const raggio = appSettings.parentBlock.radius;
+    const meta = appSettings.parentBlock.width / 2;
     const centro = getParentBlockCenter(graph, req.id, idx);
     const colore = opzioni.ritirato ? '#9e9e9e' : getColoreRequisito(req);
     const g = creaSvg('g', { class: 'parent-block' });
@@ -1005,32 +1004,38 @@ function disegnaBloccoTondo(graph: Grafo, req: Requisito, idx: number, ownerId: 
         g.classList.add('fuori-filtro');
     }
 
+    // Una riga come quelle dentro i blocchi: barra del colore della classe, id, titolo, sigla e porta a destra
     const problema = problemaPin(graph, 'parent', ownerId, req.id);
-    let classe = 'parent-block-circle';
+    let classe = 'parent-block-riga';
     if (opzioni.ritirato) classe += ' parent-block-ritirato';
     if (opzioni.evidenziato) classe += ' parent-block-evidenziato';
     if (problema) classe += ' problema-coerenza';
     if (inCatena) classe += ' pin-catena';
-    const cerchio = creaSvg('circle', { cx: centro.x, cy: centro.y, r: raggio, class: classe, stroke: colore });
-    aggiungiTooltip(cerchio, problema ? `${opzioni.tooltip}\n\n⚠️ ${problema}` : opzioni.tooltip);
+    const x = centro.x - meta;
+    const y = centro.y - ALTEZZA_RIGA / 2;
+    const riga = creaSvg('rect', { x, y, width: meta * 2, height: ALTEZZA_RIGA, class: classe });
+    aggiungiTooltip(riga, problema ? `${opzioni.tooltip}\n\n⚠️ ${problema}` : opzioni.tooltip);
     // Il clic (premi e rilascia senza spostare) lo decide startParentBlockDrag: il click arriverebbe solo senza tremolio
-    cerchio.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req, idx, ownerId, opzioni.alClic));
-    cerchio.addEventListener('click', (e) => { if (opzioni.alClic || gerarchiaAttiva()) e.stopPropagation(); });
-    g.appendChild(cerchio);
+    riga.addEventListener('mousedown', (e) => startParentBlockDrag(e, graph, req, idx, ownerId, opzioni.alClic));
+    riga.addEventListener('click', (e) => { if (opzioni.alClic || gerarchiaAttiva()) e.stopPropagation(); });
+    g.appendChild(riga);
+    g.appendChild(creaSvg('rect', { x, y, width: 4, height: ALTEZZA_RIGA, fill: colore, class: 'parent-block-barra' }));
+
+    const sigla = siglaClasse(req);
+    const largoId = larghezzaTesto(opzioni.etichetta, 10.5, true, true);
+    const titolo = tagliaTesto(opzioni.sottotitolo || '', 11, meta * 2 - largoId - larghezzaTesto(sigla, 9, true, true) - 44);
+    g.appendChild(testoSvg(opzioni.etichetta, { x: x + 12, y: centro.y + 3.8, class: 'port-text port-id' }));
+    g.appendChild(testoSvg(titolo, { x: x + 18 + largoId, y: centro.y + 3.8, class: 'port-text' }));
+    g.appendChild(testoSvg(sigla, { x: centro.x + meta - 14, y: centro.y + 3.2, 'text-anchor': 'end', class: 'port-type' }));
 
     if (opzioni.modificato) {
-        const segno = creaSvg('circle', {
-            cx: centro.x + raggio * 0.7, cy: centro.y - raggio * 0.7, r: 5, class: 'segno-modificato'
-        });
+        const segno = creaSvg('circle', { cx: centro.x + meta - 4, cy: y, r: 5, class: 'segno-modificato' });
         aggiungiTooltip(segno, "Modificato dall'ultimo import: apri il dettaglio e segnalo come visto");
         g.appendChild(segno);
     }
 
-    g.appendChild(testoSvg(opzioni.etichetta, { x: centro.x, y: centro.y + raggio + 14, 'text-anchor': 'middle', class: 'parent-block-id' }));
-    g.appendChild(testoSvg(opzioni.sottotitolo || '', { x: centro.x, y: centro.y + raggio + 27, 'text-anchor': 'middle', class: 'parent-block-title' }));
-
     const pinPos = getParentReqPinPos(graph, req.id, idx);
-    g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId, ownerType: 'parent' }, isInterfaccia(req) ? 'tondo' : 'tondo-capacita', {
+    g.appendChild(createReqPin(pinPos.x, pinPos.y, req, { ownerId, ownerType: 'parent' }, isInterfaccia(req) ? 'porta' : 'capacita', {
         collegato: true, sopra: false, propagata: false, assoluto: pinPos, etichette: []
     }));
 

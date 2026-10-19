@@ -45,7 +45,7 @@
     "selectedBorderColor": "#1d5fbf"
   },
   "parentBlock": {
-    "radius": 28
+    "width": 240
   },
   "requirements": {
     "radius": 7,

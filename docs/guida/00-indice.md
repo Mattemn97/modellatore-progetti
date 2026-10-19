@@ -45,7 +45,7 @@ Non devi mai salvare a mano: ogni modifica al progetto finisce su disco da sola 
 | Requisito di capacità | Requisito senza tipologia: una cosa che il blocco sa fare. Appare come pin quadrato viola dentro il blocco. |
 | Classe | La tipologia di un requisito di interfaccia, oppure "Capacità". Due requisiti si collegano solo se hanno la stessa classe. |
 | Livello | Il contenuto di un blocco. La radice è il livello più alto; entrando in un blocco scendi di un livello. |
-| Blocco tondo | Dentro un blocco, ogni suo requisito diventa un cerchio: è il padre da cui tiri i fili verso i requisiti dei blocchi interni. Alla radice i blocchi tondi sono i requisiti cliente. |
+| Blocco tondo | Dentro un blocco, ogni suo requisito diventa una riga come quelle dei blocchi, con la porta a destra: è il padre da cui tiri i fili verso i requisiti dei blocchi interni. Alla radice i blocchi tondi sono i requisiti cliente. |
 | Derivazione | Un filo da un blocco tondo (padre) al requisito di un blocco interno (figlio). È la relazione che costruisce la tracciabilità. |
 | Collegamento tra blocchi | Un filo tra due blocchi dello stesso livello. Descrive un'interfaccia, ma non crea un rapporto padre e figlio. |
 | Occorrenza | Un requisito in un'istanza precisa, individuata dal percorso dei blocchi dalla radice. Serve a Gerarchia e Coerenza. |

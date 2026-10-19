@@ -30,7 +30,7 @@ Se una chiave manca, il programma usa il valore predefinito. Gli aggiornamenti n
 | `grid.size` | `20` | Il passo della griglia del canvas, in pixel |
 | `node.width`, `node.height` | `160`, `60` | La dimensione di un blocco appena posato |
 | `node.selectedBorderColor` | `#0078d4` | Il colore del bordo del blocco selezionato |
-| `parentBlock.radius` | `28` | Il raggio dei blocchi tondi |
+| `parentBlock.width` | `240` | La larghezza delle righe dei requisiti del blocco padre (e cliente) sul canvas |
 | `requirements.radius` | `7` | Il raggio di porte e pin |
 | `requirements.capabilityColor` | `#8e44ad` | Il colore dei requisiti di capacità |
 | `requirements.typeColors` | Elettrica, Segnale, Meccanica, Fluidica | Le **tipologie di interfaccia** e i loro colori |

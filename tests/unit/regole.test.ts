@@ -275,7 +275,7 @@ describe('diagrammi (spec 0029)', () => {
         const d = m.diagramma.svgDiagramma(sistema.internal_graph, sistema, LIB, cliente);
         expect(d).not.toBeNull();
         expect(d!.svg).toContain('>Alim 1</text>');
-        expect(d!.svg.match(/r="28"/g)).toHaveLength(2);
+        expect(d!.svg.match(/width="240" height="20"/g)).toHaveLength(2);
         // Derivazione puntinata (spec 0035): l'IDV tratteggia le interfacce
         expect(d!.svg).toContain('stroke-dasharray="2,4"');
         expect(d!.svg).not.toContain('class=');
@@ -324,7 +324,7 @@ describe('filtri', () => {
 });
 
 describe('blocchi in stile IDV: righe e lati delle porte (spec 0035)', () => {
-    const imp = { node: { width: 160, height: 60, selectedBorderColor: '#000' }, parentBlock: { radius: 28 }, grid: { size: 20 }, requirements: { radius: 7, capabilityColor: '#000', typeColors: {} } };
+    const imp = { node: { width: 160, height: 60, selectedBorderColor: '#000' }, parentBlock: { width: 240 }, grid: { size: 20 }, requirements: { radius: 7, capabilityColor: '#000', typeColors: {} } };
     const nodo = (id: string, type: string, x: number, y: number, pinPositions: Record<string, { side: 'left' | 'right' | 'top' | 'bottom'; ratio: number }> = {}) => ({
         id, type, label: id, width: 160, height: 60, position: { x, y }, internal_graph: { nodes: [], edges: [] }, pinPositions
     });

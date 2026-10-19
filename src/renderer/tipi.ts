@@ -172,7 +172,7 @@ export interface Impostazioni {
     documentiExport: { anteprimaCaratteri: number; modello: ModelloAziendale };
     grid: { size: number };
     node: { width: number; height: number; selectedBorderColor: string };
-    parentBlock: { radius: number };
+    parentBlock: { width: number };
     requirements: { radius: number; capabilityColor: string; typeColors: Record<string, string> };
     metodiVerifica: string[];
     documenti: string[];
