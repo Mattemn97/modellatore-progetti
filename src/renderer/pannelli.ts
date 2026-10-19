@@ -10,7 +10,7 @@ import { installaRicercaNelleStaccate, aggiungiStaccata, togliStaccata } from '.
 
 export const PANNELLI = [
     'libreria', 'cliente', 'coerenza', 'gerarchia', 'canvas', 'ispettore', 'matrice', 'documenti', 'changelog',
-    'componenti', 'interfacce', 'requisiti', 'dashboard'
+    'componenti', 'interfacce', 'requisiti', 'dashboard', 'cavi'
 ] as const;
 export type IdPannello = typeof PANNELLI[number];
 
@@ -19,7 +19,7 @@ const TITOLI: Record<IdPannello, string> = {
     libreria: 'Libreria', cliente: 'Cliente', coerenza: 'Coerenza',
     gerarchia: 'Gerarchia', canvas: 'Lavagna', ispettore: 'Ispettore',
     matrice: 'Matrice', documenti: 'Documenti', changelog: 'Changelog',
-    componenti: 'Componenti', interfacce: 'Interfacce', requisiti: 'Requisiti', dashboard: 'Dashboard'
+    componenti: 'Componenti', interfacce: 'Interfacce', requisiti: 'Requisiti', dashboard: 'Dashboard', cavi: 'Cavi'
 };
 
 // Contenitore di ogni pannello in index.html
@@ -27,12 +27,12 @@ const NODI: Record<IdPannello, string> = {
     libreria: 'schedaLibreria', cliente: 'schedaCliente', coerenza: 'schedaCoerenza',
     gerarchia: 'schedaGerarchia', canvas: 'canvasContainer', ispettore: 'propertiesPanel',
     matrice: 'pannelloMatrice', documenti: 'pannelloDocumenti', changelog: 'pannelloChangelog',
-    componenti: 'pannelloComponenti', interfacce: 'pannelloInterfacce', requisiti: 'pannelloRequisiti', dashboard: 'pannelloDashboard'
+    componenti: 'pannelloComponenti', interfacce: 'pannelloInterfacce', requisiti: 'pannelloRequisiti', dashboard: 'pannelloDashboard', cavi: 'pannelloCavi'
 };
 
 // Le finestre di oggi diventate pannelli (spec 0022) e le sezioni a tabella dell'IDV (spec 0035):
 // stanno insieme in un gruppo sotto la lavagna
-const SOTTO_IL_CANVAS: IdPannello[] = ['matrice', 'documenti', 'changelog', 'componenti', 'interfacce', 'requisiti', 'dashboard'];
+const SOTTO_IL_CANVAS: IdPannello[] = ['matrice', 'documenti', 'changelog', 'componenti', 'interfacce', 'cavi', 'requisiti', 'dashboard'];
 const QUOTA_SOTTO = 0.4;
 
 // Pannelli che seguono una modalità spenta all'avvio: non si riaprono dal layout salvato (AC-5)

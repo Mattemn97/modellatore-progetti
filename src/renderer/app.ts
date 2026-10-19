@@ -3,7 +3,7 @@
 import { loadSettings, pathStack, getCurrentLevel, appState, setActiveNodeId, appSettings } from './state.js';
 import {
     render, cleanupEdgeDrawing, isDrawingEdge, resetView, getCanvasCoords, puntoCanvas, evidenziaCliente, reinstradaLivello,
-    adattaVista, zoomaDi, zoomState, commutaVista, trovaBlocco
+    adattaVista, zoomaDi, zoomState, commutaVista, impostaStrato, trovaBlocco
 } from './renderer.js';
 import { formaBlocco } from './blocco.js';
 import { initTabelle } from './tabelle.js';
@@ -106,6 +106,8 @@ function initStrumentiLavagna(): void {
     su('etichettaZoom', () => zoomaDi(1 / zoomState.scale));
     su('btnMostraEtichette', () => commutaVista('etichette'));
     su('btnMostraLegenda', () => commutaVista('legenda'));
+    su('btnStratoInterfacce', () => impostaStrato(false));
+    su('btnStratoCavi', () => impostaStrato(true));
     su('btnNuovoBloccoBarra', () => {
         renderNewBlockForm();
         mostraPannello('ispettore');

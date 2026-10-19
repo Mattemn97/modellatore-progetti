@@ -5,6 +5,7 @@
 import { aggiornaRiferimentiRequisiti, isInterfaccia, verificaCompatibilita, type Estremo } from './model.js';
 import { generaId } from './utils.js';
 import { percorsoDestinazione, percorsoSorgente, risolviPorta } from './porte.js';
+import { rimappaCavi } from './cavi.js';
 import type { Filo, Grafo, Libreria, Nodo, Requisito, TipoEstremo } from './tipi.js';
 
 // Oltre questa profondità un interno standard non si apre più (difesa contro i cicli)
@@ -188,6 +189,7 @@ export function istanziaInterno(tipo: string, idIstanza: string, libreria: Libre
             return { ownerId: nodo.id, reqId, ownerType, req };
         };
         const fili: Filo[] = [];
+        const nuoviFili = new Map<string, string>();
         (sorgente.edges ?? []).forEach((e) => {
             const a = estremo(e.sourceType, e.source, e.sourceHandle, percorsoSorgente(e));
             const b = estremo(e.targetType, e.target, e.targetHandle, percorsoDestinazione(e));
@@ -203,10 +205,14 @@ export function istanziaInterno(tipo: string, idIstanza: string, libreria: Libre
             };
             if (a.percorso?.length) filo.sourcePercorso = a.percorso;
             if (b.percorso?.length) filo.targetPercorso = b.percorso;
+            nuoviFili.set(e.id, filo.id);
             fili.push(filo);
         });
 
         const grafo: Grafo = { nodes: nodi, edges: fili, parentReqPositions: {} };
+        // Cavi dell'interno (spec 0036, AC-8): con i nuovi id, un cavo senza uno dei due blocchi si scarta
+        const cavi = rimappaCavi(sorgente.cavi, (id) => nuoviId.get(id)?.id, (id) => nuoviFili.get(id));
+        if (cavi.length) grafo.cavi = cavi;
         Object.entries(sorgente.parentReqPositions ?? {}).forEach(([reqId, p]) => {
             if (requisitiContenitore.some((r) => r.id === reqId)) grafo.parentReqPositions![reqId] = { x: p.x, y: p.y };
         });
