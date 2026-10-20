@@ -98,6 +98,14 @@ export async function apriApp(opzioni: OpzioniCopia & { env?: Record<string, str
     });
     const pagina = await app.firstWindow();
     await pagina.waitForLoadState('domcontentloaded');
+    // Su uno schermo piccolo (il runner della CI è 1024x768) la finestra non arriva a 1400x900: lo zoom ridotto
+    // ridà alla pagina la stessa area in pixel CSS, così pannelli e lavagna hanno la misura di sempre
+    await app.evaluate(({ BrowserWindow }) => {
+        const w = BrowserWindow.getAllWindows()[0];
+        if (!w) return;
+        const { width, height } = w.getContentBounds();
+        w.webContents.setZoomFactor(Math.min(1, width / 1384, height / 861));
+    });
     return {
         ...copia,
         app,

@@ -79,7 +79,7 @@ test('🖼 Immagine: il livello come SVG e PNG; il Word dell\'IRS ha il diagramm
     try {
         await pronta(pagina);
         await pagina.locator('#btnImmagine').click();
-        await pagina.locator('#menuImmagine [data-formato="svg"]').click();
+        await pagina.locator('#menuImmagine [data-formato="svg"][data-strato="interfacce"]').click();
         const svg = (await scaricato('sistema-radice.svg')).toString('utf-8');
         expect(svg).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
         expect(svg).toContain('>Alimentatore</text>');
@@ -87,7 +87,7 @@ test('🖼 Immagine: il livello come SVG e PNG; il Word dell\'IRS ha il diagramm
         await expect(pagina.locator('#menuImmagine')).toBeHidden();
 
         await pagina.locator('#btnImmagine').click();
-        await pagina.locator('#menuImmagine [data-formato="png"]').click();
+        await pagina.locator('#menuImmagine [data-formato="png"][data-strato="interfacce"]').click();
         expect((await scaricato('sistema-radice.png')).subarray(1, 4).toString('latin1')).toBe('PNG');
 
         await pagina.locator('#btnDocumenti').click();
